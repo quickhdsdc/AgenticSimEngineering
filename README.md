@@ -113,6 +113,7 @@ These commands require the isolated robot environment described above.
 
 ```bash
 uv sync --locked --extra harness --extra des-reference --extra festo
+uv run --no-sync python scripts/prepare_festo_example.py
 uv run --no-sync python scripts/doctor.py --profile festo
 uv run --no-sync python -m agenticsim semantic --help
 ```

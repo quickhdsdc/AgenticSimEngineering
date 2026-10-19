@@ -43,6 +43,7 @@ jobs:
         with:
           node-version: '22'
       - run: uv sync --locked --extra dev --extra harness --extra des-reference --extra festo
+      - run: uv run --no-sync python scripts/prepare_festo_example.py
       - run: npm ci --prefix components/harness/frontend
       - run: npm ci --prefix components/visualization
       - run: uv run --no-sync python work/tools/check.py --profile dev
