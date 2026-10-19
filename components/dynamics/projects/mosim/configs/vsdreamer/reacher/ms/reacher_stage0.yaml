@@ -1,0 +1,33 @@
+training:
+  training_stage: 0
+  seed: 42
+  lr: 0.004
+  num_epochs : 1000000000
+  t : 0.02
+  batch_size : 50000
+  save_path : 'ckpt/vsdreamer/reacher/ms/stage0'
+  keep_top : 5
+model:
+  ## model_param:
+  v_dim : 2
+  action_dim : 2
+  real_t : 0.02
+  activation : 'softplus' #['softplus','atan','relu']
+  ### M Module:
+  m_hidden_block_num : 3
+  m_network_width : 64
+  ### B Module:
+  b_hidden_block_num : 3
+  b_network_width : 64
+  ### action_module_param:
+  act_network_type: 'MLP' #['ResidualNetwork','MLP','None']
+  act_hidden_block_num : 1
+  act_network_width : 32
+  ### correctors:
+  crt_num : 1
+  crt_hidden_block_num : 3
+  crt_network_width : 64
+data:
+  ## data_path:
+  train_data_path : 'data/reacher/random/reacher_random.npz'
+  test_data_path : 'data/reacher/random/reacher_random_test_16_step.npz'

@@ -1,0 +1,34 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Agent runtime
+/logs/
+# Real LLM config carries secrets; only the .example is tracked
+src/opsworld/agent/config.toml
+
+# Collaborator material — Lena Langenfeld's unpublished dissertation concept
+# and first-draft implementation. Reference only, no build dependency.
+# Deliberately untracked: git history is sticky and this is third-party
+# pre-publication work. Revisit once repository arrangements are agreed.
+/_others/
+
+# Design-canvas working files. The runtime assets actually used by the console
+# live under frontend/_ds/; the root export is a duplicate.
+/_ds/
+**/.thumbnail
+
+# draw.io creates an editor backup next to the real diagram.
+docs/.$*.bkp
+
+# Workspace-local caches used when the host user cache/temp directories are
+# unavailable (for example in a restricted CI or agent sandbox).
+/.uv-cache-test/
+/.pytest-tmp/

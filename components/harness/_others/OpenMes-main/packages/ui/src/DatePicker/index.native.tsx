@@ -1,0 +1,592 @@
+/**
+ * Calendar + DatePicker — Geist White system (design ref: OpenMES Components.dc.html §13).
+ * Native twin of index.web.jsx — identical props API. `Calendar` is the inline
+ * month grid (Monday-first, leading blanks, weekends faint, today = chip + accent
+ * dot, selected = accent fill); `DatePicker` opens it in an RN Modal over the
+ * scrim. Values are ISO `YYYY-MM-DD` strings.
+ *
+ * The header's month and year are tappable chips that swap the body for a
+ * 3-column month or year grid, same as the web twin.
+ *
+ * Accessibility mirrors the web twin as far as the platform allows: days are
+ * spoken as "Saturday, 22 August 2026" rather than their ISO string, paging the
+ * month is announced (nothing on screen has focus to carry it), and the popover
+ * is an accessibility-modal so the screen behind it is not swiped into. The
+ * grid/gridcell semantics and the roving tab stop have no native equivalent —
+ * there is no Tab key and no grid role — so they stop at the web twin.
+ *
+ * Not ported from web: the `range` (from→to) mode. It exists to drive the
+ * column-filter row of `DataTable`, which is web-only by design — there is no
+ * native data table to filter. Add it here if a mobile screen ever needs one.
+ */
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    AccessibilityInfo,
+    Modal,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+    type StyleProp,
+    type ViewStyle,
+} from 'react-native';
+
+import { colors, fonts, radius } from '../tokens';
+import { Icon } from '../Icon';
+
+const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+];
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const toISO = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
+function parseISO(s?: string | null): { y: number; m: number; d: number } | null {
+    if (!s) return null;
+    const [y, m, d] = String(s).split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return { y, m: m - 1, d };
+}
+function todayISO(): string {
+    const t = new Date();
+    return toISO(t.getFullYear(), t.getMonth(), t.getDate());
+}
+const inRange = (iso: string, min?: string, max?: string) => (!min || iso >= min) && (!max || iso <= max);
+
+/**
+ * `months` is the abbreviated set to spell the date with — English unless the
+ * caller passes its own, which is how the trigger stays in the same language as
+ * the calendar under it.
+ */
+export function formatDateLong(iso?: string | null, months: string[] = MONTHS_SHORT): string {
+    const p = parseISO(iso);
+    return p ? `${p.d} ${months[p.m]} ${p.y}` : '';
+}
+
+interface Cell {
+    blank: boolean;
+    key: string;
+    d?: number;
+    iso?: string;
+    weekend?: boolean;
+}
+
+function buildCells(year: number, month: number): Cell[] {
+    const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // Mon = 0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: Cell[] = [];
+    for (let i = 0; i < firstDow; i++) cells.push({ blank: true, key: `b${i}` });
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dow = new Date(year, month, d).getDay();
+        cells.push({ blank: false, key: `d${d}`, d, iso: toISO(year, month, d), weekend: dow === 0 || dow === 6 });
+    }
+    return cells;
+}
+
+export interface CalendarProps {
+    value?: string | null;
+    onChange?: (iso: string | null) => void;
+    min?: string;
+    max?: string;
+    hideToday?: boolean;
+    /** Copy — English defaults; the app passes translations, as on web. */
+    todayLabel?: string;
+    todayWord?: string;
+    prevMonthLabel?: string;
+    nextMonthLabel?: string;
+    monthLabels?: string[];
+    monthShortLabels?: string[];
+    weekdayLabels?: string[];
+    /** BCP-47 tag behind the spoken day names. Defaults to English. */
+    locale?: string;
+    style?: StyleProp<ViewStyle>;
+}
+
+export function Calendar({
+    value,
+    onChange,
+    min,
+    max,
+    hideToday = false,
+    todayLabel = 'Today',
+    todayWord = 'today',
+    prevMonthLabel = 'Previous month',
+    nextMonthLabel = 'Next month',
+    monthLabels = MONTHS,
+    monthShortLabels = MONTHS_SHORT,
+    weekdayLabels = WEEKDAYS,
+    locale = 'en',
+    style,
+}: CalendarProps) {
+    const selected = value || null;
+    const initial = parseISO(selected) ?? parseISO(todayISO())!;
+    const [view, setView] = useState({ y: initial.y, m: initial.m });
+    /** Which body the header chips have swapped in. */
+    const [mode, setMode] = useState<'days' | 'months' | 'years'>('days');
+
+    useEffect(() => {
+        const p = parseISO(selected);
+        if (p && (p.y !== view.y || p.m !== view.m)) setView({ y: p.y, m: p.m });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selected]);
+
+    const cells = useMemo(() => buildCells(view.y, view.m), [view.y, view.m]);
+    const today = todayISO();
+    const todayShort = useMemo(() => {
+        const t = parseISO(today)!;
+        return `${t.d} ${monthShortLabels[t.m]}`;
+    }, [today, monthShortLabels]);
+    const todaySelectable = inRange(today, min, max);
+
+    /** Spoken day names; the cells themselves are bare digits. */
+    const dayName = useMemo(() => {
+        const fmt = new Intl.DateTimeFormat(locale, {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        });
+        return (iso: string) => {
+            const p = parseISO(iso);
+            return p ? fmt.format(new Date(p.y, p.m, p.d)) : iso;
+        };
+    }, [locale]);
+
+    /**
+     * Paging repaints the whole grid and nothing on screen holds focus to carry
+     * the change, so the new month is spoken outright.
+     */
+    const goTo = (y: number, m: number) => {
+        setView({ y, m });
+        AccessibilityInfo.announceForAccessibility(`${monthLabels[m]} ${y}`);
+    };
+
+    const step = (delta: number) => {
+        const dt = new Date(view.y, view.m + delta, 1);
+        goTo(dt.getFullYear(), dt.getMonth());
+    };
+
+    /** Tapping the chip of the view you are in returns to the days grid. */
+    const swap = (next: 'months' | 'years') => setMode((m) => (m === next ? 'days' : next));
+
+    const years = useMemo(() => Array.from({ length: 12 }, (_, i) => view.y - 6 + i), [view.y]);
+
+    return (
+        <View style={[styles.calendar, style]}>
+            <View style={styles.header}>
+                <Pressable accessibilityRole="button" accessibilityLabel={prevMonthLabel} onPress={() => step(-1)} style={styles.navBtn}>
+                    <Text style={styles.navGlyph}>‹</Text>
+                </Pressable>
+                <View style={styles.headChips}>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: mode === 'months' }}
+                        onPress={() => swap('months')}
+                        style={styles.headChip}
+                    >
+                        <Text style={styles.headChipText}>{monthLabels[view.m]} ▾</Text>
+                    </Pressable>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: mode === 'years' }}
+                        onPress={() => swap('years')}
+                        style={styles.headChip}
+                    >
+                        <Text style={[styles.headChipText, styles.headChipMono]}>{view.y} ▾</Text>
+                    </Pressable>
+                </View>
+                <Pressable accessibilityRole="button" accessibilityLabel={nextMonthLabel} onPress={() => step(1)} style={styles.navBtn}>
+                    <Text style={styles.navGlyph}>›</Text>
+                </Pressable>
+            </View>
+
+            {mode === 'months' && (
+                <View style={styles.pickGrid}>
+                    {monthShortLabels.map((label, i) => (
+                        <Pressable
+                            key={label}
+                            accessibilityRole="button"
+                            accessibilityLabel={monthLabels[i]}
+                            accessibilityState={{ selected: i === view.m }}
+                            onPress={() => { goTo(view.y, i); setMode('days'); }}
+                            style={[styles.pickCell, i === view.m && styles.pickCellOn]}
+                        >
+                            <Text style={[styles.pickText, i === view.m && styles.pickTextOn]}>{label}</Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
+
+            {mode === 'years' && (
+                <View style={styles.pickGrid}>
+                    {years.map((y) => (
+                        <Pressable
+                            key={y}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: y === view.y }}
+                            onPress={() => { goTo(y, view.m); setMode('days'); }}
+                            style={[styles.pickCell, y === view.y && styles.pickCellOn]}
+                        >
+                            <Text style={[styles.pickText, styles.headChipMono, y === view.y && styles.pickTextOn]}>{y}</Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
+
+            {mode === 'days' && (
+            <>
+            <View style={styles.weekRow}>
+                {weekdayLabels.map((w) => (
+                    <View key={w} style={styles.cell}>
+                        <Text style={styles.weekday}>{w}</Text>
+                    </View>
+                ))}
+            </View>
+            <View style={styles.grid}>
+                {cells.map((c) => {
+                    if (c.blank) return <View key={c.key} style={[styles.cell, styles.blank]} />;
+                    const iso = c.iso!;
+                    const isSelected = iso === selected;
+                    const isToday = iso === today;
+                    const disabled = !inRange(iso, min, max);
+                    return (
+                        <View key={c.key} style={styles.cell}>
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={dayName(iso)}
+                                accessibilityState={{ selected: isSelected, disabled }}
+                                disabled={disabled}
+                                onPress={() => onChange?.(iso)}
+                                style={[styles.day, isSelected && styles.daySelected, !isSelected && isToday && styles.dayToday]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.dayText,
+                                        disabled && styles.dayDisabled,
+                                        !disabled && !isSelected && !isToday && c.weekend && styles.dayWeekend,
+                                        !disabled && isToday && !isSelected && styles.dayTodayText,
+                                        isSelected && styles.daySelectedText,
+                                    ]}
+                                >
+                                    {c.d}
+                                </Text>
+                                {isToday && !isSelected && <View style={styles.todayDot} />}
+                            </Pressable>
+                        </View>
+                    );
+                })}
+            </View>
+            </>
+            )}
+            {!hideToday && (
+                <View style={styles.footer}>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: !todaySelectable }}
+                        disabled={!todaySelectable}
+                        onPress={() => onChange?.(today)}
+                    >
+                        <Text style={[styles.todayBtn, !todaySelectable && styles.todayBtnDisabled]}>{todayLabel}</Text>
+                    </Pressable>
+                    <View style={styles.legend}>
+                        <View style={styles.legendDot} />
+                        <Text style={styles.legendText}>{todayShort} = {todayWord}</Text>
+                    </View>
+                </View>
+            )}
+        </View>
+    );
+}
+
+export interface DatePickerProps {
+    value?: string | null;
+    onChange?: (iso: string | null) => void;
+    label?: string;
+    placeholder?: string;
+    min?: string;
+    max?: string;
+    format?: (iso?: string | null) => string;
+    disabled?: boolean;
+    /** The popover's accessible name. */
+    dialogLabel?: string;
+    /** Forwarded to Calendar (copy, month names, locale). */
+    calendarProps?: Partial<CalendarProps>;
+    style?: StyleProp<ViewStyle>;
+}
+
+export function DatePicker({
+    value,
+    onChange,
+    label,
+    placeholder = 'Select date',
+    min,
+    max,
+    format,
+    disabled = false,
+    dialogLabel = 'Choose date',
+    calendarProps,
+    style,
+}: DatePickerProps) {
+    const [open, setOpen] = useState(false);
+    // The trigger spells the value with the same month names the panel uses, so
+    // a translated calendar can't sit under an English date.
+    const months = calendarProps?.monthShortLabels ?? MONTHS_SHORT;
+    const fmt = format ?? ((iso?: string | null) => formatDateLong(iso, months));
+    const display = value ? fmt(value) : '';
+
+    return (
+        <View style={style}>
+            {label != null && <Text style={styles.fieldLabel}>{label}</Text>}
+            <Pressable
+                accessibilityRole="button"
+                // The field label is a caption, not a form label, so it is folded
+                // into the name — "Due date, 13 Jul 2026" rather than the date alone.
+                accessibilityLabel={[label, display || placeholder].filter(Boolean).join(', ')}
+                accessibilityState={{ disabled, expanded: open }}
+                disabled={disabled}
+                onPress={() => setOpen(true)}
+                style={[styles.trigger, disabled && styles.triggerDisabled]}
+            >
+                <Text style={[styles.triggerLabel, !display && styles.triggerPlaceholder]}>{display || placeholder}</Text>
+                {/* Colour is pinned, not inherited: the trigger's own label
+                    switches between ink and placeholder, and the glyph stays
+                    quiet either way — same as the web twin. */}
+                <Icon name="calendar" size={16} color={colors.faint} />
+            </Pressable>
+            <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+                <Pressable style={styles.scrim} onPress={() => setOpen(false)}>
+                    {/* accessibilityViewIsModal keeps VoiceOver/TalkBack inside the
+                        popover; without it the screen behind stays swipeable. */}
+                    <Pressable
+                        accessibilityViewIsModal
+                        accessibilityLabel={dialogLabel}
+                        style={styles.popover}
+                    >
+                        <Calendar
+                            value={value}
+                            onChange={(iso) => { onChange?.(iso); if (iso) setOpen(false); }}
+                            min={min}
+                            max={max}
+                            {...calendarProps}
+                        />
+                    </Pressable>
+                </Pressable>
+            </Modal>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    calendar: {
+        width: 280,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 14,
+    },
+    navBtn: {
+        width: 28,
+        height: 28,
+        borderRadius: 7,
+        borderWidth: 1,
+        borderColor: colors.line,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    navGlyph: {
+        fontSize: 14,
+        color: colors.muted,
+        lineHeight: 16,
+    },
+    headChips: {
+        flexDirection: 'row',
+        gap: 4,
+    },
+    headChip: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        backgroundColor: colors.chip,
+    },
+    headChipText: {
+        fontSize: 13,
+        fontFamily: fonts.sans.native.semibold,
+        color: colors.ink,
+    },
+    headChipMono: {
+        fontFamily: fonts.mono.native.medium,
+        fontSize: 12.5,
+    },
+    // Month / year quick-pick grid: 3 columns of 36px cells.
+    pickGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    pickCell: {
+        width: `${100 / 3}%`,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+    },
+    pickCellOn: {
+        backgroundColor: colors.ink,
+    },
+    pickText: {
+        fontSize: 12,
+        color: colors.ink,
+    },
+    pickTextOn: {
+        color: colors.onInk,
+        fontFamily: fonts.sans.native.semibold,
+    },
+    weekRow: {
+        flexDirection: 'row',
+        marginBottom: 6,
+    },
+    grid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    cell: {
+        width: `${100 / 7}%`,
+        alignItems: 'center',
+    },
+    blank: {
+        height: 34,
+    },
+    weekday: {
+        fontSize: 9.5,
+        letterSpacing: 0.4,
+        fontFamily: fonts.mono.native.regular,
+        color: colors.faint,
+        height: 24,
+        lineHeight: 24,
+    },
+    day: {
+        height: 34,
+        width: 34,
+        borderRadius: radius.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    daySelected: {
+        backgroundColor: colors.accent,
+    },
+    dayToday: {
+        backgroundColor: colors.chip,
+    },
+    dayText: {
+        fontSize: 12.5,
+        fontFamily: fonts.mono.native.regular,
+        color: colors.ink,
+    },
+    dayWeekend: {
+        color: colors.faint,
+    },
+    dayDisabled: {
+        color: colors.faintest,
+    },
+    dayTodayText: {
+        color: colors.ink,
+        fontFamily: fonts.mono.native.semibold,
+    },
+    daySelectedText: {
+        color: '#FFFFFF',
+        fontFamily: fonts.mono.native.semibold,
+    },
+    todayDot: {
+        position: 'absolute',
+        bottom: 4,
+        width: 3,
+        height: 3,
+        borderRadius: 2,
+        backgroundColor: colors.accent,
+    },
+    footer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 14,
+        paddingTop: 13,
+        borderTopWidth: 1,
+        borderTopColor: colors.line2,
+    },
+    todayBtn: {
+        fontSize: 12.5,
+        fontFamily: fonts.sans.native.semibold,
+        color: colors.accent,
+    },
+    todayBtnDisabled: {
+        color: colors.faintest,
+    },
+    legend: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    legendDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: colors.accent,
+    },
+    legendText: {
+        fontSize: 10,
+        fontFamily: fonts.mono.native.regular,
+        color: colors.faint,
+    },
+    // trigger (design §14)
+    fieldLabel: {
+        textTransform: 'uppercase',
+        fontSize: 9.5,
+        letterSpacing: 0.8,
+        fontFamily: fonts.mono.native.regular,
+        color: colors.faint,
+        marginBottom: 8,
+    },
+    trigger: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+        backgroundColor: colors.bg,
+        borderWidth: 1,
+        borderColor: colors.line,
+        borderRadius: radius.sm,
+        paddingVertical: 10,
+        paddingHorizontal: 13,
+    },
+    triggerDisabled: {
+        opacity: 0.6,
+    },
+    triggerLabel: {
+        fontSize: 13,
+        fontFamily: fonts.mono.native.regular,
+        color: colors.ink,
+        flexShrink: 1,
+    },
+    triggerPlaceholder: {
+        color: colors.faint,
+    },
+    scrim: {
+        flex: 1,
+        backgroundColor: colors.scrim,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    popover: {
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.line,
+        borderRadius: radius.md,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 18 },
+        shadowRadius: 24,
+        shadowOpacity: 0.18,
+        elevation: 12,
+    },
+});

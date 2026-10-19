@@ -1,0 +1,34 @@
+training:
+  training_stage: -1
+  seed: 18829
+  lr: 0.004
+  num_epochs : 10000000
+  t : 0.025
+  batch_size : 50000
+  save_path : 'ckpt/vsdreamer/walker/base'
+  keep_top : 5
+model:
+  ## model_param:
+  q_dim : 9
+  v_dim : 9
+  action_dim : 6
+  real_t : 0.025
+  activation : 'softplus' #['softplus','atan','relu']
+  ### M Module:
+  m_hidden_block_num : 3
+  m_network_width : 64
+  ### B Module:
+  b_hidden_block_num : 3
+  b_network_width : 64
+  ### action_module_param:
+  act_network_type: 'MLP' #['ResidualNetwork','MLP','None']
+  act_hidden_block_num : 3
+  act_network_width : 32
+  ### correctors:
+  crt_num : 2
+  crt_hidden_block_num : 5
+  crt_network_width : 64
+data:
+  ## data_path:
+  train_data_path : 'data/walker/random/dmc_walker.npz'
+  test_data_path : 'data/walker/random/dmc_walker_test.npz'

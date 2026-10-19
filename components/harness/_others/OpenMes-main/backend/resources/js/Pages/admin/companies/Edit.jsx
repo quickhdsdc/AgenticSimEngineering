@@ -1,0 +1,23 @@
+import { Head } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import ResourceForm from '../../../components/ResourceForm';
+import { COMPANY_FIELDS, companyInitial } from './fields';
+
+export default function CompanyEdit({ company }) {
+    return (
+        <div className="max-w-7xl mx-auto">
+            <Head title={`Edit ${company.name}`} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Company</h1>
+            <ResourceForm
+                action={`/admin/companies/${company.id}`}
+                method="put"
+                fields={COMPANY_FIELDS}
+                initial={companyInitial(company)}
+                submitLabel="Save Changes"
+                cancelHref="/admin/companies"
+            />
+        </div>
+    );
+}
+
+CompanyEdit.layout = (page) => <AppLayout>{page}</AppLayout>;

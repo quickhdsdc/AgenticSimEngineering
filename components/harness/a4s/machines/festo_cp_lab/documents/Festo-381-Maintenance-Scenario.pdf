@@ -1,0 +1,180 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 2 /Kids [4 0 R 6 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 1493 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: pneumatic-leak-scenario) Tj
+T*
+/F1 9 Tf
+(TITLE: Demo fault: pressure loss / suspected pneumatic leak) Tj
+T*
+/F1 9 Tf
+(ORIGIN: DEMO_FICTION) Tj
+T*
+/F1 7 Tf
+(SOURCE: A4S authored scenario v1; all numeric values synthetic) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(The synthetic air-pressure signal starts at 6.0 bar. After 8 seconds it drops by 0.13) Tj
+T*
+/F1 9 Tf
+(bar per second, down to 3.8 bar. Warning is below 5.2 bar; a fault is raised after) Tj
+T*
+/F1 9 Tf
+(pressure remains below 4.8 bar for 3 seconds. The fictional failure mechanism is a) Tj
+T*
+/F1 9 Tf
+(leaking pneumatic connector: available pressure falls, the press cannot remain ready,) Tj
+T*
+/F1 9 Tf
+(the synthetic collective fault becomes true, and order A requires a maintenance hold.) Tj
+T*
+/F1 9 Tf
+(Turning-over readiness stays true and conveyor speed is 0 in the fault state. This is a) Tj
+T*
+/F1 9 Tf
+(simulated hypothesis, not a measured diagnosis, calibrated threshold or PLC alarm.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 1 | 2026-09-13 | FestoWorkCenterStamping_381) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 1) Tj
+T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 1604 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: maintenance-playbook) Tj
+T*
+/F1 9 Tf
+(TITLE: Demo maintenance review and business response) Tj
+T*
+/F1 9 Tf
+(ORIGIN: DEMO_FICTION) Tj
+T*
+/F1 7 Tf
+(SOURCE: A4S scenario v1 / MaintenanceInstructions application profile based on IDTA 02018) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(On the simulated pressure alarm, retrieve technical context and preserve the signal) Tj
+T*
+/F1 9 Tf
+(history. Report suspected air leakage as the scenario hypothesis. A qualified operator) Tj
+T*
+/F1 9 Tf
+(assesses the pneumatic connection under approved site isolation and maintenance) Tj
+T*
+/F1 9 Tf
+(procedures; the agent does not issue physical repair instructions or operate the PLC.) Tj
+T*
+/F1 9 Tf
+(Read OpenMES orders, dry-run a blocking TOOL_FAILURE issue on A, then compare moving the) Tj
+T*
+/F1 9 Tf
+(not-yet-started B to the simulated backup. Each business mutation requires approval and) Tj
+T*
+/F1 9 Tf
+(read-back. The demo planning allowance for operator review is 30 minutes; it is an) Tj
+T*
+/F1 9 Tf
+(invented scheduling assumption, not a predicted or guaranteed repair time.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 1 | 2026-09-13 | FestoWorkCenterStamping_381) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 2) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000000317 00000 n 
+0000001862 00000 n 
+0000001988 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+3644
+%%EOF

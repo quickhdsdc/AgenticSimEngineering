@@ -1,0 +1,4 @@
+System has two machines M1and M2 with delay 2. 
+ Source (ID= SRC) with inter arrival time of 1.2. 
+ SRC is connected to M1 and M1 to M2 and M2 to Sink via Buffers, 
+B_src_1, B_1_2, B_2_3. All buffers have a capacity of 2.

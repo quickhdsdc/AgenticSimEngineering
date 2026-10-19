@@ -1,0 +1,171 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 2 /Kids [4 0 R 6 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 1282 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: phone-housing-route) Tj
+T*
+/F1 9 Tf
+(TITLE: Demo process: smartphone housing) Tj
+T*
+/F1 9 Tf
+(ORIGIN: DEMO_FICTION) Tj
+T*
+/F1 7 Tf
+(SOURCE: A4S authored scenario v1; not manufacturer process data) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(For this exhibition, A4S-DEMO-PART represents a smartphone housing. A carrier enters a) Tj
+T*
+/F1 9 Tf
+(stamping/pressing step, then the turning-over module reorients it 180 degrees for a) Tj
+T*
+/F1 9 Tf
+(fictional downstream inspection handoff. Order A is affected; upcoming order B can be) Tj
+T*
+/F1 9 Tf
+(placed on the explicitly simulated A4S-BACKUP. Existing seeded orders are) Tj
+T*
+/F1 9 Tf
+(ACCEPTED/planned, not evidence of running batches, accepted finished parts or real) Tj
+T*
+/F1 9 Tf
+(capacity.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 1 | 2026-09-13 | FestoWorkCenterStamping_381) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 1) Tj
+T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 1377 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: recovery-boundaries) Tj
+T*
+/F1 9 Tf
+(TITLE: Recovery criteria and false conclusions to avoid) Tj
+T*
+/F1 9 Tf
+(ORIGIN: PROJECT_CONTRACT) Tj
+T*
+/F1 7 Tf
+(SOURCE: A4S MES action contracts / architecture tutorial) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(MES owns business rules, status and persistence. AAS holds semantic references, not) Tj
+T*
+/F1 9 Tf
+(copied order status. PLC interlocks stay authoritative for physical safety. Closing an) Tj
+T*
+/F1 9 Tf
+(issue does not repair a leak. Resolving a blocking issue recalculates order status and) Tj
+T*
+/F1 9 Tf
+(may return an accepted no-batch order to PENDING; read order_after rather than blindly) Tj
+T*
+/F1 9 Tf
+(resuming. A write timeout has unknown effects; read before retrying. The monitor stops) Tj
+T*
+/F1 9 Tf
+(when the operator ends the simulation; this does not prove real recovery.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 1 | 2026-09-13 | FestoWorkCenterStamping_381) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 2) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000000317 00000 n 
+0000001651 00000 n 
+0000001777 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+3206
+%%EOF

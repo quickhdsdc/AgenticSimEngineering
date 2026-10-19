@@ -1,0 +1,16 @@
+{
+  "name": "agenticsim-visualization",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local Three.js resources and browser verification for Study playback",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

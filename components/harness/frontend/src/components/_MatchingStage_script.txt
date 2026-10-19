@@ -1,0 +1,303 @@
+// Load available AAS properties
+const loadAasProperties = async (): Promise<void> => {
+  const aasIdShort = props.data.targetAAS
+  if (!aasIdShort) {
+    console.warn('No AAS ID Short (targetAAS) provided, cannot load properties')
+    return
+  }
+
+  try {
+    const result = await aasService.getAASProperties(aasIdShort)
+    availableProperties.value = result.properties || []
+    groupedProperties.value = result.grouped || {}
+    console.log(`Loaded ${result.count} AAS properties for ${aasIdShort}`)
+  } catch (error) {
+    console.error('Error loading AAS properties:', error)
+    if (error instanceof ApiError) {
+      console.error(`API Error: ${error.status} - ${error.message}`)
+    }
+  }
+}
+
+// Watch for targetAAS changes and load properties when matching results are available
+watch(() => [props.data.targetAAS, props.data.matchedProperties.length], ([newAAS, newLength]) => {
+  if (newAAS && newLength > 0) {
+    loadAasProperties()
+  }
+}, { immediate: true })
+
+// Filter properties based on search
+const filteredGroupedProperties: ComputedRef<Record<string, AASProperty[]>> = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return groupedProperties.value
+  }
+
+  const query = searchQuery.value.toLowerCase()
+  const filtered: Record<string, AASProperty[]> = {}
+
+  for (const [group, propsList] of Object.entries(groupedProperties.value)) {
+    const matchedProps = propsList.filter(p =>
+      p.idShort.toLowerCase().includes(query) ||
+      (p.description && p.description.toLowerCase().includes(query)) ||
+      (p.semanticPath && p.semanticPath.toLowerCase().includes(query))
+    )
+    if (matchedProps.length > 0) {
+      filtered[group] = matchedProps
+    }
+  }
+
+  return filtered
+})
+
+// Get selected properties array from match object
+const getSelectedProperties = (match: ExtendedMatchedProperty): AASProperty[] => {
+  if (match.aasProperties && Array.isArray(match.aasProperties)) {
+    return match.aasProperties
+  }
+  if (match.aasProperty) {
+    return [{ idShort: match.aasProperty, type: match.aasType || '' }]
+  }
+  return []
+}
+
+// Check if a property is selected
+const isPropertySelected = (match: ExtendedMatchedProperty, idShort: string): boolean => {
+  const selected = getSelectedProperties(match)
+  return selected.some(p => (p.idShort || p) === idShort)
+}
+
+// Get match type based on selected properties
+const getMatchType = (match: ExtendedMatchedProperty): string => {
+  const selected = getSelectedProperties(match)
+  if (selected.length === 0) return 'none'
+
+  const hasCollection = selected.some(p => {
+    const type = p.type || match.aasType
+    return type === 'SubmodelElementCollection' || type === 'SubmodelElementList'
+  })
+
+  return hasCollection ? 'collection' : 'property'
+}
+
+const matchedCount: ComputedRef<number> = computed(() => {
+  return props.data.matchedProperties.filter(m => getMatchType(m as ExtendedMatchedProperty) !== 'none').length
+})
+
+const unmatchedCount: ComputedRef<number> = computed(() => {
+  return props.data.matchedProperties.filter(m => getMatchType(m as ExtendedMatchedProperty) === 'none').length
+})
+
+const selectedCount: ComputedRef<number> = computed(() => {
+  return props.data.matchedProperties.filter(m =>
+    (m as ExtendedMatchedProperty).selected !== false &&
+    getMatchType(m as ExtendedMatchedProperty) !== 'none'
+  ).length
+})
+
+const allMatchedSelected: ComputedRef<boolean> = computed(() => {
+  const matchedItems = props.data.matchedProperties.filter(m => getMatchType(m as ExtendedMatchedProperty) !== 'none')
+  return matchedItems.length > 0 && matchedItems.every(m => (m as ExtendedMatchedProperty).selected !== false)
+})
+
+const truncateValue = (value: any): string => {
+  if (!value) return ''
+  const str = String(value)
+  return str.length > 20 ? str.substring(0, 20) + '...' : str
+}
+
+const getConfidenceBadgeClass = (confidence: number): string => {
+  if (confidence >= 0.9) return 'confidence-badge confidence-high'
+  if (confidence >= 0.7) return 'confidence-badge confidence-medium'
+  return 'confidence-badge confidence-low'
+}
+
+const getMatchTypeBadgeClass = (matchType: string): string => {
+  if (matchType === 'property') return 'match-type-badge match-property'
+  if (matchType === 'collection') return 'match-type-badge match-collection'
+  return 'match-type-badge match-none'
+}
+
+const formatMatchType = (matchType: string): string => {
+  if (matchType === 'property') return 'Property'
+  if (matchType === 'collection') return 'Collection'
+  return 'No Match'
+}
+
+const getTypeClass = (type: string): string => {
+  if (type === 'SubmodelElementCollection' || type === 'SubmodelElementList') {
+    return 'type-collection'
+  }
+  return 'type-property'
+}
+
+const formatType = (type: string): string => {
+  if (type === 'SubmodelElementCollection') return 'SMC'
+  if (type === 'SubmodelElementList') return 'SML'
+  if (type === 'MultiLanguageProperty') return 'MLP'
+  if (type === 'ReferenceElement') return 'Ref'
+  return type.substring(0, 4)
+}
+
+const openDropdown = async (index: number, event: MouseEvent): Promise<void> => {
+  if (activeDropdown.value === index) {
+    activeDropdown.value = null
+  } else {
+    const cell = event.currentTarget as HTMLElement
+    const rect = cell.getBoundingClientRect()
+
+    dropdownPosition.value = {
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX,
+      width: Math.max(rect.width, 320)
+    }
+
+    activeDropdown.value = index
+    searchQuery.value = ''
+
+    await nextTick()
+    if (searchInput.value) {
+      searchInput.value.focus()
+    }
+  }
+}
+
+const closeDropdown = (): void => {
+  activeDropdown.value = null
+}
+
+const closeDropdownOnOutsideClick = (event: MouseEvent): void => {
+  if (activeDropdown.value !== null && !(event.target as HTMLElement).closest('.property-selector')) {
+    activeDropdown.value = null
+  }
+}
+
+const togglePropertySelection = (
+  index: number,
+  idShort: string,
+  type: string,
+  confidence: number,
+  propData: AASProperty | null = null
+): void => {
+  const matches = [...props.data.matchedProperties] as ExtendedMatchedProperty[]
+  const currentMatch = matches[index]
+
+  if (!currentMatch.originalMatch && currentMatch.aasProperty) {
+    currentMatch.originalMatch = currentMatch.aasProperty
+    currentMatch.originalType = currentMatch.aasType
+    currentMatch.originalConfidence = currentMatch.confidence
+  }
+
+  let currentSelections: AASProperty[] = []
+  if (currentMatch.aasProperties && Array.isArray(currentMatch.aasProperties)) {
+    currentSelections = [...currentMatch.aasProperties]
+  } else if (currentMatch.aasProperty) {
+    currentSelections = [{
+      idShort: currentMatch.aasProperty,
+      type: currentMatch.aasType || '',
+      semanticPath: currentMatch.semanticPath || '',
+      apiPath: currentMatch.apiPath || '',
+      semanticId: currentMatch.semanticId || ''
+    }]
+  }
+
+  const existingIndex = currentSelections.findIndex(p => p.idShort === idShort)
+
+  if (existingIndex >= 0) {
+    currentSelections.splice(existingIndex, 1)
+  } else {
+    currentSelections.push({
+      idShort: idShort,
+      type: type,
+      semanticPath: propData?.semanticPath || '',
+      apiPath: propData?.apiPath || '',
+      semanticId: propData?.semanticId || '',
+      description: propData?.description || ''
+    })
+  }
+
+  matches[index] = {
+    ...currentMatch,
+    aasProperties: currentSelections,
+    aasProperty: currentSelections.length > 0 ? currentSelections[0].idShort : '',
+    aasType: currentSelections.length > 0 ? currentSelections[0].type : '',
+    matchType: currentSelections.length > 0 ?
+      (currentSelections.some(p => p.type === 'SubmodelElementCollection' || p.type === 'SubmodelElementList') ? 'collection' : 'property')
+      : 'none',
+    confidence: currentSelections.length > 0 ? confidence : 0,
+    selected: currentSelections.length > 0,
+    reason: currentSelections.length > 0 ?
+      (currentSelections.length > 1 ? `Manually selected ${currentSelections.length} properties` : 'Manually selected')
+      : 'No match selected'
+  }
+
+  emit('update', 'matchedProperties', matches)
+}
+
+const clearAllSelections = (index: number): void => {
+  const matches = [...props.data.matchedProperties] as ExtendedMatchedProperty[]
+  const currentMatch = matches[index]
+
+  matches[index] = {
+    ...currentMatch,
+    aasProperties: [],
+    aasProperty: '',
+    aasType: '',
+    matchType: 'none',
+    confidence: 0,
+    selected: false,
+    reason: 'No match selected'
+  }
+
+  emit('update', 'matchedProperties', matches)
+  activeDropdown.value = null
+}
+
+const toggleMatch = (index: number): void => {
+  const match = props.data.matchedProperties[index] as ExtendedMatchedProperty
+  if (getMatchType(match) === 'none') return
+
+  const matches = [...props.data.matchedProperties] as ExtendedMatchedProperty[]
+  matches[index] = {
+    ...matches[index],
+    selected: matches[index].selected === false ? true : false
+  }
+  emit('update', 'matchedProperties', matches)
+}
+
+const toggleAllMatched = (): void => {
+  const newValue = !allMatchedSelected.value
+  const matches = props.data.matchedProperties.map(m => ({
+    ...m,
+    selected: getMatchType(m as ExtendedMatchedProperty) !== 'none' ? newValue : false
+  }))
+  emit('update', 'matchedProperties', matches)
+}
+
+const selectAllMatched = (): void => {
+  const matches = props.data.matchedProperties.map(m => ({
+    ...m,
+    selected: getMatchType(m as ExtendedMatchedProperty) !== 'none'
+  }))
+  emit('update', 'matchedProperties', matches)
+}
+
+const deselectAll = (): void => {
+  const matches = props.data.matchedProperties.map(m => ({
+    ...m,
+    selected: false
+  }))
+  emit('update', 'matchedProperties', matches)
+}
+
+const filterProperties = (): void => {
+  // Filtering is handled by computed property
+}
+
+// Close dropdown on outside click
+onMounted(() => {
+  document.addEventListener('click', closeDropdownOnOutsideClick as EventListener)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdownOnOutsideClick as EventListener)
+})

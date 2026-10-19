@@ -1,0 +1,638 @@
+{
+  "outcomes": [
+    {
+      "arm": "baseline",
+      "task": "read",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "report names the path and its collection",
+      "steps": 2,
+      "input_tokens": 5476,
+      "output_tokens": 1017,
+      "seconds": 14.5,
+      "tool_calls": 2,
+      "session": "exp-baseline-read-1-8e1ed5",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "read",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "report names the path and its collection",
+      "steps": 3,
+      "input_tokens": 7903,
+      "output_tokens": 1008,
+      "seconds": 15.2,
+      "tool_calls": 2,
+      "session": "exp-cli-read-1-d2709d",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "explore",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "names DigitalNameplate with 8 mandatory slots",
+      "steps": 3,
+      "input_tokens": 7791,
+      "output_tokens": 1393,
+      "seconds": 19.2,
+      "tool_calls": 2,
+      "session": "exp-baseline-explore-1-61eedc",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "explore",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "names DigitalNameplate with 8 mandatory slots",
+      "steps": 4,
+      "input_tokens": 9322,
+      "output_tokens": 3220,
+      "seconds": 42.4,
+      "tool_calls": 3,
+      "session": "exp-cli-explore-1-7d72b4",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "author",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "8 mandatory slots, kind=Instance, no TemplateQualifiers",
+      "steps": 8,
+      "input_tokens": 31676,
+      "output_tokens": 3746,
+      "seconds": 53.6,
+      "tool_calls": 8,
+      "session": "exp-baseline-author-1-2ab2b1",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "author",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "8 mandatory slots, kind=Instance, no TemplateQualifiers",
+      "steps": 8,
+      "input_tokens": 25892,
+      "output_tokens": 2873,
+      "seconds": 43.9,
+      "tool_calls": 8,
+      "session": "exp-cli-author-1-c18953",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "write",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "scalar and MultiLanguageProperty both written correctly",
+      "steps": 5,
+      "input_tokens": 13155,
+      "output_tokens": 1937,
+      "seconds": 28.5,
+      "tool_calls": 7,
+      "session": "exp-baseline-write-1-392d7f",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "write",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "scalar and MultiLanguageProperty both written correctly",
+      "steps": 5,
+      "input_tokens": 11118,
+      "output_tokens": 1994,
+      "seconds": 31.5,
+      "tool_calls": 5,
+      "session": "exp-cli-write-1-3e46df",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "retrieve",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "names both target paths",
+      "steps": 9,
+      "input_tokens": 59038,
+      "output_tokens": 4261,
+      "seconds": 64.6,
+      "tool_calls": 8,
+      "session": "exp-baseline-retrieve-1-1aa96a",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "retrieve",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "names both target paths",
+      "steps": 9,
+      "input_tokens": 34750,
+      "output_tokens": 4882,
+      "seconds": 79.5,
+      "tool_calls": 8,
+      "session": "exp-cli-retrieve-1-4560b1",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "complete",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "named the empty mandatory slots and not the filled one",
+      "steps": 3,
+      "input_tokens": 8393,
+      "output_tokens": 1617,
+      "seconds": 24.1,
+      "tool_calls": 2,
+      "session": "exp-baseline-complete-1-a7df3c",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "complete",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "named the empty mandatory slots and not the filled one",
+      "steps": 3,
+      "input_tokens": 7591,
+      "output_tokens": 1874,
+      "seconds": 24.7,
+      "tool_calls": 2,
+      "session": "exp-cli-complete-1-311972",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "validate",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "identified the illegal idShort",
+      "steps": 2,
+      "input_tokens": 4739,
+      "output_tokens": 610,
+      "seconds": 11.8,
+      "tool_calls": 2,
+      "session": "exp-baseline-validate-1-4a479b",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "validate",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "identified the illegal idShort",
+      "steps": 3,
+      "input_tokens": 6296,
+      "output_tokens": 1331,
+      "seconds": 19.4,
+      "tool_calls": 2,
+      "session": "exp-cli-validate-1-d173f2",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "chain",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "three datasheet values landed on the right elements",
+      "steps": 11,
+      "input_tokens": 114489,
+      "output_tokens": 15715,
+      "seconds": 330.1,
+      "tool_calls": 12,
+      "session": "exp-baseline-chain-1-4a7a15",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "chain",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "three datasheet values landed on the right elements",
+      "steps": 13,
+      "input_tokens": 122146,
+      "output_tokens": 27153,
+      "seconds": 457.5,
+      "tool_calls": 12,
+      "session": "exp-cli-chain-1-9115ad",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "read",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "report names the path and its collection",
+      "steps": 3,
+      "input_tokens": 8702,
+      "output_tokens": 1080,
+      "seconds": 17.6,
+      "tool_calls": 2,
+      "session": "exp-baseline-read-2-be6cc9",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "read",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "report names the path and its collection",
+      "steps": 5,
+      "input_tokens": 25479,
+      "output_tokens": 2410,
+      "seconds": 32.4,
+      "tool_calls": 4,
+      "session": "exp-cli-read-2-ae94b8",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "explore",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "names DigitalNameplate with 8 mandatory slots",
+      "steps": 3,
+      "input_tokens": 7775,
+      "output_tokens": 1541,
+      "seconds": 23.9,
+      "tool_calls": 2,
+      "session": "exp-baseline-explore-2-0e8c84",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "explore",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "names DigitalNameplate with 8 mandatory slots",
+      "steps": 5,
+      "input_tokens": 11793,
+      "output_tokens": 3879,
+      "seconds": 47.9,
+      "tool_calls": 4,
+      "session": "exp-cli-explore-2-256c86",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "author",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "8 mandatory slots, kind=Instance, no TemplateQualifiers",
+      "steps": 9,
+      "input_tokens": 36403,
+      "output_tokens": 4396,
+      "seconds": 62.0,
+      "tool_calls": 9,
+      "session": "exp-baseline-author-2-2e2c97",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "author",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "8 mandatory slots, kind=Instance, no TemplateQualifiers",
+      "steps": 9,
+      "input_tokens": 31553,
+      "output_tokens": 3517,
+      "seconds": 50.5,
+      "tool_calls": 9,
+      "session": "exp-cli-author-2-438786",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "write",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "scalar and MultiLanguageProperty both written correctly",
+      "steps": 5,
+      "input_tokens": 12823,
+      "output_tokens": 2017,
+      "seconds": 30.1,
+      "tool_calls": 6,
+      "session": "exp-baseline-write-2-c3442c",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "write",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "scalar and MultiLanguageProperty both written correctly",
+      "steps": 4,
+      "input_tokens": 8937,
+      "output_tokens": 1834,
+      "seconds": 27.1,
+      "tool_calls": 3,
+      "session": "exp-cli-write-2-c51ed0",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "retrieve",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "names both target paths",
+      "steps": 8,
+      "input_tokens": 27478,
+      "output_tokens": 3839,
+      "seconds": 53.6,
+      "tool_calls": 7,
+      "session": "exp-baseline-retrieve-2-a2068d",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "retrieve",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "names both target paths",
+      "steps": 5,
+      "input_tokens": 14219,
+      "output_tokens": 3820,
+      "seconds": 50.8,
+      "tool_calls": 4,
+      "session": "exp-cli-retrieve-2-523583",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "complete",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "named the empty mandatory slots and not the filled one",
+      "steps": 3,
+      "input_tokens": 8380,
+      "output_tokens": 3187,
+      "seconds": 36.3,
+      "tool_calls": 2,
+      "session": "exp-baseline-complete-2-2103d5",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "complete",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "named the empty mandatory slots and not the filled one",
+      "steps": 3,
+      "input_tokens": 7548,
+      "output_tokens": 1820,
+      "seconds": 23.3,
+      "tool_calls": 2,
+      "session": "exp-cli-complete-2-62b1c3",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "validate",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "identified the illegal idShort",
+      "steps": 2,
+      "input_tokens": 4739,
+      "output_tokens": 737,
+      "seconds": 11.1,
+      "tool_calls": 2,
+      "session": "exp-baseline-validate-2-424a08",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "validate",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "identified the illegal idShort",
+      "steps": 4,
+      "input_tokens": 8560,
+      "output_tokens": 2348,
+      "seconds": 33.7,
+      "tool_calls": 3,
+      "session": "exp-cli-validate-2-93a878",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "chain",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "three datasheet values landed on the right elements",
+      "steps": 11,
+      "input_tokens": 109749,
+      "output_tokens": 13119,
+      "seconds": 272.3,
+      "tool_calls": 12,
+      "session": "exp-baseline-chain-2-8f9b04",
+      "schema_bytes": 12171
+    },
+    {
+      "arm": "cli",
+      "task": "chain",
+      "repeat": 2,
+      "status": "finished",
+      "passed": true,
+      "detail": "three datasheet values landed on the right elements",
+      "steps": 9,
+      "input_tokens": 72162,
+      "output_tokens": 20945,
+      "seconds": 367.7,
+      "tool_calls": 8,
+      "session": "exp-cli-chain-2-7c5754",
+      "schema_bytes": 2699
+    }
+  ],
+  "summary": {
+    "arms": {
+      "baseline": {
+        "attempts": 16,
+        "passed": 16,
+        "steps_mean": 5.4,
+        "input_tokens_mean": 28800.4,
+        "output_tokens_mean": 3763.2,
+        "seconds_mean": 65.8,
+        "tool_calls_mean": 5.3,
+        "schema_bytes": 12171
+      },
+      "cli": {
+        "attempts": 16,
+        "passed": 16,
+        "steps_mean": 5.8,
+        "input_tokens_mean": 25329.3,
+        "output_tokens_mean": 5306.8,
+        "seconds_mean": 84.2,
+        "tool_calls_mean": 4.9,
+        "schema_bytes": 2699
+      }
+    },
+    "tasks": {
+      "author": {
+        "baseline": {
+          "passed": 2,
+          "of": 2,
+          "steps": 8.5,
+          "in": 34039.5,
+          "out": 4071
+        },
+        "cli": {
+          "passed": 2,
+          "of": 2,
+          "steps": 8.5,
+          "in": 28722.5,
+          "out": 3195
+        }
+      },
+      "chain": {
+        "baseline": {
+          "passed": 2,
+          "of": 2,
+          "steps": 11,
+          "in": 112119,
+          "out": 14417
+        },
+        "cli": {
+          "passed": 2,
+          "of": 2,
+          "steps": 11,
+          "in": 97154,
+          "out": 24049
+        }
+      },
+      "complete": {
+        "baseline": {
+          "passed": 2,
+          "of": 2,
+          "steps": 3,
+          "in": 8386.5,
+          "out": 2402
+        },
+        "cli": {
+          "passed": 2,
+          "of": 2,
+          "steps": 3,
+          "in": 7569.5,
+          "out": 1847
+        }
+      },
+      "explore": {
+        "baseline": {
+          "passed": 2,
+          "of": 2,
+          "steps": 3,
+          "in": 7783,
+          "out": 1467
+        },
+        "cli": {
+          "passed": 2,
+          "of": 2,
+          "steps": 4.5,
+          "in": 10557.5,
+          "out": 3549.5
+        }
+      },
+      "read": {
+        "baseline": {
+          "passed": 2,
+          "of": 2,
+          "steps": 2.5,
+          "in": 7089,
+          "out": 1048.5
+        },
+        "cli": {
+          "passed": 2,
+          "of": 2,
+          "steps": 4,
+          "in": 16691,
+          "out": 1709
+        }
+      },
+      "retrieve": {
+        "baseline": {
+          "passed": 2,
+          "of": 2,
+          "steps": 8.5,
+          "in": 43258,
+          "out": 4050
+        },
+        "cli": {
+          "passed": 2,
+          "of": 2,
+          "steps": 7,
+          "in": 24484.5,
+          "out": 4351
+        }
+      },
+      "validate": {
+        "baseline": {
+          "passed": 2,
+          "of": 2,
+          "steps": 2,
+          "in": 4739,
+          "out": 673.5
+        },
+        "cli": {
+          "passed": 2,
+          "of": 2,
+          "steps": 3.5,
+          "in": 7428,
+          "out": 1839.5
+        }
+      },
+      "write": {
+        "baseline": {
+          "passed": 2,
+          "of": 2,
+          "steps": 5,
+          "in": 12989,
+          "out": 1977
+        },
+        "cli": {
+          "passed": 2,
+          "of": 2,
+          "steps": 4.5,
+          "in": 10027.5,
+          "out": 1914
+        }
+      }
+    }
+  }
+}

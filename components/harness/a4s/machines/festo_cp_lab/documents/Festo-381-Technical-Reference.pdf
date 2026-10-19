@@ -1,0 +1,240 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 3 /Kids [4 0 R 6 0 R 8 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 1281 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: hardware-layout) Tj
+T*
+/F1 9 Tf
+(TITLE: Two modules: pressing and turning over) Tj
+T*
+/F1 9 Tf
+(ORIGIN: REFERENCE) Tj
+T*
+/F1 7 Tf
+(SOURCE: Anleitung - Festo CP Lab.pptx, slides 4-6; Festo CP & Module.pptx, slide 1) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(The CP Lab has two connected application modules: a press and a gripper that turns the) Tj
+T*
+/F1 9 Tf
+(workpiece over by 180 degrees. Turning means reorientation, not lathe machining.) Tj
+T*
+/F1 9 Tf
+(Conveyors, carrier stoppers, RFID and position sensors support transport. The press) Tj
+T*
+/F1 9 Tf
+(application uses a Revolution Pi; the turning-over module uses a microcontroller. Both) Tj
+T*
+/F1 9 Tf
+(communicate with a Siemens PLC. This reference is not a current connectivity test.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 1 | 2026-09-13 | FestoWorkCenterStamping_381) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 1) Tj
+T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 1364 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: opc-evidence) Tj
+T*
+/F1 9 Tf
+(TITLE: OPC interfaces and limits of observations) Tj
+T*
+/F1 9 Tf
+(ORIGIN: REFERENCE) Tj
+T*
+/F1 7 Tf
+(SOURCE: Anleitung - Festo CP Lab.pptx, slides 8-9; a4s/machines/festo_cp_lab/model.py) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(The model names Turning PLC, Press PLC and Press RevPi OPC servers. Application flags) Tj
+T*
+/F1 9 Tf
+(include xStart, xReady, xBusy and xError; station collective fault xSF is a separate) Tj
+T*
+/F1 9 Tf
+(signal. Previous project tests found xError could stay false during a station fault.) Tj
+T*
+/F1 9 Tf
+(RevPi Pressure_1/2 and Flow_1/2 are uncalibrated raw readings in this integration. Never) Tj
+T*
+/F1 9 Tf
+(compare these raw counts to the fictional bar thresholds in the demo. A connection) Tj
+T*
+/F1 9 Tf
+(timeout means unavailable evidence, not a physical stop.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 1 | 2026-09-13 | FestoWorkCenterStamping_381) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 2) Tj
+T*
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 1224 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: readiness-reference) Tj
+T*
+/F1 9 Tf
+(TITLE: Readiness depends on application communication) Tj
+T*
+/F1 9 Tf
+(ORIGIN: REFERENCE) Tj
+T*
+/F1 7 Tf
+(SOURCE: Anleitung - Festo CP Lab.pptx, slides 17-18) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(The commissioning reference mentions compressed-air supply and application communication) Tj
+T*
+/F1 9 Tf
+(readiness. At power-up the PLC may initially lack a connection to the RevPi or) Tj
+T*
+/F1 9 Tf
+(microcontroller. A qualified operator must use approved site procedures. These) Tj
+T*
+/F1 9 Tf
+(observations are possible checks, not proof of an air leak and not permission for an) Tj
+T*
+/F1 9 Tf
+(agent to reset, start or change physical equipment.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 1 | 2026-09-13 | FestoWorkCenterStamping_381) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 3) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000197 00000 n 
+0000000323 00000 n 
+0000001656 00000 n 
+0000001782 00000 n 
+0000003198 00000 n 
+0000003324 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+4600
+%%EOF

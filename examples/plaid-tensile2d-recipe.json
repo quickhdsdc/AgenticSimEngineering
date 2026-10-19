@@ -1,0 +1,5 @@
+{
+  "method": "inverse_distance_mesh_knn",
+  "neighbors": [1, 2, 4, 8, 16],
+  "geometry_weights": [0.25, 1, 4]
+}

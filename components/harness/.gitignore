@@ -1,0 +1,45 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.pytest_tmp_*/
+.ruff_cache/
+.env
+.env.openmes
+*.db
+*.db-wal
+*.db-shm
+trajectories*.jsonl
+temp/
+
+# frontend
+node_modules/
+frontend/dist/
+
+# Directories created by a shell that did not expand `~`. They hold index
+# caches and scratch output, not source, and one of them is 48 MB of embedding
+# vectors.
+/~/
+exp/~/
+exp/temp/
+exp/work/
+
+# Third-party projects vendored in for reference. Not ours to redistribute,
+# and 315 MB of someone else's git history.
+_others/
+
+# The ECLASS 14.0 ADVANCED dictionary: 1.7 GB, licensed, and referenced by no
+# code in this repository. Whoever needs it downloads it from ECLASS.
+ECLASS14_0_Dictionary_ADVANCED_XML_EN/
+
+# Working copies of AAS packages, kept beside the originals while a change is
+# being reviewed.
+*.aasx.bak
+
+
+# Reference material and generated presentations under docs/. Vendor
+# datasheets and a UaExpert workspace are not ours to redistribute, and a
+# deck that a script rebuilds is an artifact, not source. Markdown written
+# for this repository stays.
+docs/*
+!docs/*.md

@@ -1,0 +1,49 @@
+[project]
+name = "isaac-sim-env"
+version = "0.1.0"
+description = "Isaac Sim / PhysX 运行环境：轨迹采集、资产验收，同时供 mbs_isaac 使用"
+requires-python = "==3.12.*"          # Isaac 版本与 Python 严格绑定，见下方注释
+dependencies = [
+    "isaacsim[all,extscache]==6.0.1.0",
+    "torch==2.10.0",
+    "torchvision==0.25.0",
+    "numpy",
+]
+
+# ============================================================================
+# 【必读】重建这个环境的三个坑（不带这些设置必然失败）
+#
+# 1) 版本必须钉死 ==6.0.1.0
+#    Isaac 版本与 Python 严格绑定：4.x→py3.10, 5.x→py3.11, 6.x→py3.12。
+#    pypi.org 上的壳包最高只到 5.1.0.0，uv 会解析到它，然后在 py3.12 上
+#    找不到 cp311 轮子而失败 —— 报错信息还误导性地说
+#    "pypi.nvidia.com not reachable"（看着像网络问题，其实是版本不匹配）。
+#
+# 2) index-strategy = "unsafe-best-match"
+#    部分依赖（如 mujoco-usd-converter）的正确版本只在 pypi.org，
+#    NVIDIA 源上是别的版本；uv 默认的防依赖混淆策略会直接拒绝。
+#
+# 3) prerelease = "allow"
+#    isaacsim-core 依赖预发布版 tinyobjloader==2.0.0rc13，
+#    uv 默认不允许传递依赖使用预发布版本。
+#
+# 重建命令（在本目录）：  uv sync
+# 验证：uv run python -c "import isaacsim; print('ok')"  或跑 smoke_test.py
+# 装完约 15 GB，25 个 isaacsim* 包。
+# ============================================================================
+[tool.uv]
+prerelease = "allow"
+index-strategy = "unsafe-best-match"
+
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }

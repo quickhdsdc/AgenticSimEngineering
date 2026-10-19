@@ -1,0 +1,207 @@
+<?php
+
+namespace App\Http\Controllers\Web\Admin;
+
+use App\Http\Controllers\Concerns\StaysOnList;
+use App\Http\Controllers\Controller;
+use App\Models\CostSource;
+use App\Models\Line;
+use App\Models\MaintenanceEvent;
+use App\Models\MaintenanceSchedule;
+use App\Models\Tool;
+use App\Models\User;
+use App\Models\Workstation;
+use App\Services\Maintenance\GenerateMaintenanceEvents;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+
+class MaintenanceScheduleController extends Controller
+{
+    use StaysOnList;
+
+    /**
+     * Display a listing of maintenance schedules.
+     */
+    public function index(Request $request)
+    {
+        return Inertia::render('admin/maintenance-schedules/Index', [
+            'toolNames' => Tool::pluck('name', 'id'),
+            'lineNames' => Line::pluck('name', 'id'),
+            'workstationNames' => Workstation::pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'tools' => Inertia::optional(fn () => Tool::orderBy('name')->get(['id', 'name'])),
+            'lines' => Inertia::optional(fn () => Line::where('is_active', true)->orderBy('name')->get(['id', 'name'])),
+            'workstations' => Inertia::optional(fn () => Workstation::orderBy('name')->get(['id', 'name'])),
+            'costSources' => Inertia::optional(fn () => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name'])),
+            'users' => Inertia::optional(fn () => User::orderBy('name')->get(['id', 'name'])),
+            'frequencies' => Inertia::optional(fn () => MaintenanceSchedule::FREQUENCIES),
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new schedule.
+     */
+    public function create()
+    {
+        return Inertia::render('admin/maintenance-schedules/Create', [
+            'tools' => Tool::orderBy('name')->get(['id', 'name']),
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
+            'costSources' => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users' => User::orderBy('name')->get(['id', 'name']),
+            'frequencies' => MaintenanceSchedule::FREQUENCIES,
+        ]);
+    }
+
+    /**
+     * Store a newly created schedule.
+     */
+    public function store(Request $request)
+    {
+        $validated = $this->validatePayload($request);
+
+        $validated['created_by_id'] = $request->user()?->id;
+        $validated['is_active']     = $request->boolean('is_active', true);
+        // lead_time_days is NOT NULL DEFAULT 0; a blank field arrives as null.
+        $validated['lead_time_days'] ??= 0;
+
+        MaintenanceSchedule::create($validated);
+
+        return $this->saved($request, redirect()->route('admin.maintenance-schedules.index'), __('Maintenance schedule created successfully.'));
+    }
+
+    /**
+     * Show the form for editing a schedule.
+     */
+    public function edit(MaintenanceSchedule $maintenanceSchedule)
+    {
+        return Inertia::render('admin/maintenance-schedules/Edit', [
+            'schedule' => $maintenanceSchedule->only(
+                'id', 'name', 'description', 'tool_id', 'line_id', 'workstation_id',
+                'event_type', 'assigned_to_id', 'cost_source_id', 'frequency',
+                'interval_value', 'lead_time_days', 'is_active',
+            ),
+            'preferred_time' => $maintenanceSchedule->preferred_time
+                ? substr($maintenanceSchedule->preferred_time, 0, 5)
+                : '',
+            'next_due_at' => $maintenanceSchedule->next_due_at?->format('Y-m-d\TH:i'),
+            'tools' => Tool::orderBy('name')->get(['id', 'name']),
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
+            'costSources' => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users' => User::orderBy('name')->get(['id', 'name']),
+            'frequencies' => MaintenanceSchedule::FREQUENCIES,
+        ]);
+    }
+
+    /**
+     * Update the specified schedule.
+     */
+    public function update(Request $request, MaintenanceSchedule $maintenanceSchedule)
+    {
+        $validated = $this->validatePayload($request);
+        $validated['is_active'] = $request->boolean('is_active', false);
+        // lead_time_days is NOT NULL DEFAULT 0; preserve the existing value if cleared.
+        $validated['lead_time_days'] ??= $maintenanceSchedule->lead_time_days;
+
+        $maintenanceSchedule->update($validated);
+
+        return $this->saved($request, redirect()->route('admin.maintenance-schedules.index'), __('Maintenance schedule updated successfully.'));
+    }
+
+    /**
+     * Remove the specified schedule. Events already generated keep their
+     * schedule_id nulled by the FK constraint.
+     */
+    public function destroy(MaintenanceSchedule $maintenanceSchedule)
+    {
+        $maintenanceSchedule->delete();
+
+        return redirect()->route('admin.maintenance-schedules.index')
+            ->with('success', __('Maintenance schedule deleted successfully.'));
+    }
+
+    /**
+     * Force-generate an event for this schedule immediately, bypassing the
+     * lead-time gate by setting next_due_at to now() if it's still in the future.
+     */
+    public function generateNow(MaintenanceSchedule $maintenanceSchedule, GenerateMaintenanceEvents $service)
+    {
+        if (! $maintenanceSchedule->is_active) {
+            return redirect()->route('admin.maintenance-schedules.index')
+                ->with('error', __('Cannot generate an event from an inactive schedule.'));
+        }
+
+        // Idempotent guard: if an event already exists for the current next_due_at, just refuse.
+        $exists = MaintenanceEvent::query()
+            ->where('schedule_id', $maintenanceSchedule->id)
+            ->where('scheduled_at', $maintenanceSchedule->next_due_at)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->route('admin.maintenance-schedules.index')
+                ->with('error', __('An event for this cycle already exists.'));
+        }
+
+        // Pull next_due_at to now() if it's in the future so isDue() returns true.
+        if ($maintenanceSchedule->next_due_at && $maintenanceSchedule->next_due_at->isFuture()) {
+            $maintenanceSchedule->forceFill(['next_due_at' => now()])->save();
+        }
+
+        $created = $service->run();
+
+        return redirect()->route('admin.maintenance-schedules.index')
+            ->with('success', __(':n event(s) generated.', ['n' => $created]));
+    }
+
+    /**
+     * Shared form select options.
+     *
+     * @return array<string, mixed>
+     */
+    private function formData(): array
+    {
+        return [
+            'lines' => Line::active()->orderBy('name')->get(),
+            'workstations' => Workstation::active()->orderBy('name')->get(),
+            'tools' => Tool::orderBy('name')->get(),
+            'costSources' => CostSource::active()->orderBy('name')->get(),
+            'users' => User::orderBy('name')->get(),
+            'frequencies' => MaintenanceSchedule::FREQUENCIES,
+        ];
+    }
+
+    /**
+     * Validate store/update payload. Mirrors event validation for targets +
+     * adds recurrence fields.
+     *
+     * @return array<string, mixed>
+     */
+    private function validatePayload(Request $request): array
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'tool_id' => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
+            'line_id' => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
+            'workstation_id' => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
+            'event_type' => 'required|string|in:planned,corrective,inspection',
+            'assigned_to_id' => 'nullable|exists:users,id',
+            'cost_source_id' => 'nullable|exists:cost_sources,id',
+            'frequency' => 'required|string|in:'.implode(',', MaintenanceSchedule::FREQUENCIES),
+            'interval_value' => 'required|integer|min:1',
+            'preferred_time' => 'nullable|date_format:H:i',
+            'lead_time_days' => 'nullable|integer|min:0|max:30',
+            'next_due_at' => 'required|date',
+        ], [
+            'tool_id.required_without_all' => __('Select at least one of: Tool, Line, or Workstation.'),
+            'line_id.required_without_all' => __('Select at least one of: Tool, Line, or Workstation.'),
+            'workstation_id.required_without_all' => __('Select at least one of: Tool, Line, or Workstation.'),
+        ]);
+
+        // lead_time_days normalization is left to store()/update(): create()
+        // defaults a cleared field to 0, update() preserves the existing value.
+        return $validated;
+    }
+}

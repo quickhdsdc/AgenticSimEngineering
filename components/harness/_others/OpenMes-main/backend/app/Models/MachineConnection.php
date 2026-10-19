@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class MachineConnection extends Model
+{
+    use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
+
+    const PROTOCOL_MQTT = 'mqtt';
+
+    const PROTOCOL_OPCUA = 'opcua';
+
+    const PROTOCOL_MODBUS = 'modbus';
+
+    const PROTOCOL_REST = 'rest';
+
+    const STATUS_DISCONNECTED = 'disconnected';
+
+    const STATUS_CONNECTED = 'connected';
+
+    const STATUS_CONNECTING = 'connecting';
+
+    const STATUS_ERROR = 'error';
+
+    protected $fillable = [
+        'tenant_id',
+        'name',
+        'description',
+        'protocol',
+        'line_id',
+        'is_active',
+        'status',
+        'status_message',
+        'last_connected_at',
+        'messages_received',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+            'last_connected_at' => 'datetime',
+            'messages_received' => 'integer',
+        ];
+    }
+
+    /**
+     * The production line this device feeds — the default target for its topic
+     * mappings (e.g. a break-beam sensor counting units on this line).
+     */
+    public function line(): BelongsTo
+    {
+        return $this->belongsTo(Line::class);
+    }
+
+    public function mqttConnection(): HasOne
+    {
+        return $this->hasOne(MqttConnection::class);
+    }
+
+    public function topics(): HasMany
+    {
+        return $this->hasMany(MachineTopic::class);
+    }
+
+    public function activeTopics(): HasMany
+    {
+        return $this->hasMany(MachineTopic::class)->where('is_active', true);
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(MachineMessage::class);
+    }
+
+    public function modbusConnection(): HasOne
+    {
+        return $this->hasOne(ModbusConnection::class);
+    }
+
+    public function opcuaConnection(): HasOne
+    {
+        return $this->hasOne(OpcuaConnection::class);
+    }
+
+    public function tags(): HasMany
+    {
+        return $this->hasMany(MachineTag::class);
+    }
+
+    public function activeTags(): HasMany
+    {
+        return $this->hasMany(MachineTag::class)->where('is_active', true);
+    }
+
+    public function isConnected(): bool
+    {
+        return $this->status === self::STATUS_CONNECTED;
+    }
+
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            self::STATUS_CONNECTED => 'green',
+            self::STATUS_CONNECTING => 'yellow',
+            self::STATUS_ERROR => 'red',
+            default => 'slate',
+        };
+    }
+
+    public function markConnected(): void
+    {
+        $this->update([
+            'status' => self::STATUS_CONNECTED,
+            'status_message' => null,
+            'last_connected_at' => now(),
+        ]);
+    }
+
+    public function markDisconnected(?string $reason = null): void
+    {
+        $this->update([
+            'status' => self::STATUS_DISCONNECTED,
+            'status_message' => $reason,
+        ]);
+    }
+
+    public function markError(string $message): void
+    {
+        $this->update([
+            'status' => self::STATUS_ERROR,
+            'status_message' => $message,
+        ]);
+    }
+
+    public function incrementMessageCount(): void
+    {
+        $this->increment('messages_received');
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\MachineTopic::class, 'machine_connection_id'],
+            [\App\Models\MachineTag::class, 'machine_connection_id'],
+            // Protocol-specific config rows had cascadeOnDelete FKs too.
+            [\App\Models\MqttConnection::class, 'machine_connection_id'],
+            [\App\Models\ModbusConnection::class, 'machine_connection_id'],
+            [\App\Models\OpcuaConnection::class, 'machine_connection_id'],
+        ];
+    }
+}

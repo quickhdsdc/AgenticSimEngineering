@@ -1,0 +1,88 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import ResourceTable from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { TOOL_STATUS_LABELS, toolFields, toolInitial } from './fields';
+import { __ } from '../../../lib/i18n';
+
+const STATUS_STYLES = {
+    available: 'bg-om-running-bg text-om-running',
+    in_use: 'bg-om-chip text-om-accent',
+    maintenance: 'bg-om-downtime-bg text-om-downtime',
+    retired: 'bg-om-line2 text-om-muted',
+};
+
+export default function ToolsIndex() {
+    const { workstationTypeNames = {}, workstationTypes, customFields } = usePage().props;
+
+    const drawer = useResourceDrawer();
+
+    const columns = [
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        {
+            key: 'type',
+            label: __('Workstation Type'),
+            className: 'text-om-muted',
+            value: (r) => workstationTypeNames[r.workstation_type_id] ?? '—',
+            render: (r) => workstationTypeNames[r.workstation_type_id] ?? '—',
+           
+        },
+        {
+            key: 'status',
+            label: __('Status'),
+            value: (r) => TOOL_STATUS_LABELS[r.status] ?? r.status ?? '—',
+           
+            render: (r) => (
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
+                    {TOOL_STATUS_LABELS[r.status] ?? r.status ?? '—'}
+                </span>
+            ),
+        },
+        { key: 'next_service_at', filter: 'date', label: __('Next Service'), className: 'text-om-muted', render: (r) => (r.next_service_at ?? '—') },
+    ];
+
+    const actions = (r) => [
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
+        {
+            label: __('Delete'),
+            icon: 'delete',
+            variant: 'danger',
+            confirm: {
+                title: __('Delete tool ":name"?', { name: r.name }),
+                confirmLabel: __('Delete tool'),
+            },
+            onClick: () => router.delete(`/admin/tools/${r.id}`, { preserveScroll: true }),
+        },
+    ];
+
+    return (
+        <>
+            <Head title={__('Tools')} />
+            <ResourceTable
+                shape="tools"
+                title={__('Tools')}
+                createHref="/admin/tools/create"
+                onCreate={drawer.create}
+                createLabel={__('New Tool')}
+                columns={columns}
+                orderBy="name"
+                actions={actions}
+                emptyText={__('No tools yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/tools"
+                fields={toolFields(workstationTypes ?? [])}
+                initial={toolInitial}
+                customFields={customFields}
+                ensure={['workstationTypes', 'customFields']}
+                ready={workstationTypes !== undefined}
+                title={{ create: __('New Tool'), edit: __('Edit Tool') }}
+            />
+        </>
+    );
+}
+
+ToolsIndex.layout = (page) => <AppLayout>{page}</AppLayout>;

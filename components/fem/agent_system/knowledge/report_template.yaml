@@ -1,0 +1,43 @@
+# 可行性/仿真报告模板结构 (Simulation Report template)
+# 来源: 样件 7/9 的 Simulation-Report.pptx / 可行性报告.pptx
+# 用途: 报告生成 Agent 按此章节结构填充,输出与样件对齐的 PPTX
+version: 0.1
+
+slides:
+  - id: cover
+    title: 封面
+    fields: [customer, part_number, material, thickness_mm, date]
+    example: "Customer:BOSCH  Part number:0220M000ND  Material:AL 1050  Thickness:1.2mm  Date:2026-03-11"
+
+  - id: material_info
+    title: 材质信息 / Material information
+    content: 材料牌号、料厚、密度、标准
+
+  - id: formability_before
+    title: 成型性(优化前)
+    content: FORMABILITY / THINNING(THICKNESS) / FLD 三图 + 判定
+    verdict_fields: [min_thickness_mm, thinning_ratio, verdict]
+    example: "最小料厚0.765mm,减薄36.2%,判定NG"
+
+  - id: optimization
+    title: 产品优化 / 数模更改说明
+    content: 逐条列出优化动作与理由(如 R3.8→R8, 翻边增至2.4mm)
+    fields: [change, reason]
+
+  - id: formability_after
+    title: 优化后成型性
+    content: 同 formability_before,应达 OK
+    example: "最小料厚0.873mm,减薄27.3%,判定OK"
+
+  - id: process_plan
+    title: 工艺方案
+    fields: [blank_size, utilization, tool_size, press_tonnage, stations]
+    example: "料片170*107*1.2;利用率68.62%;模具1850*400;机床300T"
+
+  - id: tolerance
+    title: 公差问题(可选)
+    content: 需放宽的尺寸清单(location/original/suggested/reason)
+
+  - id: closing
+    title: 备注 / Thank you
+    content: 如"目前工艺基于3D,收到2D图纸后再更新"

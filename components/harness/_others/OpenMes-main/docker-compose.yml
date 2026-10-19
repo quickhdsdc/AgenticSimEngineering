@@ -1,0 +1,328 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_replication_slots=10"
+      - "-c"
+      - "max_wal_senders=10"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-openmmes}
+      POSTGRES_USER: ${POSTGRES_USER:-openmmes_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-openmmes_user} -d ${POSTGRES_DB:-openmmes}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Every other service has this — without it postgres stays down after
+    # a host reboot / docker restart while the app containers come back,
+    # which surfaces as 502s from Caddy ("could not translate host name
+    # 'postgres' to address").
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+
+  backend:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-backend
+    environment:
+      APP_NAME: ${APP_NAME:-OpenMES}
+      APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost}
+      # Sanctum SPA stateful hosts. Empty by default (production derives them
+      # from APP_URL). Set this when serving on a host:port the app URL doesn't
+      # cover — e.g. localhost:8084 or a LAN IP — or the live-sync /api
+      # collection requests 401 and lists render empty.
+      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      # Database-backed queue so real jobs (webhook delivery, CSV import, MQTT,
+      # auto-update) run async with retries instead of blocking the request. The
+      # entrypoint runs a queue worker on the primary, so this works out of the
+      # box. (Live-sync broadcasts are ShouldBroadcastNow and unaffected.)
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@openmmes.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+      LOG_CHANNEL: ${LOG_CHANNEL:-stack}
+      LOG_STACK: ${LOG_STACK:-single}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      # Server-side sessions — NOT the "cookie" driver (which spawns a cookie per
+      # session id and bloats request headers). See .env.example.
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      # Reverb (WebSocket broadcasting) — live sync. REVERB_HOST points at the
+      # reverb service for server-side publishing; clients connect via Caddy.
+      BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-reverb}
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_HOST: ${REVERB_HOST:-reverb}
+      REVERB_PORT: ${REVERB_PORT:-8080}
+      REVERB_SCHEME: ${REVERB_SCHEME:-http}
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+
+  # ── Reverb WebSocket server (live sync) ───────────────────────────────────
+  # Single multiplexed WebSocket (Pusher protocol). Laravel publishes deltas to
+  # it; clients connect through Caddy (/app/*). NOT exposed publicly.
+  reverb:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-reverb
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    environment:
+      APP_NAME: ${APP_NAME:-OpenMES}
+      APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+
+  # ── MQTT listener daemon ──────────────────────────────────────────────────
+  # One supervisor process services ALL active MQTT machine_connections and
+  # picks up newly-created / newly-activated ones automatically (no restart).
+  # To pin it to a single connection instead, set MQTT_CONNECTION_ID and add
+  # `--connection=${MQTT_CONNECTION_ID}` back to the command below.
+  mqtt-listener:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-mqtt-listener
+    command:
+      ["php", "artisan", "mqtt:listen"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      BROADCAST_CONNECTION: log
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+    profiles:
+      - connectivity
+
+  # ── Modbus TCP poller daemon ──────────────────────────────────────────────
+  # One instance per active Modbus machine_connection.
+  # Example: MODBUS_CONNECTION_ID=1 docker compose --profile connectivity up -d modbus-poller
+  modbus-poller:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-modbus-poller
+    command:
+      ["php", "artisan", "modbus:poll", "--connection=${MODBUS_CONNECTION_ID:-1}"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+    profiles:
+      - connectivity
+
+  # ── OPC UA gateway sidecar (Node.js) ──────────────────────────────────────
+  # Bridges an OPC UA server into the OpenMES ingest API. OpenMES cannot speak
+  # OPC UA natively. Requires an API token (Admin → API Tokens).
+  # Example: OPCUA_CONNECTION_ID=1 OPENMES_API_TOKEN=xxx \
+  #          docker compose --profile connectivity up -d opcua-gateway
+  opcua-gateway:
+    build:
+      context: ./opcua-gateway
+      dockerfile: Dockerfile
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-opcua-gateway
+    environment:
+      OPENMES_API_URL: ${OPENMES_API_URL:-http://backend:8000}
+      OPENMES_API_TOKEN: ${OPENMES_API_TOKEN}
+      OPCUA_CONNECTION_ID: ${OPCUA_CONNECTION_ID:-1}
+      OPCUA_PASSWORD: ${OPCUA_PASSWORD:-}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+    profiles:
+      - connectivity
+
+  # ── Queue worker ──────────────────────────────────────────────────────────
+  # Consumes queued jobs (e.g. MQTT message processing). Start in production if
+  # you use MQTT or other queued work.
+  # Example: docker compose --profile workers up -d queue-worker
+  queue-worker:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-queue-worker
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=5", "--timeout=120"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+      APP_KEY: ${APP_KEY}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+    profiles:
+      - workers
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-caddy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+
+volumes:
+  postgres_data:
+  backend_storage:
+  backend_cache:
+  caddy_data:
+  caddy_config:
+
+networks:
+  openmmes-network:
+    driver: bridge

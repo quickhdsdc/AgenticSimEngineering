@@ -1,0 +1,43 @@
+# OpenMES reverse proxy.
+#
+# Live sync rides a single multiplexed WebSocket to Reverb (/app/* below), so the
+# browser's ~6-connection-per-origin cap on HTTP/1.1 isn't a constraint and plain
+# :80 is a perfectly usable transport. HTTPS is still served alongside it (and is
+# what you want in production — Reverb then upgrades to wss:// on the same origin).
+#
+# In production replace `localhost` with your real hostname so Caddy provisions
+# a public TLS cert automatically. For local dev, `localhost` uses Caddy's
+# internal CA — the browser shows a one-time "not secure" warning you can click
+# through (or run `caddy trust`).
+
+{
+	# Keep the plain-HTTP :80 site below serving directly instead of being
+	# auto-redirected to HTTPS, so existing http://localhost links still work.
+	auto_https disable_redirects
+}
+
+# Shared routing for every site address.
+(openmes) {
+	# Reverb WebSocket (Pusher protocol) — one multiplexed socket per client,
+	# carrying all collection channels. reverse_proxy auto-upgrades the WS. The
+	# server publishes to Reverb directly (127.0.0.1:8080), so only the client
+	# /app/* path needs proxying here.
+	handle /app/* {
+		reverse_proxy reverb:8080
+	}
+
+	handle {
+		reverse_proxy backend:8000
+	}
+}
+
+# HTTPS (internal CA for localhost).
+localhost {
+	import openmes
+}
+
+# Plain HTTP kept for backward compatibility (HTTP/1.1 — subject to the
+# 6-connection limit, so live sync may stall here under many shapes).
+:80 {
+	import openmes
+}

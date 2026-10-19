@@ -1,0 +1,71 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterRequest;
+use App\Models\RegistrationLog;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Inertia\Inertia;
+
+class RegisterController extends Controller
+{
+    public function show()
+    {
+        if (! $this->registrationEnabled()) {
+            abort(404);
+        }
+
+        return Inertia::render('auth/Register');
+    }
+
+    public function store(RegisterRequest $request)
+    {
+        if (! $this->registrationEnabled()) {
+            abort(404);
+        }
+
+        $key = 'register:'.$request->ip();
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return back()->withErrors(['email' => __('Too many registration attempts. Please try again later.')]);
+        }
+        RateLimiter::hit($key, 60);
+
+        $user = User::create([
+            'name' => $request->name,
+            'username' => $request->username,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'account_type' => 'user',
+            'force_password_change' => false,
+            'email_verified_at' => now(),
+        ]);
+
+        $user->assignRole('Operator');
+
+        RegistrationLog::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'username' => $request->username,
+            'ip_address' => $request->ip(),
+            'registered_at' => now(),
+        ]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('operator.select-line')
+            ->with('success', __('Account created successfully. Welcome to OpenMES!'));
+    }
+
+    private function registrationEnabled(): bool
+    {
+        $row = DB::table('system_settings')->where('key', 'allow_registration')->first();
+
+        return json_decode($row->value ?? 'false', true) === true;
+    }
+}

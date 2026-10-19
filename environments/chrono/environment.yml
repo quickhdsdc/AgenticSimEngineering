@@ -1,0 +1,7 @@
+name: agenticsim-chrono-native
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pychrono=9.0.1
+  - numpy=1.26.4

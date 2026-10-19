@@ -1,0 +1,2 @@
+# Preserve source bytes: asset and migration manifests use SHA-256.
+* -text

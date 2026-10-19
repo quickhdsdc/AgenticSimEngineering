@@ -1,0 +1,16 @@
+{
+  "dataset": "PLAID-datasets/Tensile2d",
+  "revision": "c3caf2136b2a7d1aba3e5585ea992d2c26a5ffbb",
+  "source": "reference_simulation",
+  "license": "CC-BY-SA-4.0",
+  "owner": "Safran",
+  "paper": "https://arxiv.org/abs/2305.12871",
+  "documentation": "https://plaid-lib.readthedocs.io/en/latest/plaid_benchmarks.html",
+  "competition": "https://huggingface.co/spaces/PLAIDcompetitions/Tensile2dBenchmark",
+  "competition_revision": "16942f54ece45680ea4a4d498e999cab2c7ae3ec",
+  "files": [
+    {"path": "README.md", "bytes": 17987, "git_blob": "0d68f7c048c9674cad5db3f9bdc125ecacebe5ea"},
+    {"path": "data/all_samples-00000-of-00002.parquet", "bytes": 202913318, "sha256": "7e407803d776a27b30505d27a05e5732a49fec77bab9f3a4e324cc5ede1d6cd6"},
+    {"path": "data/all_samples-00001-of-00002.parquet", "bytes": 180562942, "sha256": "7bf53788fa1b7a43bdcf8e032e02ff389ec0b1c75394b14826a50a282f5ef614"}
+  ]
+}

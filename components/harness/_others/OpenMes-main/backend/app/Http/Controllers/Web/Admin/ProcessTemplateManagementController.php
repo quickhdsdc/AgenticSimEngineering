@@ -1,0 +1,529 @@
+<?php
+
+namespace App\Http\Controllers\Web\Admin;
+
+use App\Http\Controllers\Concerns\StaysOnList;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreTemplateStepRequest;
+use App\Http\Requests\Web\Admin\UpdateTemplateStepRequest;
+use App\Models\AuditLog;
+use App\Models\ProcessTemplate;
+use App\Models\ProductType;
+use App\Models\TemplateStep;
+use App\Models\Workstation;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
+
+class ProcessTemplateManagementController extends Controller
+{
+    use StaysOnList;
+
+    /**
+     * Display process templates for a product type
+     */
+    public function index(ProductType $productType)
+    {
+        $templates = $productType->processTemplates()
+            ->withCount('steps')
+            ->orderBy('version', 'desc')
+            ->get();
+
+        return Inertia::render('admin/process-templates/Index', [
+            'productType' => $productType->only('id', 'name'),
+            'templates' => $templates->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'version' => $t->version,
+                'is_active' => (bool) $t->is_active,
+                'steps_count' => $t->steps_count,
+                'created_at' => $t->created_at->format('Y-m-d H:i'),
+            ]),
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new process template
+     */
+    public function create(ProductType $productType)
+    {
+        return Inertia::render('admin/process-templates/Create', [
+            'productType' => $productType->only('id', 'name'),
+        ]);
+    }
+
+    /**
+     * Store a newly created process template
+     */
+    public function store(Request $request, ProductType $productType)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'is_active' => 'boolean',
+        ]);
+
+        // Get the next version number
+        $latestVersion = $productType->processTemplates()->max('version') ?? 0;
+        $validated['version'] = $latestVersion + 1;
+        $validated['product_type_id'] = $productType->id;
+        $validated['is_active'] = $request->boolean('is_active', true);
+
+        $template = ProcessTemplate::create($validated);
+
+        return redirect()->route('admin.product-types.process-templates.show', [$productType, $template])
+            ->with('success', __('Process template created successfully. Now add production steps.'));
+    }
+
+    /**
+     * Display the specified process template
+     */
+    public function show(ProductType $productType, ProcessTemplate $processTemplate)
+    {
+        // Ensure template belongs to this product type
+        if ($processTemplate->product_type_id !== $productType->id) {
+            abort(404);
+        }
+
+        $processTemplate->load([
+            'steps' => fn ($q) => $q->orderBy('step_number', 'asc'),
+            'steps.workstation.line',
+            'steps.processSegment',
+            'photos.uploadedBy',
+            'stepMedia',
+            'checklistItems',
+            'outputs',
+        ]);
+        $workstations = Workstation::active()->with('line')->orderBy('name')->get();
+        $processSegments = \App\Models\ProcessSegment::query()
+            ->active()
+            ->orderBy('segment_type')
+            ->orderBy('code')
+            ->get();
+
+        return Inertia::render('admin/process-templates/Show', [
+            'productType' => $processTemplate->productType->only('id', 'name'),
+            'processTemplate' => [
+                'id' => $processTemplate->id,
+                'name' => $processTemplate->name,
+                'version' => $processTemplate->version,
+                'is_active' => (bool) $processTemplate->is_active,
+                // Warn the admin: editing steps here won't touch these running
+                // orders (they keep their frozen snapshot) and isn't versioned.
+                'active_work_order_count' => $processTemplate->activeWorkOrderCount(),
+                'steps' => $processTemplate->steps->map(fn ($s) => [
+                    'id' => $s->id,
+                    'step_number' => $s->step_number,
+                    'name' => $s->name,
+                    'instruction' => $s->instruction,
+                    'requires_confirmation' => (bool) $s->requires_confirmation,
+                    'estimated_duration_minutes' => $s->estimated_duration_minutes,
+                    'setup_time_minutes' => $s->setup_time_minutes,
+                    'run_time_per_unit_minutes' => $s->run_time_per_unit_minutes,
+                    'workstation_id' => $s->workstation_id,
+                    'workstation_type_id' => $s->workstation_type_id,
+                    'parameters' => $s->parameters ?? [],
+                    'process_segment_id' => $s->process_segment_id,
+                    'is_optional' => (bool) $s->is_optional,
+                    'variant_group' => $s->variant_group,
+                    'is_default_variant' => (bool) $s->is_default_variant,
+                    'workstation' => $s->workstation ? [
+                        'id' => $s->workstation->id,
+                        'name' => $s->workstation->name,
+                        'line_name' => $s->workstation->line?->name,
+                    ] : null,
+                    'process_segment' => $s->processSegment ? [
+                        'id' => $s->processSegment->id,
+                        'code' => $s->processSegment->code,
+                    ] : null,
+                ]),
+                'photos' => $processTemplate->photos->map(fn ($p) => [
+                    'id' => $p->id,
+                    'template_step_id' => $p->template_step_id,
+                    'url' => route('process-templates.photos.show', [$processTemplate, $p]),
+                    'original_name' => $p->original_name,
+                    'caption' => $p->caption,
+                    'width' => $p->width,
+                    'height' => $p->height,
+                    'file_size' => $p->file_size_human ?? null,
+                    'uploaded_by' => $p->uploadedBy?->name,
+                    'created_at' => $p->created_at->format('Y-m-d H:i'),
+                ]),
+                'media' => $processTemplate->stepMedia->map(fn ($m) => [
+                    'id' => $m->id,
+                    'template_step_id' => $m->template_step_id,
+                    'media_type' => $m->media_type,
+                    'title' => $m->title,
+                    'original_name' => $m->original_name,
+                    'url' => route('process-templates.media.show', [$processTemplate, $m]),
+                ]),
+                'checklist_items' => $processTemplate->checklistItems->map(fn ($c) => [
+                    'id' => $c->id,
+                    'template_step_id' => $c->template_step_id,
+                    'label' => $c->label,
+                    'is_required' => (bool) $c->is_required,
+                ]),
+                'outputs' => $processTemplate->outputs->map(fn ($o) => [
+                    'id' => $o->id,
+                    'template_step_id' => $o->template_step_id,
+                    'key' => $o->key,
+                    'label' => $o->label,
+                    'value_type' => $o->value_type,
+                    'unit' => $o->unit,
+                    'options' => $o->options ?? [],
+                    'is_required' => (bool) $o->is_required,
+                ]),
+            ],
+            'workstations' => $workstations->map(fn ($w) => [
+                'id' => $w->id,
+                'name' => $w->name,
+                'line_name' => $w->line?->name,
+            ]),
+            // ISA-95 Equipment Classes (#52) for the step's workstation-type picker.
+            'workstationTypes' => \App\Models\WorkstationType::query()->active()->orderBy('name')->get(['id', 'name']),
+            'processSegments' => $processSegments->map(fn ($s) => [
+                'id' => $s->id,
+                'code' => $s->code,
+                'name' => $s->name,
+                'segment_type' => $s->segment_type,
+                'instruction' => $s->standard_instruction,
+                'duration' => $s->estimated_duration_minutes,
+            ]),
+        ]);
+    }
+
+    /**
+     * Show the form for editing a process template
+     */
+    public function edit(ProductType $productType, ProcessTemplate $processTemplate)
+    {
+        // Ensure template belongs to this product type
+        if ($processTemplate->product_type_id !== $productType->id) {
+            abort(404);
+        }
+
+        return Inertia::render('admin/process-templates/Edit', [
+            'productType' => $productType->only('id', 'name'),
+            'processTemplate' => [
+                'id' => $processTemplate->id,
+                'name' => $processTemplate->name,
+                'version' => $processTemplate->version,
+                'is_active' => (bool) $processTemplate->is_active,
+            ],
+        ]);
+    }
+
+    /**
+     * Update the specified process template
+     */
+    public function update(Request $request, ProductType $productType, ProcessTemplate $processTemplate)
+    {
+        // Ensure template belongs to this product type
+        if ($processTemplate->product_type_id !== $productType->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'is_active' => 'boolean',
+        ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
+
+        $processTemplate->update($validated);
+
+        // The show page edits in a drawer and posts `stay`, so it gets back()
+        // instead of being thrown to the index it was never on.
+        return $this->saved(
+            $request,
+            redirect()->route('admin.product-types.process-templates.index', $productType),
+            'Process template updated successfully.'
+        );
+    }
+
+    /**
+     * Remove the specified process template
+     */
+    public function destroy(ProductType $productType, ProcessTemplate $processTemplate)
+    {
+        // Ensure template belongs to this product type
+        if ($processTemplate->product_type_id !== $productType->id) {
+            abort(404);
+        }
+
+        // Check if template has steps
+        if ($processTemplate->steps()->count() > 0) {
+            return redirect()->route('admin.product-types.process-templates.index', $productType)
+                ->with('error', 'Cannot delete process template with existing steps. Deactivate it instead.');
+        }
+
+        $processTemplate->delete();
+
+        return redirect()->route('admin.product-types.process-templates.index', $productType)
+            ->with('success', 'Process template deleted successfully.');
+    }
+
+    /**
+     * Toggle process template active status
+     */
+    public function toggleActive(ProductType $productType, ProcessTemplate $processTemplate)
+    {
+        // Ensure template belongs to this product type
+        if ($processTemplate->product_type_id !== $productType->id) {
+            abort(404);
+        }
+
+        $processTemplate->update(['is_active' => ! $processTemplate->is_active]);
+
+        $status = $processTemplate->is_active ? 'activated' : 'deactivated';
+
+        return redirect()->route('admin.product-types.process-templates.index', $productType)
+            ->with('success', "Process template {$status} successfully.");
+    }
+
+    /**
+     * Add a step to the process template
+     */
+    public function addStep(StoreTemplateStepRequest $request, ProductType $productType, ProcessTemplate $processTemplate)
+    {
+        // Ensure template belongs to this product type
+        if ($processTemplate->product_type_id !== $productType->id) {
+            abort(404);
+        }
+
+        $validated = $this->stepPayload($request);
+
+        // Get the next step number
+        $maxStepNumber = $processTemplate->steps()->max('step_number') ?? 0;
+        $validated['step_number'] = $maxStepNumber + 1;
+        $validated['process_template_id'] = $processTemplate->id;
+
+        $step = TemplateStep::create($validated);
+
+        $this->recordStepAudit($processTemplate, 'template_step.added', null, $this->stepAuditFields($step));
+
+        return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
+            ->with('success', 'Step added successfully.');
+    }
+
+    /**
+     * Update a step in the process template
+     */
+    public function updateStep(UpdateTemplateStepRequest $request, ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)
+    {
+        // Ensure template belongs to this product type and step belongs to template
+        if ($processTemplate->product_type_id !== $productType->id || $step->process_template_id !== $processTemplate->id) {
+            abort(404);
+        }
+
+        $before = $this->stepAuditFields($step);
+        $step->update($this->stepPayload($request));
+        $this->recordStepAudit($processTemplate, 'template_step.updated', $before, $this->stepAuditFields($step->fresh()));
+
+        return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
+            ->with('success', 'Step updated successfully.');
+    }
+
+    /**
+     * Build the validated step payload: coerce the booleans and drop the
+     * default-variant flag when the step isn't part of a variant group.
+     *
+     * @return array<string, mixed>
+     */
+    private function stepPayload(Request $request): array
+    {
+        $data = $request->validated();
+        $data['requires_confirmation'] = $request->boolean('requires_confirmation');
+        $data['is_optional'] = $request->boolean('is_optional');
+        $data['variant_group'] = $request->filled('variant_group') ? $request->input('variant_group') : null;
+        $data['is_default_variant'] = $data['variant_group'] !== null && $request->boolean('is_default_variant');
+
+        return $data;
+    }
+
+    /**
+     * The step fields worth keeping in the audit trail (the shape that gets
+     * silently overwritten today).
+     *
+     * @return array<string, mixed>
+     */
+    private function stepAuditFields(TemplateStep $step): array
+    {
+        return $step->only([
+            'id', 'step_number', 'name', 'instruction', 'workstation_id',
+            'workstation_type_id', 'process_segment_id', 'estimated_duration_minutes',
+            'setup_time_minutes', 'run_time_per_unit_minutes', 'parameters',
+            'is_optional', 'variant_group', 'is_default_variant',
+        ]);
+    }
+
+    /**
+     * The template's current step order — `[step_number => name]` — for
+     * before/after reorder snapshots.
+     *
+     * @return array<int, string>
+     */
+    private function stepOrderSnapshot(ProcessTemplate $template): array
+    {
+        return $template->steps()->orderBy('step_number')->pluck('name', 'step_number')->all();
+    }
+
+    /**
+     * Record a template-step change to the immutable audit log, so the previous
+     * shape is never lost even though the edit mutates the row in place.
+     *
+     * @param  array<string, mixed>|null  $before
+     * @param  array<string, mixed>|null  $after
+     */
+    private function recordStepAudit(ProcessTemplate $template, string $action, ?array $before, ?array $after): void
+    {
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'entity_type' => ProcessTemplate::class,
+            'entity_id' => $template->id,
+            'action' => $action,
+            'before_state' => $before,
+            'after_state' => $after,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+    }
+
+    /**
+     * Delete a step from the process template
+     */
+    public function deleteStep(ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)
+    {
+        // Ensure template belongs to this product type and step belongs to template
+        if ($processTemplate->product_type_id !== $productType->id || $step->process_template_id !== $processTemplate->id) {
+            abort(404);
+        }
+
+        $stepNumber = $step->step_number;
+        $before = $this->stepAuditFields($step);
+        $step->delete();
+
+        // Renumber remaining steps
+        DB::table('template_steps')
+            ->where('process_template_id', $processTemplate->id)
+            ->where('step_number', '>', $stepNumber)
+            ->decrement('step_number');
+
+        $this->recordStepAudit($processTemplate, 'template_step.deleted', $before, null);
+
+        return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
+            ->with('success', 'Step deleted successfully.');
+    }
+
+    /**
+     * Reorder steps via drag and drop (expects JSON body: {order: [id, id, ...]})
+     */
+    public function reorderSteps(Request $request, ProductType $productType, ProcessTemplate $processTemplate)
+    {
+        if ($processTemplate->product_type_id !== $productType->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'order' => 'required|array|min:1',
+            'order.*' => 'integer',
+        ]);
+
+        $stepIds = $validated['order'];
+
+        // Verify every submitted ID belongs to this template
+        $validCount = DB::table('template_steps')
+            ->where('process_template_id', $processTemplate->id)
+            ->whereIn('id', $stepIds)
+            ->count();
+
+        if ($validCount !== count($stepIds)) {
+            return response()->json(['error' => 'Invalid step IDs'], 422);
+        }
+
+        $before = $this->stepOrderSnapshot($processTemplate);
+
+        // Use large offset first to avoid unique(process_template_id, step_number) violations
+        DB::transaction(function () use ($stepIds) {
+            $offset = 10000;
+            foreach ($stepIds as $i => $id) {
+                DB::table('template_steps')->where('id', $id)->update(['step_number' => $offset + $i + 1]);
+            }
+            foreach ($stepIds as $i => $id) {
+                DB::table('template_steps')->where('id', $id)->update(['step_number' => $i + 1]);
+            }
+        });
+
+        $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Move a step up in the order
+     */
+    public function moveStepUp(ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)
+    {
+        // Ensure template belongs to this product type and step belongs to template
+        if ($processTemplate->product_type_id !== $productType->id || $step->process_template_id !== $processTemplate->id) {
+            abort(404);
+        }
+
+        if ($step->step_number <= 1) {
+            return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
+                ->with('error', 'Step is already first.');
+        }
+
+        // Swap with previous step
+        $previousStep = $processTemplate->steps()
+            ->where('step_number', $step->step_number - 1)
+            ->first();
+
+        if ($previousStep) {
+            $before = $this->stepOrderSnapshot($processTemplate);
+            $origStep = $step->step_number;
+            $origPrevious = $previousStep->step_number;
+            DB::table('template_steps')->where('id', $step->id)->update(['step_number' => -1]);
+            DB::table('template_steps')->where('id', $previousStep->id)->update(['step_number' => $origStep]);
+            DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origPrevious]);
+            $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
+        }
+
+        return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
+            ->with('success', 'Step moved up successfully.');
+    }
+
+    /**
+     * Move a step down in the order
+     */
+    public function moveStepDown(ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)
+    {
+        // Ensure template belongs to this product type and step belongs to template
+        if ($processTemplate->product_type_id !== $productType->id || $step->process_template_id !== $processTemplate->id) {
+            abort(404);
+        }
+
+        $maxStepNumber = $processTemplate->steps()->max('step_number');
+        if ($step->step_number >= $maxStepNumber) {
+            return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
+                ->with('error', 'Step is already last.');
+        }
+
+        // Swap with next step
+        $nextStep = $processTemplate->steps()
+            ->where('step_number', $step->step_number + 1)
+            ->first();
+
+        if ($nextStep) {
+            $before = $this->stepOrderSnapshot($processTemplate);
+            $origStep = $step->step_number;
+            $origNext = $nextStep->step_number;
+            DB::table('template_steps')->where('id', $step->id)->update(['step_number' => -1]);
+            DB::table('template_steps')->where('id', $nextStep->id)->update(['step_number' => $origStep]);
+            DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origNext]);
+            $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
+        }
+
+        return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
+            ->with('success', 'Step moved down successfully.');
+    }
+}

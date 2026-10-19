@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "task_id": "sample7-crash-form",
+  "kind": "candidate_comparison",
+  "model": {
+    "id": "fem-sample7",
+    "version": "1"
+  },
+  "backend": {
+    "id": "openradioss-win64",
+    "version": "1"
+  },
+  "required_capabilities": [
+    "evaluate"
+  ],
+  "context": {
+    "source": "reference_simulation",
+    "description": "Sample7 AutoForm QuickLink export; no measured validation"
+  },
+  "inputs": {
+    "density": {
+      "semantic_id": "urn:ase:stamping:density",
+      "unit": "kg/m3",
+      "values": [
+        2700
+      ]
+    },
+    "form_time": {
+      "semantic_id": "urn:ase:stamping:form-time",
+      "unit": "s",
+      "values": [
+        0.012
+      ]
+    },
+    "dwell": {
+      "semantic_id": "urn:ase:stamping:dwell",
+      "unit": "s",
+      "values": [
+        0.0005
+      ]
+    }
+  },
+  "execution": {
+    "algorithm": "explicit-shell",
+    "dt_min_s": 1e-07,
+    "threads": 4
+  },
+  "candidates": [
+    {
+      "id": "baseline",
+      "parameters": {
+        "friction": {
+          "value": 0.0375,
+          "unit": "1"
+        },
+        "clearance_ratio": {
+          "value": 1.15,
+          "unit": "1"
+        }
+      }
+    }
+  ],
+  "budget": {
+    "max_evaluations": 1,
+    "timeout_s": 600
+  },
+  "objective": {
+    "semantic_id": "urn:ase:stamping:p99-thinning",
+    "unit": "%",
+    "reduction": "scalar",
+    "direction": "minimize"
+  },
+  "constraints": [
+    {
+      "semantic_id": "urn:ase:stamping:interior-max-thinning",
+      "unit": "%",
+      "reduction": "scalar",
+      "operator": "<=",
+      "limit": 30
+    }
+  ],
+  "acceptance": {
+    "scope": "model_constraints_only"
+  }
+}

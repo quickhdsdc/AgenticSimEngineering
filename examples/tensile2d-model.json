@@ -1,0 +1,8 @@
+{
+  "model": "plane_strain_tri3_residual",
+  "initial_poisson": 0.25,
+  "initial_young_scale": 0.9,
+  "elastic_fit_cases": 4,
+  "neighbors": [1, 2, 4, 8, 16],
+  "geometry_weights": [0.25, 1, 4]
+}

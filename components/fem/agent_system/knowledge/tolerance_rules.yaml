@@ -1,0 +1,36 @@
+# 2D 图纸公差评估规则 (Tolerance evaluation)
+# 来源: 设计流程-前期评估.pptx (slide 25/26), 样件9 公差建议
+# 用途: 用成型仿真的减薄/回弹结果反查 2D 图纸公差能否保证,生成给客户的放宽建议
+version: 0.1
+
+rules:
+  - id: outer_arc_uncontrollable
+    name: 外侧圆弧不可控
+    desc: 外侧圆弧因成型减薄不可控,内侧圆弧始终与模具接触可控
+    recommendation: "建议改为管控内侧圆弧;若客户不同意,建议放宽公差"
+    source: "slide 25"
+
+  - id: thinning_exceeds_tol
+    name: 减薄超公差
+    desc: 若测量位置减薄量超过图纸公差带,判定该尺寸无法稳定保证
+    check: "abs(thinning_at_point_mm) > tolerance_band_mm"
+    recommendation_formula: "建议公差 ≈ ±(减薄量 + 安全余量)"
+    example: "减薄0.156mm,公差±0.15→超差;建议放宽至±0.3"
+    source: "slide 25"
+
+  - id: profile_tolerance
+    name: 侧壁轮廓度
+    desc: 轮廓度需计入减薄×2 + 回弹 + 安全余量
+    formula: "建议轮廓度 ≈ 顶部减薄 × 2 + 回弹余量"
+    example: "顶部变薄0.15 → 偏差0.15×2=0.3, +回弹安全余量0.3 → 建议管控0.6"
+    source: "slide 26"
+
+  - id: safety_margin
+    name: 量产稳定性余量
+    desc: 所有建议公差都要在理论值上加安全余量,保证量产稳定
+    default_safety_mm: 0.15
+    source: "样件9: 考虑量产稳定性,建议放宽红色框尺寸公差"
+
+output:
+  # 公差评估输出一张"建议清单",逐条: 尺寸位置 / 原公差 / 仿真依据 / 建议公差 / 理由
+  fields: [location, original_tol, sim_basis, suggested_tol, reason]

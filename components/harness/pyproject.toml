@@ -1,0 +1,77 @@
+[project]
+name = "a4s-harness"
+version = "0.1.0"
+description = "An industrial agent harness that manages assets through their Asset Administration Shells"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+license = { text = "MIT" }
+
+# Exact pins, not ranges. A range lets a transitive dependency change under
+# a deployment without review; on a shopfloor host that is not acceptable.
+dependencies = [
+  "httpx==0.28.1",
+  "openai==2.24.0",
+  "cryptography==46.0.3",
+  "numpy==2.3.4",
+]
+
+[project.optional-dependencies]
+mes = ["tzdata==2025.2"]  # IANA zones for server-local scheduling, including Windows.
+anthropic = ["anthropic==0.75.0"]
+# There is no `semantic` extra. The source built `faiss.IndexFlatL2`, which is
+# exact brute-force search -- a full scan, no approximation -- so a numpy
+# matmul is the same computation with the same results and no binary
+# dependency. networkx went with it: the graph retrieval needs is one parent
+# pointer per node.
+documents = ["pypdfium2==5.13.0", "pillow==12.3.0", "openpyxl==3.1.5"]
+# The HTTP surface the web UI talks to. An extra rather than a core dependency:
+# a shopfloor host running `a4s run` needs none of it, and the pin discipline
+# above is worth more the fewer things it has to cover. WebSocket support is
+# what rules out the standard library here -- `machines/.../service.py` gets by
+# on `http.server` because it serves REST only, and the chat window does not.
+ui = ["fastapi==0.121.2", "uvicorn[standard]==0.41.0", "python-multipart==0.0.20"]
+# OPC UA, for assets whose interface is a server rather than an HTTP endpoint.
+# An extra because most of the harness never touches one, and because asyncua
+# brings `pyopenssl`, which asks for a newer `cryptography` than the pin above.
+# The pin wins: verified against all three Festo CP Lab servers on the pinned
+# version, and pyopenssl is only needed for secured channels, which these are
+# not. If a deployment needs Sign/SignEncrypt, that is the moment to revisit
+# the pin -- deliberately, rather than by letting an install decide.
+opc = ["asyncua==2.0.1"]
+dev = ["pytest==9.1.0", "ruff==0.15.4"]
+
+[project.scripts]
+a4s = "a4s.cli:main"
+aas = "a4s.aasctl.__main__:main"
+mes = "a4s.mesctl.__main__:main"
+a4s-imm = "a4s.machines.injection_molding.service:main"
+a4s-festo-onboard = "a4s.machines.festo_cp_lab.onboard:main"
+a4s-festo-record = "a4s.machines.festo_cp_lab.recorder:main"
+a4s-imm-onboard = "a4s.machines.injection_molding.onboard:main"
+a4s-serve = "a4s.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["a4s"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+cache-dir = "temp/ruff-cache"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Integration tests need a live BaSyx and are excluded from a bare `pytest`
+# run. They skip rather than fail without one, but excluding them by default
+# keeps the unit suite honest about what it covers on its own.
+# pytest clears basetemp on a new run: reserve this directory for disposable
+# fixtures only. Parallel independent runs must each override --basetemp with
+# a distinct temp/pytest/<run-name> directory. Never point it at temp/ itself.
+addopts = "-m 'not integration' --basetemp=temp/pytest/work"
+cache_dir = "temp/pytest/cache"
+markers = [
+  "integration: runs against a real BaSyx at $A4S_TEST_ENDPOINT or $A4S_AAS_ENDPOINT",
+]

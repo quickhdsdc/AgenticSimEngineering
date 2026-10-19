@@ -1,0 +1,118 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, HasRoles, HasTenant, Notifiable;
+    use SoftDeletesWithAudit;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'name',
+        'username',
+        'email',
+        'password',
+        'pin',
+        'account_type',
+        'workstation_id',
+        'worker_id',
+        'force_password_change',
+        'last_login_at',
+        'tenant_id',
+        'two_factor_secret',
+        'two_factor_enabled',
+        'two_factor_confirmed_at',
+        'two_factor_recovery_codes',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'pin',
+        'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+    ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'force_password_change' => 'boolean',
+            'last_login_at' => 'datetime',
+            'password' => 'hashed',
+            'two_factor_enabled' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime',
+        ];
+    }
+
+    /**
+     * Get the tenant this user belongs to.
+     */
+    public function tenant(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    /**
+     * Get the lines assigned to this user.
+     */
+    public function lines(): BelongsToMany
+    {
+        return $this->belongsToMany(Line::class, 'line_user');
+    }
+
+    /**
+     * Get the workstation for workstation-type accounts.
+     */
+    public function workstation(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Workstation::class);
+    }
+
+    /**
+     * Get the worker profile linked to this user account.
+     */
+    public function worker(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Worker::class);
+    }
+
+    /**
+     * Check if this is a workstation account.
+     */
+    public function isWorkstationAccount(): bool
+    {
+        return $this->account_type === 'workstation';
+    }
+
+    /**
+     * Check if this is a user account.
+     */
+    public function isUserAccount(): bool
+    {
+        return $this->account_type === 'user';
+    }
+}

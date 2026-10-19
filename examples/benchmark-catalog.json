@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "review_date": "2026-10-05",
+  "tasks": [
+    {
+      "id": "tensile2d-physics-residual",
+      "stage": "engineering",
+      "state": "integrated_reference_benchmark",
+      "source": "https://huggingface.co/datasets/PLAID-datasets/Tensile2d",
+      "spec": "examples/tensile2d-model.json",
+      "cli": "ase tensile run; ase-dialogue --case tensile2d-benchmark",
+      "metric": "official eight-output RRMSE on fixed local holdout; official-format 200-case prediction bundle",
+      "limit": "Elastic FEM identification plus learned plastic corrections; no recovered nonlinear law, official hidden server score or physical validation"
+    },
+    {
+      "id": "plaid-tensile2d",
+      "stage": "engineering",
+      "state": "integrated_reference_pilot",
+      "source": "https://huggingface.co/datasets/PLAID-datasets/Tensile2d",
+      "spec": "examples/plaid-tensile2d-source.json",
+      "cli": "ase plaid run; ase-dialogue --case plaid-tensile2d",
+      "metric": "eight-output relative RMSE, validation selection and fixed 100-case internal holdout",
+      "limit": "Bounded mesh-kNN recipes; units unspecified, hidden official labels unavailable, no constitutive discovery or physical validation"
+    },
+    {
+      "id": "merl-panda-identification",
+      "stage": "engineering",
+      "state": "integrated_offline_subset",
+      "spec": "examples/panda-identification.json",
+      "data": "https://zenodo.org/records/12516500",
+      "metric": "independent-experiment torque RMSE",
+      "limit": "provisional mappings; not deployed robot acceptance"
+    },
+    {
+      "id": "screw-s01-post-cycle-quality-v1",
+      "stage": "production",
+      "state": "integrated_offline_subset",
+      "spec": "examples/screw-benchmark.json",
+      "data": "https://zenodo.org/records/14887942",
+      "metric": "average precision, confusion counts, false-positive rate",
+      "limit": "station labels, completed operations, single station; not live incident response"
+    },
+    {
+      "id": "aas-conformance",
+      "stage": "semantic",
+      "state": "integrated_fixture_subset",
+      "source": "https://github.com/admin-shell-io/aas-test-engines",
+      "cli": "ase semantic run; ase-dialogue --case semantic-benchmark",
+      "metric": "AAS 3.0 Environment JSON plus sixteen explicit mapping decisions and reason codes",
+      "limit": "synthetic custom submodel; official IDTA templates, API endpoints and deployed mappings remain unaccepted"
+    },
+    {
+      "id": "chronobench-model-generation",
+      "stage": "engineering",
+      "state": "integrated_reference_pilot",
+      "source": "https://github.com/uwsbel/ChronoBench",
+      "paper": "https://arxiv.org/abs/2408.11987",
+      "metric": "constrained topology/parameter match and native position/velocity trajectory residuals",
+      "limit": "Two adapted constrained JSON authoring tasks; native reference agreement, no published-score comparability, GUI or real-plant validation",
+      "cli": "ase modelbench prepare --suite chronobench; ase-dialogue --case chronobench-benchmark"
+    },
+    {
+      "id": "factoryflow-des-generation",
+      "stage": "engineering_and_production",
+      "state": "integrated_reference_pilot",
+      "source": "https://github.com/InferaFactorySim/FactoryFlow",
+      "metric": "constrained topology/parameter match and native received-count/cumulative-cycle-time residuals",
+      "limit": "Two adapted constrained JSON authoring tasks; native reference agreement, no published-score comparability, GUI or real-plant validation",
+      "cli": "ase modelbench prepare --suite factoryflow; ase-dialogue --case factoryflow-benchmark"
+    }
+  ],
+  "related_wsc_2025": [
+    {
+      "title": "Bridging Expertise and Automation: A Hybrid Approach to Automated Model Generation for Digital Twins of Manufacturing Systems",
+      "url": "https://www.informs-sim.org/wsc25papers/satwcon109.pdf",
+      "use": "expert context, DES composition, parameter fitting and reference KPI evaluation"
+    },
+    {
+      "title": "Exploring the Integration of Large Language Models and the Model Context Protocol for Automated Simulation Modeling: Feasibility Checks with a Matrix Production System",
+      "url": "https://www.informs-sim.org/wsc25papers/pos123.pdf",
+      "use": "context-grounded model generation; static context PoC, not full MCP integration"
+    },
+    {
+      "title": "From Over-reliance to Smart Integration: Using Large-Language Models as Translators between Specialized Modeling and Simulation Tools",
+      "url": "https://www.informs-sim.org/wsc25papers/inv129.pdf",
+      "use": "Agent/tool separation and heterogeneous model translation"
+    },
+    {
+      "title": "Ontology Enabled Hybrid Modeling and Simulation",
+      "url": "https://www.informs-sim.org/wsc25papers/inv121.pdf",
+      "use": "semantic rigor and interoperability; not AAS-specific conformance"
+    },
+    {
+      "title": "Data Requirements for a Digital Twin of a CNC Machine Tool",
+      "url": "https://www.informs-sim.org/wsc25papers/inv136.pdf",
+      "use": "purpose-specific data requirements for descriptive through autonomous twins"
+    },
+    {
+      "title": "Integrating Expert Trustworthiness into Digital Twin Models Extracted from Expert Knowledge and Internet of Things Data: A Case Study in Reliability",
+      "url": "https://www.informs-sim.org/wsc25papers/con219.pdf",
+      "use": "source and uncertainty of operator-provided model context"
+    }
+  ]
+}

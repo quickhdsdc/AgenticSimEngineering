@@ -1,0 +1,84 @@
+ {
+      "model": {
+        "id": "Plant1",
+        "description": "Example model for builder_final",
+
+        "FlowUnits": {
+          "fu_templates": [
+            {
+              "id": "flowunit_3_machine_template",
+              "nodes": [
+                {"id": "SRC1", "type": "Source", "params": {"inter_arrival_time": 2}},
+                {"id": "M01", "type": "Machine", "params": {"work_capacity": 1}},
+                {"id": "M02", "type": "Machine", "params": {"work_capacity": 1}},
+                {"id": "M03", "type": "Machine", "params": {"work_capacity": 1}},
+                {"id": "SINK1", "type": "Sink", "params": {}}
+              ],
+              "edges": [
+                {"id": "B01", "type": "Buffer", "src": "SRC1", "dest": "M01", "params": {"capacity": 3}},
+                {"id": "B02", "type": "Buffer", "src": "M01", "dest": "M02", "params": {"capacity": 4}},
+                {"id": "B03", "type": "Buffer", "src": "M02", "dest": "M03", "params": {"capacity": 2}},
+                {"id": "B04", "type": "Buffer", "src": "M03", "dest": "SINK1", "params": {"capacity": 5}}
+              ]
+            },
+            {
+              "id": "flowunit_3_machine_template_fastM02",
+              "instance_of": "flowunit_3_machine_template",
+              "mods": {
+                "override_nodes": {"M02": {"work_capacity": 8}}
+              }
+            }
+          ],
+          "flowunit_instances": [
+            {
+              "id": "StandaloneFU",
+              "instance_of": "flowunit_3_machine_template",
+              "mods": {
+                "override_nodes": {"M01": {"work_capacity": 5}}
+                
+              }
+            }
+          ]
+        },
+
+        "GridUnits": {
+          "gu_templates": [
+            {
+              "id": "GridUnit_3x3_template",
+              "fu_templates": {
+                "FUA": "flowunit_3_machine_template",
+                "FUB": "flowunit_3_machine_template",
+                "FUC": "flowunit_3_machine_template_fastM02"
+              },
+              "interconnections": [
+                {"id": "IA1", "type": "Buffer", "from": {"fu": "FUA", "node": "M02"}, "to": {"fu": "FUB", "node": "M02"}, "params": {"capacity": 4}},
+                {"id": "IA2", "type": "Buffer", "from": {"fu": "FUB", "node": "M03"}, "to": {"fu": "FUC", "node": "M01"}, "params": {"capacity": 6}}
+              ]
+            }
+          ],
+          "gridunit_instances": [
+            {
+              "id": "GU1",
+              "instance_of": "GridUnit_3x3_template",
+              "mods": {
+               
+                "flowunits": {
+                  "FUB": {
+                    "override_nodes": {"M02": {"work_capacity": 20}},
+                    "add_nodes": [{"id": "M_extra", "type": "Machine", "params": {"work_capacity": 2}}],
+                    "add_edges": [{"id": "B_extra", "type": "Buffer", "src": "M_extra", "dest": "M03", "params": {"capacity": 1}},
+                                  {"id": "B_in_extra", "type": "Buffer", "src": "M02", "dest": "M_extra", "params": {"capacity": 1}}]
+                  }
+                },
+                
+                "override_interconnections": {"IA1": {"params": {"capacity": 10}}},
+                "add_interconnections": [
+                  {"id": "IA3", "type": "Buffer", "from": {"fu":"FUC","node":"M03"}, "to": {"fu":"FUA","node":"M01"}, "params": {"capacity": 2}}
+                ],
+                "delete_interconnections": []
+              }
+            }
+          ]
+        }
+      }
+    }

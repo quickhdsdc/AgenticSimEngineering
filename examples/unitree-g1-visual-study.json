@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0",
+  "task_id": "unitree-g1-motion-playback",
+  "kind": "candidate_comparison",
+  "model": {
+    "id": "unitree-g1",
+    "version": "1"
+  },
+  "backend": {
+    "id": "newton-mujoco",
+    "version": "1"
+  },
+  "required_capabilities": [
+    "evaluate"
+  ],
+  "context": {
+    "source": "synthetic_fixture",
+    "description": "Unitree G1 standing posture and small waist-yaw target change with floating base and floor contacts; not a locomotion policy."
+  },
+  "inputs": {
+    "initial_q": {
+      "semantic_id": "urn:ase:unitree-g1:initial-q",
+      "unit": "rad",
+      "values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.2,
+        0.2,
+        0.0,
+        1.28,
+        0.0,
+        0.0,
+        0.0,
+        0.2,
+        -0.2,
+        0.0,
+        1.28,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "target_q": {
+      "semantic_id": "urn:ase:unitree-g1:target-q",
+      "unit": "rad",
+      "values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.2,
+        0.2,
+        0.0,
+        1.28,
+        0.0,
+        0.0,
+        0.0,
+        0.2,
+        -0.2,
+        0.0,
+        1.28,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "execution": {
+    "device": "cpu",
+    "dt_s": 0.002,
+    "duration_s": 1.0,
+    "algorithm": "mujoco-implicitfast"
+  },
+  "candidates": [
+    {
+      "id": "hold",
+      "parameters": {
+        "joint_index": {
+          "value": 12,
+          "unit": "1"
+        },
+        "target_offset": {
+          "value": 0,
+          "unit": "rad"
+        }
+      }
+    },
+    {
+      "id": "offset",
+      "parameters": {
+        "joint_index": {
+          "value": 12,
+          "unit": "1"
+        },
+        "target_offset": {
+          "value": 0.1,
+          "unit": "rad"
+        }
+      }
+    }
+  ],
+  "objective": {
+    "semantic_id": "urn:ase:unitree-g1:final-joint-error",
+    "unit": "rad",
+    "reduction": "scalar",
+    "direction": "minimize"
+  },
+  "constraints": [
+    {
+      "semantic_id": "urn:ase:unitree-g1:final-joint-error",
+      "unit": "rad",
+      "reduction": "scalar",
+      "operator": "<=",
+      "limit": 0.1
+    },
+    {
+      "semantic_id": "urn:ase:unitree-g1:min-base-height",
+      "unit": "m",
+      "reduction": "scalar",
+      "operator": ">=",
+      "limit": 0.5
+    }
+  ],
+  "budget": {
+    "max_evaluations": 2,
+    "timeout_s": 300
+  },
+  "acceptance": {
+    "scope": "model_constraints_only"
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "outcomes": [
+    {
+      "arm": "baseline",
+      "task": "batch",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "all 30 values written and read back",
+      "steps": 6,
+      "input_tokens": 29425,
+      "output_tokens": 6446,
+      "seconds": 74.5,
+      "tool_calls": 35,
+      "session": "exp-baseline-batch-1-b6bb19",
+      "schema_bytes": 13013
+    },
+    {
+      "arm": "cli",
+      "task": "batch",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "all 30 values written and read back",
+      "steps": 5,
+      "input_tokens": 17603,
+      "output_tokens": 10108,
+      "seconds": 150.0,
+      "tool_calls": 4,
+      "session": "exp-cli-batch-1-38b33b",
+      "schema_bytes": 2699
+    },
+    {
+      "arm": "baseline",
+      "task": "prune",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "five empty slots removed, four populated ones untouched",
+      "steps": 4,
+      "input_tokens": 15063,
+      "output_tokens": 3049,
+      "seconds": 37.6,
+      "tool_calls": 8,
+      "session": "exp-baseline-prune-1-2c0b7f",
+      "schema_bytes": 13013
+    },
+    {
+      "arm": "cli",
+      "task": "prune",
+      "repeat": 1,
+      "status": "finished",
+      "passed": true,
+      "detail": "five empty slots removed, four populated ones untouched",
+      "steps": 6,
+      "input_tokens": 23956,
+      "output_tokens": 5737,
+      "seconds": 71.6,
+      "tool_calls": 6,
+      "session": "exp-cli-prune-1-c6ee86",
+      "schema_bytes": 2699
+    }
+  ],
+  "summary": {
+    "arms": {
+      "baseline": {
+        "attempts": 2,
+        "passed": 2,
+        "steps_mean": 5,
+        "input_tokens_mean": 22244,
+        "output_tokens_mean": 4747.5,
+        "seconds_mean": 56.0,
+        "tool_calls_mean": 21.5,
+        "schema_bytes": 13013
+      },
+      "cli": {
+        "attempts": 2,
+        "passed": 2,
+        "steps_mean": 5.5,
+        "input_tokens_mean": 20779.5,
+        "output_tokens_mean": 7922.5,
+        "seconds_mean": 110.8,
+        "tool_calls_mean": 5,
+        "schema_bytes": 2699
+      }
+    },
+    "tasks": {
+      "batch": {
+        "baseline": {
+          "passed": 1,
+          "of": 1,
+          "steps": 6,
+          "in": 29425,
+          "out": 6446
+        },
+        "cli": {
+          "passed": 1,
+          "of": 1,
+          "steps": 5,
+          "in": 17603,
+          "out": 10108
+        }
+      },
+      "prune": {
+        "baseline": {
+          "passed": 1,
+          "of": 1,
+          "steps": 4,
+          "in": 15063,
+          "out": 3049
+        },
+        "cli": {
+          "passed": 1,
+          "of": 1,
+          "steps": 6,
+          "in": 23956,
+          "out": 5737
+        }
+      }
+    }
+  }
+}

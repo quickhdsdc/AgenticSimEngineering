@@ -1,0 +1,63 @@
+<?php
+
+namespace App\Sync\Shapes;
+
+use App\Models\User;
+use App\Models\WorkOrder;
+use App\Sync\Shape;
+
+/**
+ * Work orders on active lines that are not in a terminal state.
+ *
+ * The collection the admin/supervisor dashboards subscribe to for the "active
+ * production" view.
+ */
+class WorkOrdersActiveShape extends Shape
+{
+    public function table(): string
+    {
+        return 'work_orders';
+    }
+
+    public function columns(): array
+    {
+        return [
+            'id',
+            'order_no',
+            'customer_order_no',
+            'customer_id',
+            'line_id',
+            'product_type_id',
+            'product_revision_id',
+            'status',
+            // Which configuration version the order is running (#182) — the board
+            // needs it to show production before and after an applied change apart.
+            'snapshot_version',
+            'priority',
+            'priority_score',
+            'planned_qty',
+            'unit_price',
+            'produced_qty',
+            'counting_source',
+            'due_date',
+            'completed_at',
+            'planned_start_at',
+            'planned_end_at',
+            'custom_fields',
+            'created_at',
+            'updated_at',
+        ];
+    }
+
+    public function where(User $user): ?string
+    {
+        // Open work orders only — terminal statuses don't change anymore and
+        // clients don't need them in the live shape. Status values are the
+        // App\Models\WorkOrder::STATUS_* uppercase constants.
+        $terminal = collect(WorkOrder::TERMINAL_STATUSES)
+            ->map(fn ($s) => "'{$s}'")
+            ->implode(',');
+
+        return "status NOT IN ({$terminal})";
+    }
+}

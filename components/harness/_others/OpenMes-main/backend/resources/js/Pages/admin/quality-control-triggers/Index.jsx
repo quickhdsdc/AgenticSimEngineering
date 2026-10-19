@@ -1,0 +1,108 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { TRIGGER_TYPE_LABELS, triggerFields, triggerInitial } from './fields';
+import { __ } from '../../../lib/i18n';
+
+export default function QualityControlTriggersIndex() {
+    const {
+        templateNames = {},
+        lineNames = {},
+        workstationNames = {},
+        productTypeNames = {},
+        // No defaults: these are Inertia::optional, and `ready` below tells the
+        // drawer they haven't arrived by their being undefined.
+        templates, lines, workstations, productTypes } = usePage().props;
+
+    const drawer = useResourceDrawer();
+
+    const scope = (r) => {
+        const parts = [];
+        if (r.line_id) parts.push(lineNames[r.line_id] ?? `#${r.line_id}`);
+        if (r.workstation_id) parts.push(workstationNames[r.workstation_id] ?? `#${r.workstation_id}`);
+        if (r.product_type_id) parts.push(productTypeNames[r.product_type_id] ?? `#${r.product_type_id}`);
+        return parts.length ? parts.join(' · ') : __('Any');
+    };
+
+    const columns = [
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        {
+            key: 'trigger_type',
+            label: __('Type'),
+            value: (r) => TRIGGER_TYPE_LABELS[r.trigger_type] ?? r.trigger_type,
+           
+            render: (r) => (
+                <span className="text-xs px-2 py-0.5 rounded font-medium bg-om-line2 text-om-muted">
+                    {TRIGGER_TYPE_LABELS[r.trigger_type] ?? r.trigger_type}
+                </span>
+            ),
+        },
+        {
+            key: 'threshold_n',
+            label: __('N'),
+            className: 'text-om-muted',
+           
+            render: (r) => (r.threshold_n ?? '—'),
+        },
+        {
+            key: 'quality_check_template_id',
+            label: __('Control'),
+            className: 'text-om-muted',
+            value: (r) => templateNames[r.quality_check_template_id] ?? '—',
+           
+            render: (r) => templateNames[r.quality_check_template_id] ?? '—',
+        },
+        { key: 'scope', label: __('Scope'), className: 'text-om-muted', value: scope, render: scope },
+        { key: 'is_blocking', label: __('Blocking'), render: (r) => (r.is_blocking ? __('Yes') : __('No')) },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
+    ];
+
+    const actions = (r) => [
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
+        {
+            label: r.is_active ? __('Deactivate') : __('Activate'),
+            icon: r.is_active ? 'deactivate' : 'activate',
+            onClick: () => router.post(`/admin/quality-control-triggers/${r.id}/toggle-active`, {}, { preserveScroll: true }),
+        },
+        {
+            label: __('Delete'),
+            icon: 'delete',
+            variant: 'danger',
+            confirm: {
+                title: __('Delete trigger ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
+            },
+            onClick: () => router.delete(`/admin/quality-control-triggers/${r.id}`, { preserveScroll: true }),
+        },
+    ];
+
+    return (
+        <>
+            <Head title={__('Quality Control Triggers')} />
+            <ResourceTable
+                shape="quality_control_triggers"
+                title={__('Quality Control Triggers')}
+                createHref="/admin/quality-control-triggers/create"
+                onCreate={drawer.create}
+                createLabel={__('New Trigger')}
+                columns={columns}
+                orderBy="name"
+                actions={actions}
+                emptyText={__('No quality control triggers yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/quality-control-triggers"
+                fields={triggerFields({ templates: templates ?? [], lines: lines ?? [], workstations: workstations ?? [], productTypes: productTypes ?? [] })}
+                initial={triggerInitial}
+                ensure={['templates', 'lines', 'workstations', 'productTypes']}
+                ready={templates !== undefined}
+                title={{ create: __('New Quality Control Trigger'), edit: __('Edit Quality Control Trigger') }}
+            />
+        </>
+    );
+}
+
+QualityControlTriggersIndex.layout = (page) => <AppLayout>{page}</AppLayout>;

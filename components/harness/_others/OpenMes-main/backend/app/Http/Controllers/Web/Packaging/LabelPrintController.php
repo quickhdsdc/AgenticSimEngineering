@@ -1,0 +1,189 @@
+<?php
+
+namespace App\Http\Controllers\Web\Packaging;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\PrintMultipleLabelsRequest;
+use App\Models\Batch;
+use App\Models\BatchStep;
+use App\Models\LabelTemplate;
+use App\Models\Pallet;
+use App\Models\WorkOrder;
+use App\Services\Packaging\LabelGenerator;
+use Illuminate\Http\Request;
+
+class LabelPrintController extends Controller
+{
+    public function __construct(private LabelGenerator $generator) {}
+
+    public function workOrderPdf(Request $request, WorkOrder $workOrder)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_WORK_ORDER);
+        $pdf = $this->generator->pdfForWorkOrders(collect([$workOrder]), $template);
+
+        return $pdf->stream("label-wo-{$workOrder->order_no}.pdf");
+    }
+
+    public function workOrderZpl(Request $request, WorkOrder $workOrder)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_WORK_ORDER);
+        $zpl = $this->generator->zplForWorkOrders(collect([$workOrder]), $template);
+
+        return response($zpl, 200, [
+            'Content-Type' => 'application/zpl',
+            'Content-Disposition' => "attachment; filename=label-wo-{$workOrder->order_no}.zpl",
+        ]);
+    }
+
+    public function finishedGoodsPdf(Request $request, Batch $batch)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_FINISHED_GOODS);
+        $pdf = $this->generator->pdfForFinishedGoods(collect([$batch]), $template);
+        $label = $batch->lot_number ?: 'batch-'.$batch->id;
+
+        return $pdf->stream("label-fg-{$label}.pdf");
+    }
+
+    public function finishedGoodsZpl(Request $request, Batch $batch)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_FINISHED_GOODS);
+        $zpl = $this->generator->zplForFinishedGoods(collect([$batch]), $template);
+        $label = $batch->lot_number ?: 'batch-'.$batch->id;
+
+        return response($zpl, 200, [
+            'Content-Type' => 'application/zpl',
+            'Content-Disposition' => "attachment; filename=label-fg-{$label}.zpl",
+        ]);
+    }
+
+    public function batchStepPdf(Request $request, BatchStep $batchStep)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_WORKSTATION_STEP);
+        $pdf = $this->generator->pdfForBatchSteps(collect([$batchStep]), $template);
+
+        return $pdf->stream("label-step-{$batchStep->id}.pdf");
+    }
+
+    public function batchStepZpl(Request $request, BatchStep $batchStep)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_WORKSTATION_STEP);
+        $zpl = $this->generator->zplForBatchSteps(collect([$batchStep]), $template);
+
+        return response($zpl, 200, [
+            'Content-Type' => 'application/zpl',
+            'Content-Disposition' => "attachment; filename=label-step-{$batchStep->id}.zpl",
+        ]);
+    }
+
+    public function palletPdf(Request $request, Pallet $pallet)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_PALLET);
+        $pdf = $this->generator->pdfForPallets(collect([$pallet]), $template);
+
+        return $pdf->stream("label-pallet-{$pallet->pallet_no}.pdf");
+    }
+
+    public function palletZpl(Request $request, Pallet $pallet)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_PALLET);
+        $zpl = $this->generator->zplForPallets(collect([$pallet]), $template);
+
+        return response($zpl, 200, [
+            'Content-Type' => 'application/zpl',
+            'Content-Disposition' => "attachment; filename=label-pallet-{$pallet->pallet_no}.zpl",
+        ]);
+    }
+
+    public function printMultiple(PrintMultipleLabelsRequest $request)
+    {
+        $validated = $request->validated();
+
+        $template = $validated['template_id']
+            ? LabelTemplate::findOrFail($validated['template_id'])
+            : LabelTemplate::defaultFor($validated['type']);
+
+        abort_unless($template, 404, __('No label template configured for this type.'));
+
+        return match ($validated['type']) {
+            LabelTemplate::TYPE_WORK_ORDER => $this->multiWorkOrders($validated['ids'], $template, $validated['format']),
+            LabelTemplate::TYPE_FINISHED_GOODS => $this->multiFinishedGoods($validated['ids'], $template, $validated['format']),
+            LabelTemplate::TYPE_WORKSTATION_STEP => $this->multiBatchSteps($validated['ids'], $template, $validated['format']),
+            LabelTemplate::TYPE_PALLET => $this->multiPallets($validated['ids'], $template, $validated['format']),
+        };
+    }
+
+    private function multiPallets(array $ids, LabelTemplate $template, string $format)
+    {
+        $pallets = Pallet::whereIn('id', $ids)->get();
+        $filename = 'labels-pallets-'.date('Ymd-His');
+
+        if ($format === 'zpl') {
+            return response($this->generator->zplForPallets($pallets, $template), 200, [
+                'Content-Type' => 'application/zpl',
+                'Content-Disposition' => "attachment; filename={$filename}.zpl",
+            ]);
+        }
+
+        return $this->generator->pdfForPallets($pallets, $template)->stream("{$filename}.pdf");
+    }
+
+    private function multiWorkOrders(array $ids, LabelTemplate $template, string $format)
+    {
+        $workOrders = WorkOrder::whereIn('id', $ids)->get();
+        $filename = 'labels-work-orders-'.date('Ymd-His');
+
+        if ($format === 'zpl') {
+            return response($this->generator->zplForWorkOrders($workOrders, $template), 200, [
+                'Content-Type' => 'application/zpl',
+                'Content-Disposition' => "attachment; filename={$filename}.zpl",
+            ]);
+        }
+
+        return $this->generator->pdfForWorkOrders($workOrders, $template)->stream("{$filename}.pdf");
+    }
+
+    private function multiFinishedGoods(array $ids, LabelTemplate $template, string $format)
+    {
+        $batches = Batch::whereIn('id', $ids)->get();
+        $filename = 'labels-finished-goods-'.date('Ymd-His');
+
+        if ($format === 'zpl') {
+            return response($this->generator->zplForFinishedGoods($batches, $template), 200, [
+                'Content-Type' => 'application/zpl',
+                'Content-Disposition' => "attachment; filename={$filename}.zpl",
+            ]);
+        }
+
+        return $this->generator->pdfForFinishedGoods($batches, $template)->stream("{$filename}.pdf");
+    }
+
+    private function multiBatchSteps(array $ids, LabelTemplate $template, string $format)
+    {
+        $steps = BatchStep::whereIn('id', $ids)->get();
+        $filename = 'labels-steps-'.date('Ymd-His');
+
+        if ($format === 'zpl') {
+            return response($this->generator->zplForBatchSteps($steps, $template), 200, [
+                'Content-Type' => 'application/zpl',
+                'Content-Disposition' => "attachment; filename={$filename}.zpl",
+            ]);
+        }
+
+        return $this->generator->pdfForBatchSteps($steps, $template)->stream("{$filename}.pdf");
+    }
+
+    private function resolveTemplate(Request $request, string $type): LabelTemplate
+    {
+        if ($id = $request->integer('template')) {
+            $template = LabelTemplate::find($id);
+            if ($template && $template->type === $type) {
+                return $template;
+            }
+        }
+
+        $template = LabelTemplate::defaultFor($type);
+        abort_unless($template, 404, __('No label template configured for type :type. Configure one in Packaging → Label Templates.', ['type' => $type]));
+
+        return $template;
+    }
+}

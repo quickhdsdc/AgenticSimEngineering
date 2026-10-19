@@ -1,0 +1,174 @@
+{
+  "submodel": "*",
+  "note": "Cross-repository queries against the whole-repository index (3,789 elements, 116 submodels). The realistic case: the operator does not know which submodel holds the answer, which is exactly what the single-submodel set could not test -- every one of its queries was handed its candidate pool for free. Each case also declares the structural filter an agent could reasonably derive from the question before searching ('a Property', 'a Nameplate', 'in degC'), so the same set can be scored with filtering off and on and the difference attributed. Paths are matched without their submodel: this repository holds genuine duplicates (three TechnicalData_IMM submodels, three KinematicModels), and finding the right kind of element in any copy is a correct answer.",
+  "cases": [
+    {
+      "id": "x-01",
+      "query": "temperature of the first barrel heating zone on the moulding machine",
+      "gold": ["BarrelZone1"],
+      "tier": "paraphrase",
+      "filter": {"model_type": "Property"},
+      "note": "the machine this project added; nothing else in the repository has barrel zones"
+    },
+    {
+      "id": "x-02",
+      "query": "how long one moulding cycle takes",
+      "gold": ["CycleTime"],
+      "tier": "paraphrase",
+      "filter": {"model_type": "Property"}
+    },
+    {
+      "id": "x-03",
+      "query": "serial number of the device",
+      "gold": ["SerialNumber"],
+      "tier": "paraphrase",
+      "filter": {"in_template": "https://admin-shell.io/zvei/nameplate/2/0/Nameplate"},
+      "note": "SerialNumber is a Nameplate concept; the filter is the one an agent derives from the word 'device'"
+    },
+    {
+      "id": "x-04",
+      "query": "who manufactured this",
+      "gold": ["GeneralInformation.ManufacturerName"],
+      "acceptable": ["ManufacturerName"],
+      "tier": "paraphrase",
+      "filter": {"model_type": "Property"},
+      "note": "ManufacturerName exists in both TechnicalData and DigitalNameplate; either is a correct answer to an unqualified question"
+    },
+    {
+      "id": "x-05",
+      "query": "top speed of the AGV when it is not carrying anything",
+      "gold": ["TechnicalPropertyAreas.TechnicalParameters.SpeedMaxEmptyAsSpecified"],
+      "acceptable": ["TechnicalPropertyAreas.TechnicalParameters.SpeedMaxEmptyAsOperated"],
+      "tier": "paraphrase",
+      "filter": {"in_template": "https://admin-shell.io/idta/SubmodelTemplate/technicaldataagv/1/0"},
+      "note": "two defensible targets, specified against operated"
+    },
+    {
+      "id": "x-06",
+      "query": "payload the first robot link can carry",
+      "gold": ["MetaModel.Link00.Payload"],
+      "tier": "paraphrase",
+      "filter": {"model_type": "Property"},
+      "note": "KinematicModel is the largest submodel here at 295 nodes and repeats three times; a hard neighbourhood"
+    },
+    {
+      "id": "x-07",
+      "query": "name of a skill the asset offers",
+      "gold": ["Op_SK01.OperationName"],
+      "acceptable": ["Op_SK02.OperationName", "Op_SK03.OperationName"],
+      "tier": "paraphrase",
+      "filter": {"model_type": "Property"},
+      "note": "SkillInterface; any of the three operations answers the question as asked"
+    },
+    {
+      "id": "x-08",
+      "query": "how large a mould the machine can accommodate between its platens",
+      "gold": ["CapabilitySet.InjectionMolding.PropertySet.MoldAccommodation.MaxSizeOfClampingPlatensHeight"],
+      "acceptable": ["CapabilitySet.InjectionMolding.PropertySet.MoldAccommodation.MinSizeOfClampingPlatensWidth"],
+      "tier": "paraphrase",
+      "filter": {"in_template": "https://admin-shell.io/idta/SubmodelTemplate/CapabilityDescription/1/0"},
+      "note": "deeply nested under a capability description; five path segments down"
+    },
+    {
+      "id": "x-09",
+      "query": "rated capacity of the battery",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"],
+      "tier": "paraphrase",
+      "filter": {"in_template": "https://admin-shell.io/ZVEI/TechnicalData/Submodel/1/2"},
+      "note": "the case that motivated the filter: unfiltered, the top three hits are the same path in three duplicate submodels, so five slots return two distinct concepts"
+    },
+    {
+      "id": "x-10",
+      "query": "lowest voltage the battery may be operated at",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage"],
+      "tier": "paraphrase",
+      "filter": {"in_template": "https://admin-shell.io/ZVEI/TechnicalData/Submodel/1/2"}
+    },
+
+    {
+      "id": "xm-01",
+      "query": "注塑机料筒第一区的温度",
+      "gold": ["BarrelZone1"],
+      "tier": "multilingual",
+      "filter": {"model_type": "Property"}
+    },
+    {
+      "id": "xm-02",
+      "query": "设备的序列号",
+      "gold": ["SerialNumber"],
+      "tier": "multilingual",
+      "filter": {"in_template": "https://admin-shell.io/zvei/nameplate/2/0/Nameplate"}
+    },
+    {
+      "id": "xm-03",
+      "query": "AGV 空载时的最高速度",
+      "gold": ["TechnicalPropertyAreas.TechnicalParameters.SpeedMaxEmptyAsSpecified"],
+      "acceptable": ["TechnicalPropertyAreas.TechnicalParameters.SpeedMaxEmptyAsOperated"],
+      "tier": "multilingual",
+      "filter": {"in_template": "https://admin-shell.io/idta/SubmodelTemplate/technicaldataagv/1/0"}
+    },
+    {
+      "id": "xm-04",
+      "query": "Seriennummer des Geräts",
+      "gold": ["SerialNumber"],
+      "tier": "multilingual",
+      "filter": {"in_template": "https://admin-shell.io/zvei/nameplate/2/0/Nameplate"}
+    },
+
+    {
+      "id": "xv-01",
+      "query": "BarrelZone1",
+      "gold": ["BarrelZone1"],
+      "tier": "verbatim",
+      "filter": {"model_type": "Property"}
+    },
+    {
+      "id": "xv-02",
+      "query": "SerialNumber",
+      "gold": ["SerialNumber"],
+      "tier": "verbatim",
+      "filter": {"model_type": "Property"}
+    },
+
+    {
+      "id": "xn-01",
+      "query": "current price of electricity per kilowatt hour",
+      "gold": [],
+      "tier": "negative",
+      "filter": {"model_type": "Property"},
+      "note": "no asset in this repository models tariffs"
+    },
+    {
+      "id": "xn-02",
+      "query": "which operator is on the night shift",
+      "gold": [],
+      "tier": "negative",
+      "filter": {"model_type": "Property"},
+      "note": "nothing here models people"
+    },
+    {
+      "id": "xn-03",
+      "query": "delivery date of the next raw material shipment",
+      "gold": [],
+      "tier": "negative",
+      "filter": {"model_type": "Property"},
+      "note": "logistics; plausible in a plant and absent from this model"
+    },
+    {
+      "id": "xn-04",
+      "query": "hydraulic oil filter replacement interval",
+      "gold": [],
+      "tier": "negative",
+      "filter": {"model_type": "Property"},
+      "note": "maintenance data, and the machine really does have hydraulic oil -- the tempting near-miss"
+    },
+    {
+      "id": "xn-05",
+      "query": "网络交换机的 IP 地址",
+      "gold": [],
+      "tier": "negative",
+      "filter": {"model_type": "Property"},
+      "note": "a negative in Chinese; rejection must not depend on the query language"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "checked_on": "2026-10-03",
+  "sources": [
+    {
+      "id": "aursad-v1.1",
+      "url": "https://zenodo.org/records/4559556",
+      "robot": "UR3e with OnRobot screwdriver",
+      "evidence": "measurement",
+      "purpose": "normal/anomalous screwdriving monitoring",
+      "sample_frequency_hz": 100,
+      "hdf5_size_gb_approx": 6.4,
+      "license": "not resolved from the inspected record",
+      "local_status": "not downloaded or ingested",
+      "limit": "Different robot; not a KUKA/G1 identification reference"
+    },
+    {
+      "id": "merl-lip4rid-v1",
+      "url": "https://zenodo.org/records/12516500",
+      "robots": [
+        "Franka Panda",
+        "MELFA"
+      ],
+      "evidence": "real-robot measurements and separate simulated Panda subsets",
+      "purpose": "inverse dynamics identification",
+      "license": "CC-BY-SA-4.0",
+      "zip_size_mb_approx": 541.5,
+      "local_status": "downloaded and checksum-verified; 29 Panda filtered experiments numerically imported, nominal model generated, bounded corrections fitted and 16 held-out experiments scored; MELFA inventory only",
+      "local_archive": "work/cache/datasets/merl-lip4rid-v1/PUB-5510-LIP4RID.zip",
+      "intake_summary": "work/runs/datasets/merl-lip4rid-v1/summary.json",
+      "sha256": "527ec997b8f957f102e07f132f2663156ffcfe9366ed1c9f1d6e14ad21409288",
+      "limit": "Provisional acquisition/units/frame/target mapping and nominal tool/structure assumptions; public dataset acceptance does not establish physical equipment calibration; not measurements of KUKA",
+      "identification_evidence": "work/runs/twin-dialogues/twin-74a63588b7ef/artifacts/identification/validation.json"
+    },
+    {
+      "id": "nvidia-franka-sysid-tutorial",
+      "url": "https://docs.isaacsim.omniverse.nvidia.com/latest/robot_setup_tutorials/tutorial_franka_system_identification.html",
+      "robot": "Franka Panda",
+      "purpose": "telemetry mapping, alignment, fitting and residual validation reference",
+      "local_status": "documentation reviewed; sample package not installed or integrated",
+      "license": "sample/distribution terms must be reviewed before use",
+      "limit": "Tutorial/sample availability does not establish provenance or compatibility with the current Newton KUKA case"
+    }
+  ]
+}

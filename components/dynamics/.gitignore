@@ -1,0 +1,27 @@
+# ---- 虚拟环境（机器相关，在目标机重建）----
+.venv/
+env_isaacsim/
+robotics_nvidia/
+
+# ---- 临时产物 ----
+scratch/logs/
+scratch/scripts/*.log
+*.log
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+
+# ---- 实验跟踪 ----
+wandb/
+
+# ---- 大文件：数据与结果默认不进仓库 ----
+# 需要归档某个数据集时用 git add -f 显式添加
+data/**/*.npz
+results/**/*.npz
+
+# ---- 系统垃圾 ----
+Thumbs.db
+desktop.ini
+.DS_Store

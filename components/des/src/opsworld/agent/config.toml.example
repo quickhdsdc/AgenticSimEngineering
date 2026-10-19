@@ -1,0 +1,30 @@
+# GradientShop agent LLM config -- copy to `config.toml` and fill in a real endpoint.
+#   [llm]        = default profile (used when no profile is selected)
+#   [llm.<name>] = named profile; inherits [llm] and overrides it
+# Select a profile with env var GS_LLM_PROFILE=<name> (unset -> [llm]).
+# Point at a different file with env var GS_CONFIG=/path/to/config.toml.
+# api_type: "openai" (any OpenAI-compatible endpoint) | "azure".
+# Secrets: write "env:VAR" to read the key from the environment (never commit keys).
+
+[llm]  # default
+api_type = "openai"
+model = "gpt-5"
+base_url = "https://api.openai.com/v1"
+api_key = "env:OPENAI_API_KEY"
+temperature = 0.0
+max_tokens = 8192
+
+[llm.azure]
+api_type = "azure"
+model = "gpt-5"
+base_url = "https://<your-resource>.openai.azure.com"
+api_key = "env:AZURE_OPENAI_API_KEY"
+api_version = "2024-10-21"
+max_tokens = 8192
+
+[llm.deepseek]
+api_type = "openai"
+model = "deepseek-reasoner"
+base_url = "https://api.deepseek.com"
+api_key = "env:DEEPSEEK_API_KEY"
+max_tokens = 4096

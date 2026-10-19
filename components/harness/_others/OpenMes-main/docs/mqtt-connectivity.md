@@ -1,0 +1,283 @@
+# MQTT Machine Connectivity
+
+The MQTT machine connectivity module is available since **v0.4.0** under **Admin → Connectivity → MQTT**.
+
+---
+
+## Architecture — OpenMES is a client, not a broker
+
+> **Read this first if a client "won't connect to OpenMES".** OpenMES is an MQTT
+> **subscriber (client)** — it is **not** an MQTT broker. You cannot point another
+> MQTT client (MQTTX, HiveMQ demo, a machine) "at OpenMES" and expect it to connect.
+
+MQTT is publish/subscribe **through a broker**. Every participant — including OpenMES —
+is a client that connects *to a broker*. So you always need a broker (e.g.
+[Eclipse Mosquitto](https://mosquitto.org)) sitting in the middle:
+
+```
+[ machine / MQTTX / any publisher ] ──publish──▶ [ MQTT broker ] ◀──subscribe── [ OpenMES  (php artisan mqtt:listen) ]
+                                                  (Mosquitto)
+```
+
+- OpenMES connects **outbound** to the broker host/port you set in
+  **Admin → Connectivity → MQTT** (`broker_host` / `broker_port`, default `1883`,
+  optional TLS) and subscribes to the topics you configured.
+- Your machines (or a test tool) publish to the **same broker**.
+- OpenMES never opens a listening port for machines — it does not ship or embed a broker.
+
+### Browser-based test clients need a WebSocket listener
+
+Browser MQTT clients — such as the **[MQTTX web client](https://mqttx.app/web-client)**
+and the **[HiveMQ WebSocket client](https://www.hivemq.com/demos/websocket-client/)** —
+can only speak **MQTT over WebSocket** (a browser cannot open a raw TCP socket). A
+plain broker that only listens on TCP `1883` will therefore **refuse them** — you must
+enable a **WebSocket listener** on the broker (conventionally port `9001`,
+`protocol websockets`). See [Step 1](#step-1--start-a-local-mosquitto-broker), which
+configures both listeners.
+
+Native/desktop clients (`mosquitto_pub`, MQTT Explorer, a PLC, OpenMES itself) use the
+raw TCP listener (`1883`) and do **not** need the WebSocket listener.
+
+---
+
+## Running the MQTT listener in production
+
+A **single** `mqtt-listener` service (defined in `docker-compose.yml`) supervises **all** active MQTT connections at once. It reconciles against the database every few seconds, so when you **create or activate a new connection in the admin panel it is picked up automatically** — no restart, no per-connection container.
+
+### Start the listener
+
+```bash
+cd /opt/openmmes   # or wherever your docker-compose.yml is
+docker compose up -d mqtt-listener
+```
+
+### Check listener logs
+
+```bash
+docker logs openmmes-mqtt-listener -f
+```
+
+### Stop the listener
+
+```bash
+docker compose stop mqtt-listener
+```
+
+What the supervisor does on each reconcile tick:
+
+- **new / newly-activated** connection → connect + subscribe automatically;
+- **deactivated / deleted** connection → disconnect;
+- **changed** broker settings or topics on an existing connection → reconnect with the new config.
+
+> **Pin to one connection** (optional): to run a dedicated process for a single connection, pass `--connection=<id>` (e.g. `php artisan mqtt:listen --connection=2`, or add it back to the `mqtt-listener` command with `MQTT_CONNECTION_ID`). Omitting it supervises everything, which is the recommended default.
+
+---
+
+## Testing Guide
+
+Below is a reproducible test procedure for verifying MQTT connections end-to-end.
+
+---
+
+## Test environment
+
+| Component | Details |
+|---|---|
+| MQTT broker | `eclipse-mosquitto:2` (Docker container) |
+| Backend | `openmmes-backend` container (Laravel 12) |
+| Package | `php-mqtt/client ^2.0` |
+| Test topic pattern | `factory/line1/machine01/#` (wildcard) |
+| Payload format | JSON |
+
+---
+
+## Step 1 — Start a local Mosquitto broker
+
+This config opens **two** listeners: TCP `1883` (for OpenMES and native clients) and
+WebSocket `9001` (for browser clients like MQTTX web / HiveMQ). Both ports are published.
+
+```bash
+docker run --name mosquitto-test -d -p 1883:1883 -p 9001:9001 eclipse-mosquitto:2 \
+  sh -c "printf 'listener 1883\nprotocol mqtt\nlistener 9001\nprotocol websockets\nallow_anonymous true\n' \
+           > /mosquitto/config/mosquitto.conf \
+         && mosquitto -c /mosquitto/config/mosquitto.conf"
+```
+
+> `allow_anonymous true` is for local testing only — require credentials on any broker
+> reachable beyond localhost.
+
+If running inside Docker Compose, connect Mosquitto to the same network as the backend:
+
+```bash
+docker network connect <your_project>_openmmes-network mosquitto-test
+```
+
+### Testing from a browser client (MQTTX web / HiveMQ WebSocket)
+
+Point the browser client at the broker's **WebSocket** listener — not `1883`:
+
+| Field | Value |
+|---|---|
+| Host | your broker host (e.g. `localhost` / the machine's LAN IP) |
+| Port | `9001` |
+| Path | `/` (Mosquitto's default) |
+| Protocol | `ws://` (or `wss://` if you put TLS in front) |
+
+Then **publish** from that client to a topic OpenMES subscribes to (e.g.
+`factory/line1/machine01/status`) and watch it arrive in the listener (Step 3–4).
+Remember both sides must use the **same broker** — a browser client publishing to the
+public HiveMQ demo broker will not reach an OpenMES instance pointed at your local
+Mosquitto.
+
+---
+
+## Step 2 — Create a test machine connection
+
+```bash
+docker compose exec backend php artisan tinker --execute="
+use App\Models\MachineConnection;
+use App\Models\MqttConnection;
+use App\Models\MachineTopic;
+use App\Models\TopicMapping;
+
+\$mc = MachineConnection::create([
+    'name'      => 'TEST-MACHINE-01',
+    'protocol'  => 'mqtt',
+    'is_active' => true,
+    'status'    => 'disconnected',
+]);
+
+\$mqtt = MqttConnection::create([
+    'machine_connection_id'   => \$mc->id,
+    'broker_host'             => '172.21.0.5',  // Mosquitto container IP
+    'broker_port'             => 1883,
+    'clean_session'           => true,
+    'qos_default'             => 0,
+    'keep_alive_seconds'      => 60,
+    'connect_timeout'         => 10,
+    'reconnect_delay_seconds' => 5,
+    'use_tls'                 => false,
+]);
+
+\$topic = MachineTopic::create([
+    'machine_connection_id' => \$mc->id,
+    'topic_pattern'         => 'factory/line1/machine01/#',
+    'payload_format'        => 'json',
+    'is_active'             => true,
+]);
+
+TopicMapping::create([
+    'machine_topic_id' => \$topic->id,
+    'action_type'      => 'log_event',
+    'is_active'        => true,
+]);
+
+echo 'Created MachineConnection ID=' . \$mc->id;
+"
+```
+
+---
+
+## Step 3 — Verify connection (dry-run)
+
+The `--dry-run` flag connects and logs received messages without persisting them to the database — safe for initial testing.
+
+```bash
+docker compose exec backend php artisan mqtt:listen --connection=1 --dry-run
+```
+
+Expected output:
+```
+Starting MQTT listener for [1] TEST-MACHINE-01
+  Broker: 172.21.0.5:1883
+[18:56:27] Connected.
+  Subscribed: factory/line1/machine01/#
+```
+
+---
+
+## Step 4 — Simulate a machine publishing data
+
+From the Mosquitto container or any MQTT client:
+
+```bash
+# Machine status message
+docker exec mosquitto-test mosquitto_pub \
+  -h 172.21.0.5 -p 1883 \
+  -t "factory/line1/machine01/status" \
+  -m '{"status":"running","speed":120,"temp":42.5,"cycle_count":1042}'
+
+# Production counter
+docker exec mosquitto-test mosquitto_pub \
+  -h 172.21.0.5 -p 1883 \
+  -t "factory/line1/machine01/production" \
+  -m '{"order_no":"WO-2026-001","produced":47,"planned":200}'
+
+# Alarm/fault
+docker exec mosquitto-test mosquitto_pub \
+  -h 172.21.0.5 -p 1883 \
+  -t "factory/line1/machine01/alarm" \
+  -m '{"code":"TEMP_HIGH","value":85.2,"threshold":80,"severity":"warning"}'
+```
+
+The listener outputs received messages to the console in real time:
+
+```
+[2026-04-03T18:56:31+00:00] factory/line1/machine01/status: {"status":"running","speed":120,...}
+[2026-04-03T18:56:31+00:00] factory/line1/machine01/production: {"order_no":"WO-2026-001",...}
+```
+
+---
+
+## Step 5 — Full mode (with DB persistence)
+
+Run without `--dry-run` to process messages and store them in `machine_messages`:
+
+```bash
+docker compose exec backend php artisan mqtt:listen --connection=1
+```
+
+Verify messages were stored:
+
+```bash
+docker compose exec backend php artisan tinker --execute="
+use App\Models\MachineMessage;
+use App\Models\MachineConnection;
+
+echo 'Messages in DB: ' . MachineMessage::count() . PHP_EOL;
+MachineMessage::orderBy('received_at','desc')->take(3)->get(['topic','processing_status','received_at'])
+    ->each(fn(\$m) => print \"[\$m->received_at] [\$m->processing_status] \$m->topic\n\");
+
+\$c = MachineConnection::find(1);
+echo 'Total messages received: ' . \$c->messages_received . PHP_EOL;
+"
+```
+
+Expected output:
+```
+Messages in DB: 2
+[2026-04-03 18:56:46] [ok] factory/line1/machine01/production
+[2026-04-03 18:56:46] [ok] factory/line1/machine01/status
+Total messages received: 2
+```
+
+---
+
+## Test results summary
+
+| Test | Result |
+|---|---|
+| Broker connection | ✅ Connected |
+| Wildcard topic subscription (`#`) | ✅ Subscribed |
+| JSON payload parsing | ✅ Correct |
+| Message receipt (dry-run) | ✅ 3/3 received |
+| DB persistence (full mode) | ✅ Stored, status `ok` |
+| Action execution (`log_event`) | ✅ `{"logged":true}` |
+| `messages_received` counter | ✅ Incremented |
+| Reconnect loop on disconnect | ✅ Retries after `reconnect_delay_seconds` |
+
+---
+
+## Known issue fixed during testing
+
+The original WIP commit declared `"php-mqtt/client": "^1.10"` in `composer.json` — this version does not exist (the package skips directly from `v0.x` to `v2.x`). Fixed to `^2.0`. The API is fully compatible (same class names and method signatures).

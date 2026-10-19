@@ -1,0 +1,31 @@
+Third-party software and assets
+==============================
+
+The root MIT license applies only to original AgenticSimEngineering code.
+Existing third-party copyright, attribution and license terms take precedence
+for their respective files. This repository is not uniformly MIT licensed.
+
+* components/harness: A4S Harness, MIT license metadata in pyproject.toml.
+* components/harness/_others/OpenMes-main: OpenMES,
+  https://github.com/Mes-Open/OpenMes, AGPL-3.0; see its LICENSE and additional
+  LICENSE-AFL-3.0.txt. Review those terms before redistribution or deployment.
+* components/dynamics/projects/mosim: MoSim and embedded environments/models;
+  retain the upstream notices, including assets/myo_sim/LICENSE.
+* assets/robots/menagerie: MuJoCo Menagerie KUKA iiwa 14 and Unitree G1;
+  each model includes its LICENSE and attribution. Versions and file hashes
+  are recorded in assets/robots/menagerie/manifest.json.
+* assets/robots/panda-identification: reference Panda model with LICENSE,
+  README and manifest. Original asset terms apply.
+* components/model_benchmarks/factoryflow and chronobench: retain their
+  individual LICENSE files and source metadata.
+* Three.js: MIT; installed through npm. Exported viewer bundles retain its
+  notice. Playwright and other dependencies retain their own licenses.
+* OpenRadioss/other native solvers: obtained separately under upstream terms;
+  the root MIT license does not grant rights to their binaries or libraries.
+
+External research datasets, papers, weights and customer engineering samples
+are not relicensed here. Fetchers record source/version information; check each
+publisher's terms before downloading, using or redistributing those resources.
+
+assets/demo/kuka-replay.gif and kuka-replay.webm show a synthetic Newton
+simulation using the KUKA Menagerie geometry, subject to its model license.

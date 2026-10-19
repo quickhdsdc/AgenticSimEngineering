@@ -1,0 +1,61 @@
+name: Local engineering checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.12', '3.13']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked --extra dev
+      - run: uv run --no-sync python work/tools/check.py --profile core
+      - run: uv run --no-sync ruff check agenticsim scripts tests work/tools
+      - run: uv build --wheel --out-dir work/runs/distribution
+      - run: uv run --no-sync python work/tools/check_distribution.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-${{ matrix.os }}-${{ matrix.python }}
+          path: work/runs/checks/
+  local-integrations:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: uv sync --locked --extra dev --extra harness --extra des-reference --extra festo
+      - run: npm ci --prefix components/harness/frontend
+      - run: npm ci --prefix components/visualization
+      - run: uv run --no-sync python work/tools/check.py --profile dev
+      - run: uv run --no-sync python work/tools/check.py --profile festo
+      - run: npx playwright install --with-deps chromium
+        working-directory: components/visualization
+      - run: node work/tools/check_festo_browser.mjs
+      - run: uv run --no-sync python work/tools/check.py --profile browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: local-integrations-${{ matrix.os }}
+          path: |
+            work/runs/checks/
+            work/runs/browser-tests/
+            work/runs/festo/browser/

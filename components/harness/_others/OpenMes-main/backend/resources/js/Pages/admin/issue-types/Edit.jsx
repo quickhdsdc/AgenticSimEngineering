@@ -1,0 +1,23 @@
+import { Head } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import ResourceForm from '../../../components/ResourceForm';
+import { ISSUE_TYPE_FIELDS, issueTypeInitial } from './fields';
+
+export default function IssueTypeEdit({ issueType }) {
+    return (
+        <div className="max-w-7xl mx-auto">
+            <Head title={`Edit ${issueType.name}`} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Issue Type</h1>
+            <ResourceForm
+                action={`/admin/issue-types/${issueType.id}`}
+                method="put"
+                fields={ISSUE_TYPE_FIELDS}
+                initial={issueTypeInitial(issueType)}
+                submitLabel="Save Changes"
+                cancelHref="/admin/issue-types"
+            />
+        </div>
+    );
+}
+
+IssueTypeEdit.layout = (page) => <AppLayout>{page}</AppLayout>;

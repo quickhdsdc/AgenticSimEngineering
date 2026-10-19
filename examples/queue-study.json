@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "task_id": "fifo-service-time-study",
+  "kind": "candidate_comparison",
+  "model": {"id": "fifo-single-server", "version": "1"},
+  "backend": {"id": "vendored-simpy", "version": "1"},
+  "required_capabilities": ["evaluate"],
+  "context": {"source": "synthetic_fixture", "description": "Four jobs in an initially empty FIFO queue. Service-time hypotheses, not validated production actions."},
+  "inputs": {
+    "interarrival": {"semantic_id": "urn:ase:queue:interarrival", "unit": "s", "values": [0, 1, 1, 1]},
+    "service": {"semantic_id": "urn:ase:queue:service", "unit": "s", "values": [2, 2, 2, 2]}
+  },
+  "candidates": [
+    {"id": "baseline", "parameters": {"service_scale": {"value": 1, "unit": "1"}}},
+    {"id": "shorter-service", "parameters": {"service_scale": {"value": 0.5, "unit": "1"}}},
+    {"id": "longer-service", "parameters": {"service_scale": {"value": 1.5, "unit": "1"}}}
+  ],
+  "objective": {"semantic_id": "urn:ase:queue:makespan", "unit": "s", "reduction": "scalar", "direction": "minimize"},
+  "constraints": [{"semantic_id": "urn:ase:queue:makespan", "unit": "s", "reduction": "scalar", "operator": "<=", "limit": 8}],
+  "budget": {"max_evaluations": 3, "timeout_s": 30},
+  "acceptance": {"scope": "model_constraints_only"}
+}

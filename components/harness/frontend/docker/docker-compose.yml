@@ -1,0 +1,20 @@
+# Static build served by nginx. The image name is local: the predecessor's
+# pointed at a Fraunhofer GitLab registry that this repository has no account
+# on, and a compose file that cannot pull is worse than one that only builds.
+services:
+  frontend:
+    image: "a4s-harness/frontend:${A4S_FRONTEND_VERSION:-0.1.0}"
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      # Where the browser reaches a4s-serve -- resolved in the browser, not in
+      # this container, so `localhost` here means the host's port 8000 and a
+      # remote deployment needs the real address.
+      BACKEND_URL: "http://localhost:8000"
+      AAS_SERVER_URL: "http://localhost:8081"
+      AAS_UI_URL: "http://localhost:3000"
+      APP_VERSION: "0.1.0"

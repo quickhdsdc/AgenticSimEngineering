@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>工程仿真 · 3D 回放</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/controls/OrbitControls.js":"./vendor/OrbitControls.js","three/addons/environments/RoomEnvironment.js":"./vendor/RoomEnvironment.js"}}</script>
+</head>
+<body>
+  <header><div><span class="eyebrow">AGENTIC SIM ENGINEERING</span><h1>工程仿真 · 3D 回放</h1></div><span class="badge">只读结果</span></header>
+  <main>
+    <section class="workspace">
+      <div class="toolbar"><label>比较候选 <select id="candidate" disabled></select></label><span id="assessment" class="badge">读取结果…</span></div>
+      <div class="metrics"><div><span>完成时间</span><strong id="duration">—</strong></div><div><span>当前排队</span><strong id="queued">—</strong></div><div><span>加工中</span><strong id="processing">—</strong></div><div><span>已完成</span><strong id="completed">—</strong></div></div>
+      <div id="viewport"><p id="message" role="status">正在读取仿真结果…</p><div class="scene-caption">示意布局 · 拖动旋转 · 滚轮缩放 · 点击作业查看</div></div>
+      <div class="timeline"><button id="play" disabled>播放</button><button id="reset" disabled>回到开始</button><input id="time" aria-label="仿真时间" type="range" min="0" max="1" step="0.001" value="0" disabled><output id="clock">0.000 s</output><label>速度 <select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label></div>
+      <div class="legend"><span><i class="queue"></i>排队</span><span><i class="process"></i>加工</span><span><i class="done"></i>完成</span><span>位置表示作业状态；未计算运输轨迹</span></div>
+    </section>
+    <aside>
+      <section><span class="eyebrow">当前实验</span><h2 id="task-title">等待结果</h2><p id="description"></p><div id="sources" class="tags"></div><p id="decision" class="notice"></p></section>
+      <section><h2>作业状态</h2><p class="hint">点击行或场景中的作业查看时间。</p><div class="table-scroll"><table><thead><tr><th>作业</th><th>状态</th><th>离开 / s</th></tr></thead><tbody id="jobs"></tbody></table></div><p id="selection" class="notice">选择一个作业。</p></section>
+      <details><summary>来源与约束证据</summary><dl id="evidence"></dl><a href="study.json" download>下载原始 Study</a><a href="bundle.json" download>下载文件摘要清单</a><a href="vendor/THREE-LICENSE.txt">Three.js 许可</a></details>
+    </aside>
+  </main>
+  <footer>输入、仿真预测与真实测量有不同来源；本场景为状态示意，不表示已完成物理验证。</footer>
+  <script type="module" src="viewer.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# 成型性判据规则 (Forming feasibility criteria)
+# 来源: 设计流程-前期评估.pptx (slide 11/14/21), 样件 Simulation-Report.pptx
+# 用途: 成型仿真后,判定零件是否"可冲压/成型OK"
+version: 0.1
+
+criteria:
+  - id: min_thickness
+    name: 最小料厚判据
+    desc: 成型后最小料厚必须 ≥ 原料厚 × 保留系数
+    metric: min_thickness_mm
+    rule: "min_thickness_mm >= thickness_mm * retain_ratio"
+    retain_ratio: 0.70          # 料厚保留系数,理论要求 70%
+    example: "料厚1.2mm → 阈值 0.84mm; 仿真最小0.47mm→NG, 0.86mm→OK"
+    verdict_ng: "料厚不足,存在过度减薄/开裂风险"
+
+  - id: thinning_ratio
+    name: 减薄率判据
+    desc: 减薄率 = (料厚 - 最小料厚)/料厚,超阈值判 NG
+    metric: thinning_ratio
+    rule: "thinning_ratio <= max_thinning"
+    max_thinning: 0.30          # 与 retain_ratio 对应 (1-0.70)
+    example: "减薄36.2%→NG; 减薄27.3%/25%→OK"
+
+  - id: fld_no_red
+    name: 成型极限图(FLD)判据
+    desc: FLD/成型极限图不能出现红色(开裂)区域
+    metric: fld_status              # green | yellow | red
+    rule: "fld_status != 'red'"
+    verdict_ng: "FLD出现红色,存在开裂风险"
+
+  - id: formability
+    name: 成型性状态
+    desc: FORMABILITY 图无开裂、无严重起皱
+    metric: formability_status      # ok | wrinkle | crack
+    rule: "formability_status == 'ok'"
+
+# 综合判定: 所有 criteria 通过才算 OVERALL_OK
+overall_logic: "all_pass"

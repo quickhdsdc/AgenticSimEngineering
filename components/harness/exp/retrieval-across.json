@@ -1,0 +1,602 @@
+{
+  "submodel": "*",
+  "embedding_model": "text-embedding-3-large",
+  "nodes_indexed": 3789,
+  "enriched_from_concept_descriptions": 995,
+  "tiers": {
+    "verbatim": {
+      "n": 2,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "median_top_score": 0.67,
+      "median_margin": 0.024
+    },
+    "paraphrase": {
+      "n": 10,
+      "recall@1": 0.3,
+      "recall@5": 0.7,
+      "mrr": 0.5,
+      "median_top_score": 0.5673,
+      "median_margin": 0.0364
+    },
+    "multilingual": {
+      "n": 4,
+      "recall@1": 0.5,
+      "recall@5": 0.75,
+      "mrr": 0.55,
+      "median_top_score": 0.5552,
+      "median_margin": 0.1253
+    },
+    "negative": {
+      "n": 5,
+      "recall@1": 0.0,
+      "recall@5": 0.0,
+      "mrr": 0.0,
+      "median_top_score": 0.3628,
+      "median_margin": 0.0374
+    }
+  },
+  "rejection_curve": [
+    {
+      "theta": 0.3,
+      "negatives_rejected": 0,
+      "negatives_total": 5,
+      "correct_hits_lost": 0,
+      "correct_hits_total": 7
+    },
+    {
+      "theta": 0.4,
+      "negatives_rejected": 3,
+      "negatives_total": 5,
+      "correct_hits_lost": 0,
+      "correct_hits_total": 7
+    },
+    {
+      "theta": 0.5,
+      "negatives_rejected": 5,
+      "negatives_total": 5,
+      "correct_hits_lost": 0,
+      "correct_hits_total": 7
+    },
+    {
+      "theta": 0.6,
+      "negatives_rejected": 5,
+      "negatives_total": 5,
+      "correct_hits_lost": 4,
+      "correct_hits_total": 7
+    },
+    {
+      "theta": 0.7,
+      "negatives_rejected": 5,
+      "negatives_total": 5,
+      "correct_hits_lost": 5,
+      "correct_hits_total": 7
+    }
+  ],
+  "margin": {
+    "comparable": true,
+    "hit_margin_median": 0.1034,
+    "hit_margin_min": 0.0113,
+    "miss_margin_median": 0.0374,
+    "miss_margin_max": 0.062,
+    "separated": false
+  },
+  "outcomes": [
+    {
+      "case_id": "x-01",
+      "tier": "paraphrase",
+      "query": "temperature of the first barrel heating zone on the moulding machine",
+      "gold": [
+        "BarrelZone1"
+      ],
+      "ranked": [
+        "TechnicalProperties.CoreMachine.InjectionUnitTechnicalProperties.NumberOfHeatingAndCoolingZonesOnTheBarrel",
+        "BarrelZone1",
+        "BarrelZone2",
+        "BarrelZone4",
+        "BarrelZone5"
+      ],
+      "scores": [
+        0.5938281416893005,
+        0.5713629722595215,
+        0.5511460900306702,
+        0.5464337468147278,
+        0.5438871383666992
+      ],
+      "rank": 2,
+      "margin": 0.0225,
+      "candidates": 2529
+    },
+    {
+      "case_id": "x-02",
+      "tier": "paraphrase",
+      "query": "how long one moulding cycle takes",
+      "gold": [
+        "CycleTime"
+      ],
+      "ranked": [
+        "TechnicalProperties.CoreMachine.Drive.DryCycleTime",
+        "CycleTime",
+        "TechnicalProperties.CoreMachine.InjectionUnitTechnicalProperties.MaxPlasticisingFlowRate",
+        "CapabilitySet.InjectionMolding.PropertySet.InjectionCapability.MaxPlasticisingFlowRate",
+        "TechnicalProperties.CoreMachine.ClampingUnitTechnicalProperties.MoldMounting.MinMouldHeight"
+      ],
+      "scores": [
+        0.5182065367698669,
+        0.43360215425491333,
+        0.43039244413375854,
+        0.429101824760437,
+        0.4172617197036743
+      ],
+      "rank": 2,
+      "margin": 0.0846,
+      "candidates": 2529
+    },
+    {
+      "case_id": "x-03",
+      "tier": "paraphrase",
+      "query": "serial number of the device",
+      "gold": [
+        "SerialNumber"
+      ],
+      "ranked": [
+        "SerialNumber",
+        "Markings.Marking.ExplosionSafeties.ExplosionSafety.ExternalElectricalCircuit.DesignationOfElectricalTerminal",
+        "Markings.Marking.ExplosionSafeties.ExplosionSafety.AmbientConditions.DeviceCategory",
+        "ManufacturerIdentifier",
+        "Markings.Marking.ExplosionSafeties.ExplosionSafety.ProcessConditions.DeviceCategory"
+      ],
+      "scores": [
+        0.7070332169532776,
+        0.36127957701683044,
+        0.3574557304382324,
+        0.3536447584629059,
+        0.3515170216560364
+      ],
+      "rank": 1,
+      "margin": 0.3458,
+      "candidates": 213
+    },
+    {
+      "case_id": "x-04",
+      "tier": "paraphrase",
+      "query": "who manufactured this",
+      "gold": [
+        "GeneralInformation.ManufacturerName"
+      ],
+      "ranked": [
+        "DateOfManufacture",
+        "ManufacturerName",
+        "GeneralInformation.ManufacturerName",
+        "Identification.ManufacturerName",
+        "SimulationModel.SimModManufacturerInformation.Company"
+      ],
+      "scores": [
+        0.49380457401275635,
+        0.43037548661231995,
+        0.42269450426101685,
+        0.4136657416820526,
+        0.40306633710861206
+      ],
+      "rank": 2,
+      "margin": 0.0634,
+      "candidates": 2529
+    },
+    {
+      "case_id": "x-05",
+      "tier": "paraphrase",
+      "query": "top speed of the AGV when it is not carrying anything",
+      "gold": [
+        "TechnicalPropertyAreas.TechnicalParameters.SpeedMaxEmptyAsSpecified"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.TechnicalParameters.AccelerationMax",
+        "TechnicalPropertyAreas.TechnicalParameters.MaxClimbingInclinationWithoutLoad",
+        "TechnicalPropertyAreas.TechnicalParameters.MaxClimbingInclinationMaxLoad",
+        "TechnicalPropertyAreas.TechnicalParameters.VehicleWeight",
+        "TechnicalPropertyAreas.TechnicalParameters.VehicleHeightMax"
+      ],
+      "scores": [
+        0.5491623878479004,
+        0.5402536392211914,
+        0.5350772738456726,
+        0.5271474123001099,
+        0.491962730884552
+      ],
+      "rank": null,
+      "margin": 0.0089,
+      "candidates": 92
+    },
+    {
+      "case_id": "x-06",
+      "tier": "paraphrase",
+      "query": "payload the first robot link can carry",
+      "gold": [
+        "MetaModel.Link00.Payload"
+      ],
+      "ranked": [
+        "MetaModel.Link06.Payload",
+        "MetaModel.Link05.Payload",
+        "MetaModel.Link04.Payload",
+        "MetaModel.Link02.Payload",
+        "MetaModel.Link03.Payload"
+      ],
+      "scores": [
+        0.535773754119873,
+        0.5344365239143372,
+        0.5282939672470093,
+        0.5223013758659363,
+        0.5221880674362183
+      ],
+      "rank": null,
+      "margin": 0.0013,
+      "candidates": 2529
+    },
+    {
+      "case_id": "x-07",
+      "tier": "paraphrase",
+      "query": "name of a skill the asset offers",
+      "gold": [
+        "Op_SK01.OperationName"
+      ],
+      "ranked": [
+        "Cap_SK03.SkillId",
+        "Cap_SK03.SkillName",
+        "Cap_SK01.SkillName",
+        "RequiredPersonnel.Personnel00.PersonnelClass.Skills.Skill00.SkillDesignation",
+        "Cap_SK01.SkillId"
+      ],
+      "scores": [
+        0.49536439776420593,
+        0.4953506886959076,
+        0.48976361751556396,
+        0.4863395392894745,
+        0.48592960834503174
+      ],
+      "rank": null,
+      "margin": 0.0,
+      "candidates": 2529
+    },
+    {
+      "case_id": "x-08",
+      "tier": "paraphrase",
+      "query": "how large a mould the machine can accommodate between its platens",
+      "gold": [
+        "CapabilitySet.InjectionMolding.PropertySet.MoldAccommodation.MaxSizeOfClampingPlatensHeight"
+      ],
+      "ranked": [
+        "CapabilitySet.InjectionMolding.PropertySet.MoldAccommodation.MaxSizeOfClampingPlatensWidth",
+        "CapabilitySet.InjectionMolding.PropertySet.MoldAccommodation.MaxSizeOfClampingPlatensHeight",
+        "CapabilitySet.InjectionMolding.PropertySet.MoldAccommodation.MinSizeOfClampingPlatensWidth",
+        "CapabilitySet.InjectionMolding.PropertySet.MoldAccommodation.MaxMouldHeight",
+        "CapabilitySet.InjectionMolding.PropertySet.MoldAccommodation.MinSizeOfClampingPlatensHeight"
+      ],
+      "scores": [
+        0.7112671732902527,
+        0.6908987760543823,
+        0.6722053289413452,
+        0.6612298488616943,
+        0.6504902839660645
+      ],
+      "rank": 2,
+      "margin": 0.0204,
+      "candidates": 322
+    },
+    {
+      "case_id": "x-09",
+      "tier": "paraphrase",
+      "query": "rated capacity of the battery",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy",
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage"
+      ],
+      "scores": [
+        0.6189697980880737,
+        0.568740725517273,
+        0.5609448552131653,
+        0.552810549736023,
+        0.5242788195610046
+      ],
+      "rank": 1,
+      "margin": 0.0502,
+      "candidates": 951
+    },
+    {
+      "case_id": "x-10",
+      "tier": "paraphrase",
+      "query": "lowest voltage the battery may be operated at",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.NominalVoltage",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MaxVoltage",
+        "TechnicalProperties.TemperatureControlUnit.NominalVoltage"
+      ],
+      "scores": [
+        0.5855370163917542,
+        0.4821692705154419,
+        0.47058433294296265,
+        0.4507100582122803,
+        0.4428536295890808
+      ],
+      "rank": 1,
+      "margin": 0.1034,
+      "candidates": 951
+    },
+    {
+      "case_id": "xm-01",
+      "tier": "multilingual",
+      "query": "注塑机料筒第一区的温度",
+      "gold": [
+        "BarrelZone1"
+      ],
+      "ranked": [
+        "TechnicalProperties.CoreMachine.InjectionUnitTechnicalProperties.NumberOfHeatingAndCoolingZonesOnTheBarrel",
+        "TechnicalProperties.CoreMachine.InjectionUnitTechnicalProperties.InstalledBarrelHeatingPower",
+        "TechnicalProperties.HotRunnerController.MaxOperatingTemperature",
+        "MouldHeatingCircuit1",
+        "BarrelZone1"
+      ],
+      "scores": [
+        0.4859306812286377,
+        0.4440290033817291,
+        0.43613898754119873,
+        0.43218791484832764,
+        0.4256438910961151
+      ],
+      "rank": 5,
+      "margin": 0.0419,
+      "candidates": 2529
+    },
+    {
+      "case_id": "xm-02",
+      "tier": "multilingual",
+      "query": "设备的序列号",
+      "gold": [
+        "SerialNumber"
+      ],
+      "ranked": [
+        "SerialNumber",
+        "Markings.Marking.DesignationOfCertificateOrApproval",
+        "Markings.Marking.ExplosionSafeties.ExplosionSafety.DesignationOfCertificateOrApproval",
+        "Markings.Marking.ExplosionSafeties.ExplosionSafety.ExternalElectricalCircuit.DesignationOfElectricalTerminal",
+        "Markings.Marking.ExplosionSafeties.ExplosionSafety.AmbientConditions.DeviceCategory"
+      ],
+      "scores": [
+        0.5784924030303955,
+        0.3665580451488495,
+        0.35971537232398987,
+        0.34438756108283997,
+        0.3156028389930725
+      ],
+      "rank": 1,
+      "margin": 0.2119,
+      "candidates": 213
+    },
+    {
+      "case_id": "xm-03",
+      "tier": "multilingual",
+      "query": "AGV 空载时的最高速度",
+      "gold": [
+        "TechnicalPropertyAreas.TechnicalParameters.SpeedMaxEmptyAsSpecified"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.TechnicalParameters.AccelerationMax",
+        "TechnicalPropertyAreas.TechnicalParameters.MaxClimbingInclinationMaxLoad",
+        "TechnicalPropertyAreas.TechnicalParameters.MaxClimbingInclinationWithoutLoad",
+        "TechnicalPropertyAreas.TechnicalParameters.VehicleHeightMax",
+        "TechnicalPropertyAreas.TechnicalParameters.VehicleWeight"
+      ],
+      "scores": [
+        0.5383213758468628,
+        0.5199558138847351,
+        0.5183004140853882,
+        0.46844616532325745,
+        0.46711602807044983
+      ],
+      "rank": null,
+      "margin": 0.0184,
+      "candidates": 92
+    },
+    {
+      "case_id": "xm-04",
+      "tier": "multilingual",
+      "query": "Seriennummer des Geräts",
+      "gold": [
+        "SerialNumber"
+      ],
+      "ranked": [
+        "SerialNumber",
+        "Markings.Marking.ExplosionSafeties.ExplosionSafety.DesignationOfCertificateOrApproval",
+        "ManufacturerName",
+        "ManufacturerIdentifier",
+        "Markings.Marking.ExplosionSafeties.ExplosionSafety.IncompleteDevice"
+      ],
+      "scores": [
+        0.5720968842506409,
+        0.3634864389896393,
+        0.35930633544921875,
+        0.3548815846443176,
+        0.3429393768310547
+      ],
+      "rank": 1,
+      "margin": 0.2086,
+      "candidates": 213
+    },
+    {
+      "case_id": "xv-01",
+      "tier": "verbatim",
+      "query": "BarrelZone1",
+      "gold": [
+        "BarrelZone1"
+      ],
+      "ranked": [
+        "BarrelZone1",
+        "BarrelZone7",
+        "BarrelZone2",
+        "BarrelZone4",
+        "BarrelZone3"
+      ],
+      "scores": [
+        0.7494620680809021,
+        0.7127935886383057,
+        0.7112030386924744,
+        0.7093222737312317,
+        0.7083468437194824
+      ],
+      "rank": 1,
+      "margin": 0.0367,
+      "candidates": 2529
+    },
+    {
+      "case_id": "xv-02",
+      "tier": "verbatim",
+      "query": "SerialNumber",
+      "gold": [
+        "SerialNumber"
+      ],
+      "ranked": [
+        "SerialNumber",
+        "ProductionOrderSerialNumber",
+        "SerialNumber",
+        "GeneralInformation.ManufacturerOrderCode",
+        "Identification.SoftwareVersion"
+      ],
+      "scores": [
+        0.5904877781867981,
+        0.5792009234428406,
+        0.5754575729370117,
+        0.4047371745109558,
+        0.39104223251342773
+      ],
+      "rank": 1,
+      "margin": 0.0113,
+      "candidates": 2529
+    },
+    {
+      "case_id": "xn-01",
+      "tier": "negative",
+      "query": "current price of electricity per kilowatt hour",
+      "gold": [],
+      "ranked": [
+        "RemainingEnergy.RemainingEnergyValue",
+        "EnergyThroughput.EnergyThroughputValue",
+        "RemainingCapacity.RemainingCapacityValue",
+        "EnergyThroughput.LastUpdate",
+        "CurrentSelfDischargingRate.LastUpdate"
+      ],
+      "scores": [
+        0.35348424315452576,
+        0.3325809836387634,
+        0.30387577414512634,
+        0.2654920518398285,
+        0.25435498356819153
+      ],
+      "rank": null,
+      "margin": 0.0209,
+      "candidates": 2529
+    },
+    {
+      "case_id": "xn-02",
+      "tier": "negative",
+      "query": "which operator is on the night shift",
+      "gold": [],
+      "ranked": [
+        "CurrentJob.CurrentOperation",
+        "OperatorIdentifier",
+        "StationId",
+        "PrinterStatus.operationMode",
+        "StationStatus.OperationalState"
+      ],
+      "scores": [
+        0.3627689480781555,
+        0.35088932514190674,
+        0.32537534832954407,
+        0.322739839553833,
+        0.3154664635658264
+      ],
+      "rank": null,
+      "margin": 0.0119,
+      "candidates": 2529
+    },
+    {
+      "case_id": "xn-03",
+      "tier": "negative",
+      "query": "delivery date of the next raw material shipment",
+      "gold": [],
+      "ranked": [
+        "ProductionOrderCompletionTime",
+        "ModuleSpecification.DeliveryDeadline",
+        "record__00__.executedProductionOrder.estimatedEndTime",
+        "ProductionOrderPlannedStartTime",
+        "record__00__.executedProductionOrder.materialId"
+      ],
+      "scores": [
+        0.4935370683670044,
+        0.4315500259399414,
+        0.4027511179447174,
+        0.39246243238449097,
+        0.375161349773407
+      ],
+      "rank": null,
+      "margin": 0.062,
+      "candidates": 2529
+    },
+    {
+      "case_id": "xn-04",
+      "tier": "negative",
+      "query": "hydraulic oil filter replacement interval",
+      "gold": [],
+      "ranked": [
+        "TechnicalPropertyAreas.buildSystem.filtrationSystem",
+        "TechnicalProperties.CoreMachine.ClampingUnitTechnicalProperties.BasicData.MaxHydraulicPressure",
+        "TechnicalProperties.CoreMachine.ClampingUnitTechnicalProperties.BasicData.MaxHoldHydraulicPressure",
+        "TechnicalProperties.CoreMachine.Drive.MaxWorkingPressureOfTheHydraulicPumpOrPneumatics",
+        "TechnicalProperties.CoreMachine.Drive.MaxDrivePowerOfTheHydraulicPump"
+      ],
+      "scores": [
+        0.403255432844162,
+        0.3658544719219208,
+        0.35876327753067017,
+        0.32655736804008484,
+        0.31710124015808105
+      ],
+      "rank": null,
+      "margin": 0.0374,
+      "candidates": 2529
+    },
+    {
+      "case_id": "xn-05",
+      "tier": "negative",
+      "query": "网络交换机的 IP 地址",
+      "gold": [],
+      "ranked": [
+        "InterfaceProtocol",
+        "ManufacturerName",
+        "AdapterId",
+        "CapabilitySet.MachineAgent.PropertySet.AgentEndpoint",
+        "AdapterState"
+      ],
+      "scores": [
+        0.32272404432296753,
+        0.27377593517303467,
+        0.2714744210243225,
+        0.27105647325515747,
+        0.26025956869125366
+      ],
+      "rank": null,
+      "margin": 0.0489,
+      "candidates": 2529
+    }
+  ]
+}

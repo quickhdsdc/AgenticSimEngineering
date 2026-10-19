@@ -1,0 +1,69 @@
+# 工艺方案/排样规则 (Process planning & strip layout)
+# 来源: 设计流程-前期评估.pptx (slide 28/29), 模具项目信息点检表(工法确认/结构确认)
+# 用途: 确定传送方式、冲压方向、工站顺序、步距、利用率、机床吨位
+version: 0.1
+
+# 冲压方向
+stamping_direction:
+  desc: 由毛刺方向判断冲压方向
+  rule: "毛刺方向 → 冲压方向;应与图纸要求一致(如大凸包向下成型)"
+  source: "slide 28"
+
+# 传送方式判断(由产量/料片尺寸/形状/设备)
+feed_type:
+  desc: 从产量、料片尺寸、形状、设备信息判断
+  options: [手动模, 连续模(级进), 机械手传送模]
+  source: "slide 28 + 点检表 结构确认 #13"
+
+# 工站顺序(标准工艺链)
+station_sequence:
+  source: "slide 29"
+  stations:
+    - name: 下料站
+      desc: 根据AUTOFORM确定的料片形状,增加切断,确定下料工序
+    - name: 成型站
+      desc: 根据成型分析中步骤排序
+    - name: 预切
+      desc: 外轮廓存在型面时,成型前切边,避免难消除的毛刺
+    - name: 整形站
+      desc: 成型后的尺寸调整
+    - name: 切边站
+      desc: 拉深后精切到位;允许接刀时优先两站切,按废料大小均匀分布
+    - name: 去毛刺站
+      desc: 一般放在切边后
+    - name: 折弯站
+      desc: 一般在去毛刺后
+    - name: 整平面站
+      desc: 用于微调平面
+
+# 力/吨位约束
+force:
+  - id: total_punch_force
+    desc: 总冲裁力不超过机台理论吨位的80%
+    rule: "total_force <= press_tonnage * 0.80"
+    source: "点检表 工法确认 #19"
+
+# 排样/材料利用率
+layout:
+  - id: utilization_target
+    desc: 材料利用率在满足报价前提下最优化
+    rule: "utilization >= quoted_utilization"
+    note: "报价利用率常见~95%目标值;单件复杂零件实际常60~75%(样件: 68.62%, 73.5%)"
+    source: "点检表 工法确认 #6 + 样件"
+  - id: pitch_by_template_strength
+    desc: 按模板强度标准确定传送步距
+    source: "slide 29"
+  - id: multi_out
+    desc: 考虑1出2或更多以节省单耗
+    source: "点检表 工法确认 #7"
+
+# 机床/结构可行性(结构确认节选,关键项)
+structure_checks:
+  source: "点检表 结构确认 #2/4/3/6/11/13"
+  items:
+    - 模具闭合高度满足冲床参数(上下极限至少留5mm)
+    - 模具长宽符合机台台面参数
+    - 上模重量满足冲床上台面最大负重
+    - 送料高度满足送料设备参数
+    - 废料斜槽至少35°,出废料方向无阻挡
+    - 整套模具重量控制在3T以内(接近3T打减重孔)

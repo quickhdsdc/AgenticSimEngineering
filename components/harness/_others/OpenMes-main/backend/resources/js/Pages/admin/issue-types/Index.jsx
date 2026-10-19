@@ -1,0 +1,86 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { SEVERITY_LABELS, ISSUE_TYPE_FIELDS, issueTypeInitial } from './fields';
+import { __ } from '../../../lib/i18n';
+
+function severityBadgeClass(severity) {
+    if (severity === 'CRITICAL' || severity === 'HIGH') {
+        return 'bg-om-blocked-bg text-om-blocked';
+    }
+    if (severity === 'MEDIUM') {
+        return 'bg-om-downtime-bg text-om-downtime';
+    }
+    return 'bg-om-line2 text-om-muted';
+}
+
+export default function IssueTypesIndex() {
+    const drawer = useResourceDrawer();
+
+    const { counts = {} } = usePage().props;
+
+    const columns = [
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        {
+            key: 'severity',
+            label: __('Severity'),
+           
+            value: (r) => r.severity,
+            render: (r) => (
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${severityBadgeClass(r.severity)}`}>
+                    {SEVERITY_LABELS[r.severity] ?? r.severity}
+                </span>
+            ),
+        },
+        { key: 'is_blocking', label: __('Blocking'), value: (r) => (r.is_blocking ? __('Yes') : __('No')), render: (r) => (r.is_blocking ? __('Yes') : __('No')) },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
+    ];
+
+    const actions = (r) => [
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
+        {
+            label: r.is_active ? __('Deactivate') : __('Activate'),
+            icon: r.is_active ? 'deactivate' : 'activate',
+            onClick: () => router.post(`/admin/issue-types/${r.id}/toggle-active`, {}, { preserveScroll: true }),
+        },
+        {
+            label: __('Delete'),
+            icon: 'delete',
+            variant: 'danger',
+            confirm: {
+                title: __('Delete issue type ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
+            },
+            onClick: () => router.delete(`/admin/issue-types/${r.id}`, { preserveScroll: true }),
+        },
+    ];
+
+    return (
+        <>
+            <Head title={__('Issue Types')} />
+            <ResourceTable
+                shape="issue_types_all"
+                title={__('Issue Types')}
+                createHref="/admin/issue-types/create"
+                onCreate={drawer.create}
+                createLabel={__('New Issue Type')}
+                columns={columns}
+                orderBy="name"
+                actions={actions}
+                emptyText={__('No issue types yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/issue-types"
+                fields={ISSUE_TYPE_FIELDS}
+                initial={issueTypeInitial}
+                title={{ create: __('New Issue Type'), edit: __('Edit Issue Type') }}
+            />
+        </>
+    );
+}
+
+IssueTypesIndex.layout = (page) => <AppLayout>{page}</AppLayout>;

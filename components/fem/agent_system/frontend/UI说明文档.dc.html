@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+SC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  doc-page:not(:defined){ visibility:hidden; }
+  body { background:#e9edf2; margin:0; font-family:'IBM Plex Sans','IBM Plex Sans SC',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif; color:#1b1f24; }
+  .doc h1,.doc h2,.doc h3 { line-height:1.25; }
+  .doc p,.doc li { line-height:1.72; }
+  .doc code,.doc pre { font-family:'IBM Plex Mono',ui-monospace,monospace; }
+  .doc a { color:#1d4ed8; text-decoration:none; }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="doc-page" from="./doc-page.js" size="letter" margin="0.72in" hint-size="816px,1056px">
+<div class="doc">
+
+  <!-- ===== COVER ===== -->
+  <div style="display:flex; align-items:center; gap:13px; margin-bottom:4px;">
+    <div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); display:flex; align-items:center; justify-content:center;">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+    </div>
+    <div>
+      <div style="font-size:12px; letter-spacing:2px; color:#8a929c;" class="mono">MOLDAGENT · UI DOCUMENTATION</div>
+      <div style="font-size:13px; color:#5b636d;">冲压模具前期评估辅助 Agent 系统</div>
+    </div>
+  </div>
+  <h1 style="font-size:30px; font-weight:700; margin:14px 0 8px;">前端控制台 UI 说明文档</h1>
+  <p style="font-size:15px; color:#5b636d; margin:0 0 4px;">界面结构、功能项清单，以及与后端对接的接入指南。</p>
+  <div style="display:flex; gap:20px; font-size:12.5px; color:#8a929c; font-family:'IBM Plex Mono',monospace; border-top:1px solid #e4e9ef; border-bottom:1px solid #e4e9ef; padding:12px 0; margin:16px 0 26px;">
+    <span>版本 v1.0</span><span>日期 2026-07-01</span><span>交付物 模具Agent控制台.dc.html</span><span>状态 原型 / 待接后端</span>
+  </div>
+
+  <!-- ===== 1. 概述 ===== -->
+  <h2 style="font-size:19px; font-weight:600; margin:26px 0 10px; display:flex; align-items:center; gap:9px;"><span style="width:5px; height:19px; background:#1d4ed8; border-radius:2px;"></span>1 · 概述</h2>
+  <p style="font-size:14px; color:#2c333b;">本 UI 是"冲压模具前期评估 (RFQ 阶段)"辅助 Agent 系统的操作与监控前端。系统把资深工程师在 AutoForm 中手工完成的<b>「展开 → 成型仿真 → 数模优化 → 出可行性报告」</b>闭环，交给一组 Agent 半自动执行；工程师从"执行者"转变为"审核者"。UI 的职责是：驱动评估任务、<b>实时观测仿真⇄优化闭环</b>、在关键节点提供人工审核关卡，并交付可行性报告。</p>
+  <div style="background:#f5f8fd; border:1px solid #dde8fb; border-radius:10px; padding:14px 16px; margin:14px 0;">
+    <div style="font-size:12px; font-weight:600; color:#1d4ed8; margin-bottom:6px;">技术形态</div>
+    <p style="font-size:13px; color:#3a424c; margin:0;">单文件交付 <code style="background:#e8eefb; padding:1px 6px; border-radius:4px;">模具Agent控制台.dc.html</code>，浏览器可直接打开。当前所有数据为<b>内置示例数据 (mock)</b>，闭环由前端定时器模拟；对接后端后，这些 mock 将被真实接口/事件流替换（见 §7）。</p>
+  </div>
+
+  <!-- ===== 2. 界面总览 ===== -->
+  <h2 style="font-size:19px; font-weight:600; margin:30px 0 10px; display:flex; align-items:center; gap:9px;"><span style="width:5px; height:19px; background:#1d4ed8; border-radius:2px;"></span>2 · 界面总览</h2>
+  <p style="font-size:14px; color:#2c333b;">左侧固定导航切换五个主视图；顶栏显示当前上下文、求解器状态与"新建评估"入口。五个视图与后端概念的对应关系如下：</p>
+  <table style="width:100%; border-collapse:collapse; font-size:13px; margin:12px 0 6px;">
+    <thead><tr style="background:#f3f5f8;">
+      <th style="text-align:left; padding:9px 11px; border:1px solid #e4e9ef; font-weight:600;">视图</th>
+      <th style="text-align:left; padding:9px 11px; border:1px solid #e4e9ef; font-weight:600;">作用</th>
+      <th style="text-align:left; padding:9px 11px; border:1px solid #e4e9ef; font-weight:600;">主要后端来源</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:8px 11px; border:1px solid #e4e9ef;"><b>运行控制台</b></td><td style="padding:8px 11px; border:1px solid #e4e9ef;">单任务的仿真⇄优化闭环实时监控 + 人工审核</td><td style="padding:8px 11px; border:1px solid #e4e9ef; font-family:monospace; font-size:11.5px; color:#5b636d;">任务状态 · 迭代序列 · 事件流</td></tr>
+      <tr><td style="padding:8px 11px; border:1px solid #e4e9ef;"><b>总览</b></td><td style="padding:8px 11px; border:1px solid #e4e9ef;">全部评估任务队列、吞吐与待审清单</td><td style="padding:8px 11px; border:1px solid #e4e9ef; font-family:monospace; font-size:11.5px; color:#5b636d;">任务列表 · 统计聚合</td></tr>
+      <tr><td style="padding:8px 11px; border:1px solid #e4e9ef;"><b>编排图</b></td><td style="padding:8px 11px; border:1px solid #e4e9ef;">Agent 拓扑与闭环数据流可视化</td><td style="padding:8px 11px; border:1px solid #e4e9ef; font-family:monospace; font-size:11.5px; color:#5b636d;">编排拓扑 (可静态)</td></tr>
+      <tr><td style="padding:8px 11px; border:1px solid #e4e9ef;"><b>可行性报告</b></td><td style="padding:8px 11px; border:1px solid #e4e9ef;">最终生成的评估报告，供审核与交付</td><td style="padding:8px 11px; border:1px solid #e4e9ef; font-family:monospace; font-size:11.5px; color:#5b636d;">报告文档</td></tr>
+      <tr><td style="padding:8px 11px; border:1px solid #e4e9ef;"><b>知识库规则</b></td><td style="padding:8px 11px; border:1px solid #e4e9ef;">优化规则 (YAML) 浏览与编辑</td><td style="padding:8px 11px; border:1px solid #e4e9ef; font-family:monospace; font-size:11.5px; color:#5b636d;">规则库 CRUD</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ===== 3. 运行控制台 ===== -->
+  <h2 style="font-size:19px; font-weight:600; margin:30px 0 10px; display:flex; align-items:center; gap:9px;"><span style="width:5px; height:19px; background:#1d4ed8; border-radius:2px;"></span>3 · 运行控制台 <span style="font-size:12px; font-weight:500; color:#fff; background:#1d4ed8; padding:2px 9px; border-radius:20px;">核心</span></h2>
+  <figure style="margin:6px 0 14px; break-inside:avoid;">
+    <img src="doc_assets/01-view.png" style="width:100%; border:1px solid #dfe4ea; border-radius:8px; display:block;" alt="运行控制台">
+    <figcaption style="font-size:11.5px; color:#9aa3ae; margin-top:6px;">图 1 · 运行控制台：任务头 · 流程步进条 · 迭代闭环 · FLD/指标 · Agent 日志 · 审核关卡</figcaption>
+  </figure>
+  <p style="font-size:14px; color:#2c333b; margin-bottom:8px;">这是系统的主工作面，围绕单个评估任务组织。功能项：</p>
+  <ul style="font-size:13.5px; color:#2c333b; margin:0 0 10px; padding-left:20px;">
+    <li><b>任务头</b> — 零件号、零件名、客户、材质、料厚、工序数、利用率与整体判定徽标（达标/风险/NG）。</li>
+    <li><b>流程步进条</b> — 信息采集 → 毛坯展开 → 成型仿真 → 成形判定 → 参数优化 → 工艺方案 → 可行性报告；当前阶段高亮并脉动，已完成阶段填充。</li>
+    <li><b>仿真⇄优化 迭代闭环表</b> — 每次迭代一行：凹模圆角 R、压边力 BHF、拉延筋、最大减薄率（含阈值红线）、起皱、FLD 裕度、判定。点击任一行可在右侧联动查看该工况指标与 FLD。</li>
+    <li><b>成形极限图 (FLD)</b> — 极限曲线 + 各单元散点，按迭代收敛由"破裂/临界"向"安全"迁移。</li>
+    <li><b>当前工况指标</b> — 减薄率、FLD 裕度、凹模圆角、压边力的量化条。</li>
+    <li><b>Agent 执行日志</b> — 深色终端面板，逐条流式显示各 Agent 的动作、命中规则与参数调整（带时间戳）。</li>
+    <li><b>人工审核关卡 (HITL)</b> — 闭环收敛后弹出「批准 · 出报告 / 打回」；批准后可跳转报告。</li>
+    <li><b>运行控制</b> — 顶部「运行 / 暂停 / 重放 / 重置」驱动闭环播放（当前为前端模拟）。</li>
+  </ul>
+
+  <!-- ===== 4. 其余视图 ===== -->
+  <h2 style="font-size:19px; font-weight:600; margin:30px 0 10px; display:flex; align-items:center; gap:9px;"><span style="width:5px; height:19px; background:#1d4ed8; border-radius:2px;"></span>4 · 其余视图</h2>
+
+  <h3 style="font-size:15px; font-weight:600; margin:14px 0 6px;">4.1 总览 Dashboard</h3>
+  <figure style="margin:6px 0 12px; break-inside:avoid;">
+    <img src="doc_assets/02-view.png" style="width:100%; border:1px solid #dfe4ea; border-radius:8px; display:block;" alt="总览">
+    <figcaption style="font-size:11.5px; color:#9aa3ae; margin-top:6px;">图 2 · 总览：KPI 卡 · 任务队列 · 近 7 日吞吐 · 待审清单</figcaption>
+  </figure>
+  <p style="font-size:13.5px; color:#2c333b; margin:0 0 14px;">6 张 KPI 卡（进行中 / 待审核 / 今日完成 / 平均迭代 / 平均耗时 / 一次通过率）；评估任务队列表（零件、材质料厚、迭代次数、耗时、进度条、状态徽标，点击进入控制台）；吞吐柱状图（一次通过 vs 需迭代）；"待审核·需要你"清单。</p>
+
+  <h3 style="font-size:15px; font-weight:600; margin:14px 0 6px;">4.2 编排图 Orchestration</h3>
+  <figure style="margin:6px 0 12px; break-inside:avoid;">
+    <img src="doc_assets/03-view.png" style="width:100%; border:1px solid #dfe4ea; border-radius:8px; display:block;" alt="编排图">
+    <figcaption style="font-size:11.5px; color:#9aa3ae; margin-top:6px;">图 3 · 编排图：编排器 + 7 个 Agent，实线为主流程、绿色虚线为 NG 回环</figcaption>
+  </figure>
+  <p style="font-size:13.5px; color:#2c333b; margin:0 0 14px;">拓扑节点：编排器 (Orchestrator) 控制其余节点；信息 → 展开 → 仿真 → 判定 → 优化（NG 回环至仿真）→ 工艺 → 报告。点击节点，右侧显示该 Agent 的职责、输入/输出与依赖工具。真实系统由 LangGraph 编排。</p>
+
+  <h3 style="font-size:15px; font-weight:600; margin:14px 0 6px;">4.3 可行性报告 Report</h3>
+  <figure style="margin:6px 0 12px; break-inside:avoid;">
+    <img src="doc_assets/04-view.png" style="width:100%; border:1px solid #dfe4ea; border-radius:8px; display:block;" alt="可行性报告">
+    <figcaption style="font-size:11.5px; color:#9aa3ae; margin-top:6px;">图 4 · 可行性报告：封面 · 关键参数 · 仿真结论 · 工艺方案 · 风险建议 · 审核签署</figcaption>
+  </figure>
+  <p style="font-size:13.5px; color:#2c333b; margin:0 0 14px;">报告结构对应后端报告文档：封面（客户/零件/判定/版本）、关键参数栅格、成型仿真结论、量化指标卡、推荐工序方案、风险与建议、人工审核签署栏。</p>
+
+  <h3 style="font-size:15px; font-weight:600; margin:14px 0 6px;">4.4 知识库规则 Knowledge Base</h3>
+  <figure style="margin:6px 0 12px; break-inside:avoid;">
+    <img src="doc_assets/05-view.png" style="width:100%; border:1px solid #dfe4ea; border-radius:8px; display:block;" alt="知识库">
+    <figcaption style="font-size:11.5px; color:#9aa3ae; margin-top:6px;">图 5 · 知识库：规则列表（含命中次数）+ 右侧 YAML 编辑器</figcaption>
+  </figure>
+  <p style="font-size:13.5px; color:#2c333b; margin:0 0 6px;">左侧列出优化规则（编号、命中次数、描述）；右侧显示选中规则的 YAML（trigger 条件 + action 动作 + 优先级），带保存/测试入口。这些规则正是"优化Agent"在迭代中命中的策略来源。</p>
+
+  <!-- ===== 5. 前端状态模型 ===== -->
+  <h2 style="font-size:19px; font-weight:600; margin:30px 0 10px; display:flex; align-items:center; gap:9px;"><span style="width:5px; height:19px; background:#1d4ed8; border-radius:2px;"></span>5 · 前端状态与数据 (对接前必读)</h2>
+  <p style="font-size:14px; color:#2c333b; margin-bottom:8px;">整个 UI 是一个 Design Component（<code>class Component</code>）。所有渲染数据由 <code>renderVals()</code> 从两处产生：<b>组件状态</b> <code>state</code> 与<b>内置示例数据数组</b>。对接后端 = 把这些示例数组换成接口数据、把模拟定时器换成真实事件流。</p>
+  <table style="width:100%; border-collapse:collapse; font-size:12.5px; margin:10px 0 6px;">
+    <thead><tr style="background:#f3f5f8;">
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">代码位置</th>
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">含义</th>
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">对接为</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">this.JOBS</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">任务队列示例</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">总览任务列表接口</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">this.ITERS</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">迭代序列（R/BHF/减薄/FLD…）</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">任务迭代结果接口</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">this.EVENTS</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">Agent 日志 + 阶段步进脚本</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">实时事件流 (WS/SSE)</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">this.RULES</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">知识库规则 + YAML</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">规则库接口</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">this.NODES</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">编排拓扑与 Agent 职责</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">静态即可，或拓扑接口</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">state.logIndex</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">已播放到第几条事件</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">由事件流推进，而非定时器</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">state.approved</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">HITL 审核结果</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">审批接口回写</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">play() / pause()</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">用 setInterval 模拟闭环推进</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">替换为订阅事件流</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ===== 6. 字段映射 ===== -->
+  <h2 style="font-size:19px; font-weight:600; margin:30px 0 10px; display:flex; align-items:center; gap:9px;"><span style="width:5px; height:19px; background:#1d4ed8; border-radius:2px;"></span>6 · 字段映射 (待与 models.py 核对)</h2>
+  <div style="background:#fff8ec; border:1px solid #f5dca6; border-radius:8px; padding:11px 14px; margin:8px 0 12px; font-size:12.5px; color:#8a5a12;">⚠ 下列后端字段名为<b>推断值</b>，请以后端 <code>src/mold_agent/models.py</code> 的实际定义为准，据此调整 UI 数据映射。</div>
+  <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+    <thead><tr style="background:#f3f5f8;">
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">UI 显示项</th>
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">推断后端字段</th>
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">备注</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">最大减薄率</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">max_thinning</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">阈值 ≤ 0.22</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">FLD 安全裕度</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">fld_margin</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">阈值 ≥ 0.03</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">起皱风险</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">wrinkle_risk</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">低/中/高</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">凹模圆角 R</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">die_radius</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">优化可调参数</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">压边力 BHF</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">blank_holder_force</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">优化可调参数</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">拉延筋</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">draw_bead / restraint</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">优化可调参数</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">判定</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">verdict / status</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">NG/风险/接近/达标</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">任务基本信息</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace;">customer · part_no · material · thickness</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">来自信息Agent</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ===== 7. 后端对接指南 ===== -->
+  <h2 style="font-size:19px; font-weight:600; margin:30px 0 10px; display:flex; align-items:center; gap:9px;"><span style="width:5px; height:19px; background:#1d4ed8; border-radius:2px;"></span>7 · 后端对接指南</h2>
+  <p style="font-size:14px; color:#2c333b; margin-bottom:8px;">下列端点为<b>建议契约</b>，可按后端实际命名调整。重点是区分「一次性拉取」与「实时事件流」两类。</p>
+  <table style="width:100%; border-collapse:collapse; font-size:12px; margin:6px 0 14px;">
+    <thead><tr style="background:#f3f5f8;">
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">用途</th>
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">建议端点</th>
+      <th style="text-align:left; padding:8px 10px; border:1px solid #e4e9ef; font-weight:600;">供给视图</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">任务列表 + 统计</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace; font-size:11px;">GET /api/jobs</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">总览</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">新建评估任务</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace; font-size:11px;">POST /api/jobs</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">顶栏「新建评估」</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">任务详情 + 迭代序列</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace; font-size:11px;">GET /api/jobs/{id}</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">控制台</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;"><b>实时闭环事件流</b></td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace; font-size:11px;">GET /api/jobs/{id}/stream (SSE/WS)</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">控制台日志/步进/迭代</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">单迭代 FLD 数据</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace; font-size:11px;">GET /api/jobs/{id}/iters/{n}/fld</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">控制台 FLD</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;"><b>人工审核 (HITL)</b></td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace; font-size:11px;">POST /api/jobs/{id}/review</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">审核关卡</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">可行性报告</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace; font-size:11px;">GET /api/jobs/{id}/report</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">报告</td></tr>
+      <tr><td style="padding:7px 10px; border:1px solid #e4e9ef;">规则库读写</td><td style="padding:7px 10px; border:1px solid #e4e9ef; font-family:monospace; font-size:11px;">GET/PUT /api/rules</td><td style="padding:7px 10px; border:1px solid #e4e9ef;">知识库</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:15px; font-weight:600; margin:16px 0 6px;">7.1 实时闭环：事件流是关键</h3>
+  <p style="font-size:13.5px; color:#2c333b; margin:0 0 8px;">控制台的日志、步进条与迭代表都由同一条事件流推进。后端 (LangGraph) 每完成一步应推送一个事件，前端据此 append 日志、更新阶段、追加迭代行。建议事件负载：</p>
+  <pre style="background:#0f141b; color:#c8d3e0; font-size:11.5px; line-height:1.65; padding:15px 17px; border-radius:9px; overflow-x:auto; break-inside:avoid;">// SSE / WebSocket 消息
+{
+  "type": "agent_step",              // agent_step | iteration | verdict | need_review | report_ready
+  "ts": "2026-07-01T09:12:04Z",
+  "agent": "优化Agent",               // → 日志行 agent
+  "stage": "optimize",               // → 步进条高亮阶段
+  "iteration": 1,                    // → 当前迭代号
+  "message": "命中规则 R-thinning-01：凹模圆角 3.0→4.0mm",
+  "rule_hit": "R-thinning-01",
+  "params": { "die_radius": 4.0, "blank_holder_force": 180 },
+  "metrics": { "max_thinning": 0.241, "wrinkle_risk": "中", "fld_margin": 0.015 },
+  "verdict": "risk"
+}</pre>
+
+  <h3 style="font-size:15px; font-weight:600; margin:16px 0 6px;">7.2 改造点示例</h3>
+  <p style="font-size:13.5px; color:#2c333b; margin:0 0 8px;">在组件的 <code>componentDidMount</code> 中订阅事件流，收到消息即 <code>setState</code> 追加数据，替代当前 <code>play()</code> 的定时器：</p>
+  <pre style="background:#0f141b; color:#c8d3e0; font-size:11.5px; line-height:1.65; padding:15px 17px; border-radius:9px; overflow-x:auto; break-inside:avoid;">componentDidMount() {
+  const es = new EventSource(`/api/jobs/${this.jobId}/stream`);
+  es.onmessage = (e) =&gt; {
+    const ev = JSON.parse(e.data);
+    this.setState(s =&gt; ({
+      liveEvents: [...s.liveEvents, ev],           // 日志 + 步进 + 迭代
+      approved: ev.type === 'report_ready' ? false : s.approved
+    }));
+  };
+  this._es = es;
+}
+componentWillUnmount() { this._es &amp;&amp; this._es.close(); }</pre>
+  <p style="font-size:13.5px; color:#2c333b; margin:8px 0 0;">对应地：<code>renderVals()</code> 改为从 <code>state.liveEvents</code>（而非 <code>this.EVENTS</code>）派生日志行、步进状态与迭代表；「批准/打回」按钮的 <code>onApprove/onReject</code> 改为 <code>POST /review</code> 后再由流回推 <code>report_ready</code>。</p>
+
+  <!-- ===== 8. 后续步骤 ===== -->
+  <h2 style="font-size:19px; font-weight:600; margin:30px 0 10px; display:flex; align-items:center; gap:9px;"><span style="width:5px; height:19px; background:#1d4ed8; border-radius:2px;"></span>8 · 建议的对接顺序</h2>
+  <ol style="font-size:13.5px; color:#2c333b; margin:0; padding-left:20px;">
+    <li><b>核对数据契约</b> — 用 <code>models.py</code> 校正 §6 字段名，冻结迭代/任务/规则的 JSON 结构。</li>
+    <li><b>先接只读接口</b> — 总览列表、报告、规则库（静态拉取，风险最低）。</li>
+    <li><b>再接事件流</b> — 控制台闭环实时化（§7.1/7.2），这是价值核心。</li>
+    <li><b>接 HITL 审批</b> — 打通「批准→出报告」「打回→重跑」的双向链路。</li>
+    <li><b>联调收敛判定与阈值</b> — 确保 UI 的达标/风险/NG 与后端判定一致。</li>
+  </ol>
+  <div style="border-top:1px solid #e4e9ef; margin-top:22px; padding-top:12px; font-size:11.5px; color:#9aa3ae;">MoldAgent · 前期评估辅助 Agent 系统 — 前端控制台 UI 说明文档 · v1.0 · 与后端对接的字段与端点请以实际实现为准。</div>
+
+</div>
+</x-import>
+</x-dc>
+</body>
+</html>

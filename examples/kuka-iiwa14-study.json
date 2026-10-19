@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "task_id": "kuka-iiwa14-posture",
+  "kind": "candidate_comparison",
+  "model": {
+    "id": "kuka-iiwa14",
+    "version": "1"
+  },
+  "backend": {
+    "id": "newton-mujoco",
+    "version": "1"
+  },
+  "required_capabilities": [
+    "evaluate"
+  ],
+  "context": {
+    "source": "synthetic_fixture",
+    "description": "Pinned robot asset in synthetic scene; short posture-control benchmark, no physical validation."
+  },
+  "inputs": {
+    "initial_q": {
+      "semantic_id": "urn:ase:kuka-iiwa14:initial-q",
+      "unit": "rad",
+      "values": [
+        0.0,
+        0.785398,
+        0.0,
+        -1.5708,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "target_q": {
+      "semantic_id": "urn:ase:kuka-iiwa14:target-q",
+      "unit": "rad",
+      "values": [
+        0.0,
+        0.785398,
+        0.0,
+        -1.5708,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "execution": {
+    "device": "cuda:0",
+    "dt_s": 0.002,
+    "duration_s": 0.25,
+    "algorithm": "mujoco-implicitfast"
+  },
+  "candidates": [
+    {
+      "id": "hold",
+      "parameters": {
+        "joint_index": {
+          "value": 0,
+          "unit": "1"
+        },
+        "target_offset": {
+          "value": 0,
+          "unit": "rad"
+        }
+      }
+    },
+    {
+      "id": "offset",
+      "parameters": {
+        "joint_index": {
+          "value": 0,
+          "unit": "1"
+        },
+        "target_offset": {
+          "value": 0.1,
+          "unit": "rad"
+        }
+      }
+    }
+  ],
+  "objective": {
+    "semantic_id": "urn:ase:kuka-iiwa14:final-joint-error",
+    "unit": "rad",
+    "reduction": "scalar",
+    "direction": "minimize"
+  },
+  "constraints": [
+    {
+      "semantic_id": "urn:ase:kuka-iiwa14:final-joint-error",
+      "unit": "rad",
+      "reduction": "scalar",
+      "operator": "<=",
+      "limit": 0.1
+    },
+    {
+      "semantic_id": "urn:ase:kuka-iiwa14:min-base-height",
+      "unit": "m",
+      "reduction": "scalar",
+      "operator": ">=",
+      "limit": -0.0001
+    }
+  ],
+  "budget": {
+    "max_evaluations": 2,
+    "timeout_s": 300
+  },
+  "acceptance": {
+    "scope": "model_constraints_only"
+  }
+}

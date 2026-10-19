@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0",
+  "task_id": "robot-arm3-pd",
+  "kind": "candidate_comparison",
+  "model": {
+    "id": "planar-arm3",
+    "version": "1"
+  },
+  "backend": {
+    "id": "newton-featherstone",
+    "version": "1"
+  },
+  "required_capabilities": [
+    "evaluate"
+  ],
+  "context": {
+    "source": "synthetic_fixture",
+    "description": "Horizontal three-joint parameterized robot; no Franka or plant validation claim."
+  },
+  "inputs": {
+    "initial_q": {
+      "semantic_id": "urn:ase:robot:initial-q",
+      "unit": "rad",
+      "values": [
+        0,
+        0,
+        0
+      ]
+    },
+    "target_q": {
+      "semantic_id": "urn:ase:robot:target-q",
+      "unit": "rad",
+      "values": [
+        0.3,
+        -0.2,
+        0.1
+      ]
+    }
+  },
+  "execution": {
+    "device": "cuda:0",
+    "dt_s": 0.001,
+    "duration_s": 0.5,
+    "algorithm": "featherstone-semi-implicit"
+  },
+  "candidates": [
+    {
+      "id": "unactuated",
+      "parameters": {
+        "kp": {
+          "value": 0,
+          "unit": "N*m/rad"
+        },
+        "kd": {
+          "value": 0,
+          "unit": "N*m*s/rad"
+        },
+        "torque_limit": {
+          "value": 20,
+          "unit": "N*m"
+        }
+      }
+    },
+    {
+      "id": "pd-low",
+      "parameters": {
+        "kp": {
+          "value": 10,
+          "unit": "N*m/rad"
+        },
+        "kd": {
+          "value": 1,
+          "unit": "N*m*s/rad"
+        },
+        "torque_limit": {
+          "value": 20,
+          "unit": "N*m"
+        }
+      }
+    },
+    {
+      "id": "pd-high",
+      "parameters": {
+        "kp": {
+          "value": 40,
+          "unit": "N*m/rad"
+        },
+        "kd": {
+          "value": 3,
+          "unit": "N*m*s/rad"
+        },
+        "torque_limit": {
+          "value": 20,
+          "unit": "N*m"
+        }
+      }
+    }
+  ],
+  "objective": {
+    "semantic_id": "urn:ase:robot:final-error",
+    "unit": "rad",
+    "reduction": "scalar",
+    "direction": "minimize"
+  },
+  "constraints": [
+    {
+      "semantic_id": "urn:ase:robot:final-error",
+      "unit": "rad",
+      "reduction": "scalar",
+      "operator": "<=",
+      "limit": 0.25
+    }
+  ],
+  "budget": {
+    "max_evaluations": 3,
+    "timeout_s": 180
+  },
+  "acceptance": {
+    "scope": "model_constraints_only"
+  }
+}

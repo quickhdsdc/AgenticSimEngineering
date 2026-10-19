@@ -1,0 +1,5 @@
+System has a single machine(ID=MACHINE) with delay 2.  
+Source (ID= SRC) with inter arrival time of 1.2. 
+SRC is connected to Machine via a Buffer(ID=BUFFER1) and MACHINE to
+ SINK via a Buffer(ID=BUFFER2).
+Buffer has capacity of 3. MACHINE has a work_capacity is 2

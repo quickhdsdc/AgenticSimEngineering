@@ -1,0 +1,889 @@
+{
+  "submodel": "https://admin-shell.io/ZVEI/TechnicalData/Submodel/1/2_DigitalBatteryPassport_527",
+  "embedding_model": "text-embedding-3-large",
+  "nodes_indexed": 46,
+  "enriched_from_concept_descriptions": 11,
+  "tiers": {
+    "verbatim": {
+      "n": 4,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "median_top_score": 0.6117,
+      "median_margin": 0.1161
+    },
+    "paraphrase": {
+      "n": 16,
+      "recall@1": 0.812,
+      "recall@5": 0.938,
+      "mrr": 0.854,
+      "median_top_score": 0.4895,
+      "median_margin": 0.0533
+    },
+    "multilingual": {
+      "n": 7,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "median_top_score": 0.5458,
+      "median_margin": 0.1145
+    },
+    "negative": {
+      "n": 7,
+      "recall@1": 0.0,
+      "recall@5": 0.0,
+      "mrr": 0.0,
+      "median_top_score": 0.2867,
+      "median_margin": 0.0071
+    }
+  },
+  "rejection_curve": [
+    {
+      "theta": 0.3,
+      "negatives_rejected": 5,
+      "negatives_total": 7,
+      "correct_hits_lost": 1,
+      "correct_hits_total": 24
+    },
+    {
+      "theta": 0.4,
+      "negatives_rejected": 6,
+      "negatives_total": 7,
+      "correct_hits_lost": 3,
+      "correct_hits_total": 24
+    },
+    {
+      "theta": 0.5,
+      "negatives_rejected": 7,
+      "negatives_total": 7,
+      "correct_hits_lost": 10,
+      "correct_hits_total": 24
+    },
+    {
+      "theta": 0.6,
+      "negatives_rejected": 7,
+      "negatives_total": 7,
+      "correct_hits_lost": 21,
+      "correct_hits_total": 24
+    },
+    {
+      "theta": 0.7,
+      "negatives_rejected": 7,
+      "negatives_total": 7,
+      "correct_hits_lost": 24,
+      "correct_hits_total": 24
+    }
+  ],
+  "margin": {
+    "comparable": true,
+    "hit_margin_median": 0.0809,
+    "hit_margin_min": 0.0126,
+    "miss_margin_median": 0.0071,
+    "miss_margin_max": 0.0383,
+    "separated": false
+  },
+  "outcomes": [
+    {
+      "case_id": "v-01",
+      "tier": "verbatim",
+      "query": "RatedCapacity",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MaxVoltage",
+        "TechnicalPropertyAreas.PowerCapability.PowerCapabilityAt",
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower"
+      ],
+      "scores": [
+        0.589120626449585,
+        0.49195247888565063,
+        0.44496652483940125,
+        0.4346502125263214,
+        0.4300784468650818
+      ],
+      "rank": 1,
+      "margin": 0.0972
+    },
+    {
+      "case_id": "v-02",
+      "tier": "verbatim",
+      "query": "ManufacturerName",
+      "gold": [
+        "GeneralInformation.ManufacturerName"
+      ],
+      "ranked": [
+        "GeneralInformation.ManufacturerName",
+        "GeneralInformation.CompanyLogo",
+        "GeneralInformation.ManufacturerOrderCode",
+        "GeneralInformation.ManufacturerArticleNumber",
+        "GeneralInformation.ManufacturerIdentifier"
+      ],
+      "scores": [
+        0.535446047782898,
+        0.4177626073360443,
+        0.41281813383102417,
+        0.4124802052974701,
+        0.4063216745853424
+      ],
+      "rank": 1,
+      "margin": 0.1177
+    },
+    {
+      "case_id": "v-03",
+      "tier": "verbatim",
+      "query": "ExpectedNumberOfCycles",
+      "gold": [
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles",
+        "TechnicalPropertyAreas.Lifetime.ExpectedLifetimeInCalendarYears ",
+        "TechnicalPropertyAreas.Lifetime.CRateOfRelevantCycleLifeTest",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.RoundTripEnergyEfficiencyAt50PercentOfCycleLife",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion"
+      ],
+      "scores": [
+        0.673841118812561,
+        0.34426870942115784,
+        0.33080291748046875,
+        0.3241439461708069,
+        0.30285006761550903
+      ],
+      "rank": 1,
+      "margin": 0.3296
+    },
+    {
+      "case_id": "v-04",
+      "tier": "verbatim",
+      "query": "PowerFade",
+      "gold": [
+        "TechnicalPropertyAreas.PowerCapability.PowerFade"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.PowerCapability.PowerFade",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.EnergyRoundTripEfficiencyFade",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.CapacityFade",
+        "TechnicalPropertyAreas.PowerCapability.PowerCapabilityAt.powerCapabilityAt",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate"
+      ],
+      "scores": [
+        0.6341822147369385,
+        0.5196871757507324,
+        0.46635329723358154,
+        0.2677665948867798,
+        0.2486725151538849
+      ],
+      "rank": 1,
+      "margin": 0.1145
+    },
+    {
+      "case_id": "p-01",
+      "tier": "paraphrase",
+      "query": "how much charge can this battery hold",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MaxVoltage",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy",
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower"
+      ],
+      "scores": [
+        0.4152514934539795,
+        0.40825462341308594,
+        0.4074207544326782,
+        0.4073830246925354,
+        0.39104488492012024
+      ],
+      "rank": 3,
+      "margin": 0.007
+    },
+    {
+      "case_id": "p-02",
+      "tier": "paraphrase",
+      "query": "lowest voltage the battery may be operated at",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.NominalVoltage",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MaxVoltage",
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower"
+      ],
+      "scores": [
+        0.5855265855789185,
+        0.4807780981063843,
+        0.4705478847026825,
+        0.4506087005138397,
+        0.44012725353240967
+      ],
+      "rank": 1,
+      "margin": 0.1047
+    },
+    {
+      "case_id": "p-03",
+      "tier": "paraphrase",
+      "query": "who made it",
+      "gold": [
+        "GeneralInformation.ManufacturerName"
+      ],
+      "ranked": [
+        "GeneralInformation.ManufacturerName",
+        "GeneralInformation.ManufacturerIdentifier",
+        "GeneralInformation.ManufacturerProductDesignation",
+        "GeneralInformation.ManufacturerArticleNumber",
+        "GeneralInformation.CompanyLogo"
+      ],
+      "scores": [
+        0.283317506313324,
+        0.21201007068157196,
+        0.20853447914123535,
+        0.17906074225902557,
+        0.1749580204486847
+      ],
+      "rank": 1,
+      "margin": 0.0713
+    },
+    {
+      "case_id": "p-04",
+      "tier": "paraphrase",
+      "query": "how heavy is the pack",
+      "gold": [
+        "GeneralInformation.BatteryMass"
+      ],
+      "ranked": [
+        "GeneralInformation.BatteryMass",
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryPackLevel",
+        "TechnicalPropertyAreas.Resistance.InternalResistanceIncreaseOfBatteryPackLevel",
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryCellLevel",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"
+      ],
+      "scores": [
+        0.31073427200317383,
+        0.2538009583950043,
+        0.23263712227344513,
+        0.20093385875225067,
+        0.17549365758895874
+      ],
+      "rank": 1,
+      "margin": 0.0569
+    },
+    {
+      "case_id": "p-05",
+      "tier": "paraphrase",
+      "query": "how long is it covered if it fails",
+      "gold": [
+        "GeneralInformation.WarrantyPeriod"
+      ],
+      "ranked": [
+        "GeneralInformation.WarrantyPeriod",
+        "TechnicalPropertyAreas.Lifetime.ExpectedLifetimeInCalendarYears ",
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles",
+        "TechnicalPropertyAreas.Lifetime",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion"
+      ],
+      "scores": [
+        0.33354803919792175,
+        0.30810415744781494,
+        0.2840684652328491,
+        0.24622713029384613,
+        0.2447875738143921
+      ],
+      "rank": 1,
+      "margin": 0.0254
+    },
+    {
+      "case_id": "p-06",
+      "tier": "paraphrase",
+      "query": "how many charge discharge cycles before it wears out",
+      "gold": [
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles",
+        "TechnicalPropertyAreas.Lifetime.CRateOfRelevantCycleLifeTest",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.RoundTripEnergyEfficiencyAt50PercentOfCycleLife",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.CapacityFade"
+      ],
+      "scores": [
+        0.4465344548225403,
+        0.43394631147384644,
+        0.4076577425003052,
+        0.40710482001304626,
+        0.4066406488418579
+      ],
+      "rank": 1,
+      "margin": 0.0126
+    },
+    {
+      "case_id": "p-07",
+      "tier": "paraphrase",
+      "query": "how much energy is lost charging and discharging",
+      "gold": [
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialRoundTripEnergyEfficiency"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.RoundTripEnergyEfficiencyAt50PercentOfCycleLife",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.CapacityFade",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage"
+      ],
+      "scores": [
+        0.4917851686477661,
+        0.42963141202926636,
+        0.42711806297302246,
+        0.375442236661911,
+        0.36573997139930725
+      ],
+      "rank": null,
+      "margin": 0.0622
+    },
+    {
+      "case_id": "p-08",
+      "tier": "paraphrase",
+      "query": "rate of charge loss while sitting idle",
+      "gold": [
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.CapacityFade",
+        "TechnicalPropertyAreas.Lifetime.CRateOfRelevantCycleLifeTest",
+        "TechnicalPropertyAreas.Lifetime",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy"
+      ],
+      "scores": [
+        0.4871954023838043,
+        0.4373541474342346,
+        0.414912611246109,
+        0.37584641575813293,
+        0.36985594034194946
+      ],
+      "rank": 1,
+      "margin": 0.0498
+    },
+    {
+      "case_id": "p-09",
+      "tier": "paraphrase",
+      "query": "internal resistance of a single cell when new",
+      "gold": [
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryCellLevel"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.Resistance.InternalResistanceIncreaseOfBatteryCellLevel",
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryPackLevel",
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryCellLevel",
+        "TechnicalPropertyAreas.Resistance.InternalResistanceIncreaseOfBatteryPackLevel",
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryModuleLevel"
+      ],
+      "scores": [
+        0.5982394218444824,
+        0.588210940361023,
+        0.5671299695968628,
+        0.5508954524993896,
+        0.5383540391921997
+      ],
+      "rank": 3,
+      "margin": 0.01
+    },
+    {
+      "case_id": "p-10",
+      "tier": "paraphrase",
+      "query": "internal resistance of the whole pack when new",
+      "gold": [
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryPackLevel"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryPackLevel",
+        "TechnicalPropertyAreas.Resistance.InternalResistanceIncreaseOfBatteryPackLevel",
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryCellLevel",
+        "TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryModuleLevel",
+        "TechnicalPropertyAreas.Resistance.InternalResistanceIncreaseOfBatteryCellLevel"
+      ],
+      "scores": [
+        0.6646700501441956,
+        0.6286697387695312,
+        0.5724311470985413,
+        0.5543025732040405,
+        0.5537155866622925
+      ],
+      "rank": 1,
+      "margin": 0.036
+    },
+    {
+      "case_id": "p-11",
+      "tier": "paraphrase",
+      "query": "most power it is allowed to deliver",
+      "gold": [
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower",
+        "TechnicalPropertyAreas.PowerCapability",
+        "TechnicalPropertyAreas.PowerCapability.PowerCapabilityAt",
+        "TechnicalPropertyAreas.PowerCapability.PowerCapabilityAt.powerCapabilityAt",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MaxVoltage"
+      ],
+      "scores": [
+        0.5351255536079407,
+        0.42541930079460144,
+        0.4199977517127991,
+        0.41625553369522095,
+        0.41402265429496765
+      ],
+      "rank": 1,
+      "margin": 0.1097
+    },
+    {
+      "case_id": "p-12",
+      "tier": "paraphrase",
+      "query": "coldest temperature it can sit at without being used",
+      "gold": [
+        "TechnicalPropertyAreas.Temperature.TemperatureRangeIdleState_LowerBoundary"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.Temperature.TemperatureRangeIdleState_LowerBoundary",
+        "TechnicalPropertyAreas.Temperature.TemperatureRangeIdleState_UpperBoundary",
+        "TechnicalPropertyAreas.Temperature",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion"
+      ],
+      "scores": [
+        0.42455291748046875,
+        0.3984963297843933,
+        0.38205835223197937,
+        0.25583329796791077,
+        0.23051318526268005
+      ],
+      "rank": 1,
+      "margin": 0.0261
+    },
+    {
+      "case_id": "p-13",
+      "tier": "paraphrase",
+      "query": "a picture of the product",
+      "gold": [
+        "GeneralInformation.ProductImage"
+      ],
+      "ranked": [
+        "GeneralInformation.ProductImage",
+        "GeneralInformation.ManufacturerProductDesignation",
+        "GeneralInformation.CompanyLogo",
+        "GeneralInformation",
+        "GeneralInformation.ManufacturerArticleNumber"
+      ],
+      "scores": [
+        0.5004894733428955,
+        0.4098970890045166,
+        0.4056244194507599,
+        0.3197014629840851,
+        0.31126365065574646
+      ],
+      "rank": 1,
+      "margin": 0.0906
+    },
+    {
+      "case_id": "p-14",
+      "tier": "paraphrase",
+      "query": "the part number the manufacturer uses to order it",
+      "gold": [
+        "GeneralInformation.ManufacturerOrderCode"
+      ],
+      "ranked": [
+        "GeneralInformation.ManufacturerOrderCode",
+        "GeneralInformation.ManufacturerArticleNumber",
+        "GeneralInformation",
+        "GeneralInformation.ManufacturerName",
+        "GeneralInformation.ManufacturerProductDesignation"
+      ],
+      "scores": [
+        0.5611832141876221,
+        0.5041483640670776,
+        0.409821480512619,
+        0.3940824866294861,
+        0.3640303909778595
+      ],
+      "rank": 1,
+      "margin": 0.057
+    },
+    {
+      "case_id": "p-15",
+      "tier": "paraphrase",
+      "query": "what chemistry or family of battery is this",
+      "gold": [
+        "GeneralInformation.BatteryCategory"
+      ],
+      "ranked": [
+        "GeneralInformation.BatteryCategory",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage",
+        "TechnicalPropertyAreas",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MaxVoltage"
+      ],
+      "scores": [
+        0.4626157283782959,
+        0.42370614409446716,
+        0.40364202857017517,
+        0.3921651244163513,
+        0.37868547439575195
+      ],
+      "rank": 1,
+      "margin": 0.0389
+    },
+    {
+      "case_id": "p-16",
+      "tier": "paraphrase",
+      "query": "how much capacity has been lost over time",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.CapacityFade"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.CapacityFade",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage"
+      ],
+      "scores": [
+        0.5310236215591431,
+        0.4711862802505493,
+        0.411629855632782,
+        0.3809317350387573,
+        0.3766387701034546
+      ],
+      "rank": 1,
+      "margin": 0.0598
+    },
+    {
+      "case_id": "m-01",
+      "tier": "multilingual",
+      "query": "电池的额定容量",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity",
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.NominalVoltage",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage"
+      ],
+      "scores": [
+        0.5612344741821289,
+        0.5094912052154541,
+        0.4976769983768463,
+        0.4874039888381958,
+        0.4854438304901123
+      ],
+      "rank": 1,
+      "margin": 0.0517
+    },
+    {
+      "case_id": "m-02",
+      "tier": "multilingual",
+      "query": "制造商名称",
+      "gold": [
+        "GeneralInformation.ManufacturerName"
+      ],
+      "ranked": [
+        "GeneralInformation.ManufacturerName",
+        "GeneralInformation.ManufacturerProductDesignation",
+        "GeneralInformation.CompanyLogo",
+        "GeneralInformation.ManufacturerIdentifier",
+        "GeneralInformation.ManufacturerOrderCode"
+      ],
+      "scores": [
+        0.5699398517608643,
+        0.46549469232559204,
+        0.4553365409374237,
+        0.4337562918663025,
+        0.43224743008613586
+      ],
+      "rank": 1,
+      "margin": 0.1044
+    },
+    {
+      "case_id": "m-03",
+      "tier": "multilingual",
+      "query": "电池重量是多少",
+      "gold": [
+        "GeneralInformation.BatteryMass"
+      ],
+      "ranked": [
+        "GeneralInformation.BatteryMass",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy",
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage",
+        "GeneralInformation.BatteryCategory"
+      ],
+      "scores": [
+        0.4979522228240967,
+        0.3834534287452698,
+        0.3624754846096039,
+        0.3599601686000824,
+        0.35594606399536133
+      ],
+      "rank": 1,
+      "margin": 0.1145
+    },
+    {
+      "case_id": "m-04",
+      "tier": "multilingual",
+      "query": "最低工作电压",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.NominalVoltage",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.MaxVoltage",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion"
+      ],
+      "scores": [
+        0.48771947622299194,
+        0.3692049980163574,
+        0.3472352921962738,
+        0.3216022849082947,
+        0.3099674582481384
+      ],
+      "rank": 1,
+      "margin": 0.1185
+    },
+    {
+      "case_id": "m-05",
+      "tier": "multilingual",
+      "query": "预期循环次数",
+      "gold": [
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles",
+        "TechnicalPropertyAreas.Lifetime.ExpectedLifetimeInCalendarYears ",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.RoundTripEnergyEfficiencyAt50PercentOfCycleLife",
+        "TechnicalPropertyAreas.Lifetime.CRateOfRelevantCycleLifeTest",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialRoundTripEnergyEfficiency"
+      ],
+      "scores": [
+        0.5458149909973145,
+        0.3301243185997009,
+        0.2752665877342224,
+        0.23761777579784393,
+        0.23651614785194397
+      ],
+      "rank": 1,
+      "margin": 0.2157
+    },
+    {
+      "case_id": "m-06",
+      "tier": "multilingual",
+      "query": "Nennkapazität der Batterie",
+      "gold": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"
+      ],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.NominalVoltage",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage"
+      ],
+      "scores": [
+        0.49155300855636597,
+        0.47721582651138306,
+        0.4705215096473694,
+        0.46425527334213257,
+        0.4598461389541626
+      ],
+      "rank": 1,
+      "margin": 0.0143
+    },
+    {
+      "case_id": "m-07",
+      "tier": "multilingual",
+      "query": "Gewicht der Batterie",
+      "gold": [
+        "GeneralInformation.BatteryMass"
+      ],
+      "ranked": [
+        "GeneralInformation.BatteryMass",
+        "TechnicalPropertyAreas",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy",
+        "GeneralInformation.BatteryCategory",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.CertifiedUsableBatteryEnergy"
+      ],
+      "scores": [
+        0.55317622423172,
+        0.39785268902778625,
+        0.38590753078460693,
+        0.3685750961303711,
+        0.3677788972854614
+      ],
+      "rank": 1,
+      "margin": 0.1553
+    },
+    {
+      "case_id": "n-01",
+      "tier": "negative",
+      "query": "barrel zone 3 temperature setpoint",
+      "gold": [],
+      "ranked": [
+        "TechnicalPropertyAreas.Temperature.TemperatureRangeIdleState_UpperBoundary",
+        "TechnicalPropertyAreas.Temperature.TemperatureRangeIdleState_LowerBoundary",
+        "TechnicalPropertyAreas.Temperature",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency"
+      ],
+      "scores": [
+        0.4259474575519562,
+        0.418869286775589,
+        0.404997855424881,
+        0.24524608254432678,
+        0.24066311120986938
+      ],
+      "rank": null,
+      "margin": 0.0071
+    },
+    {
+      "case_id": "n-02",
+      "tier": "negative",
+      "query": "laser power for the powder bed fusion print job",
+      "gold": [],
+      "ranked": [
+        "TechnicalPropertyAreas.PowerCapability",
+        "TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower",
+        "TechnicalPropertyAreas.PowerCapability.PowerFade",
+        "TechnicalPropertyAreas.PowerCapability.PowerCapabilityAt.powerCapabilityAt",
+        "TechnicalPropertyAreas.PowerCapability.RatioNorminalBatteryPowerAndBatteryEnergy"
+      ],
+      "scores": [
+        0.2613897919654846,
+        0.26104286313056946,
+        0.2522100806236267,
+        0.23983772099018097,
+        0.22466745972633362
+      ],
+      "rank": null,
+      "margin": 0.0003
+    },
+    {
+      "case_id": "n-03",
+      "tier": "negative",
+      "query": "carbon footprint of manufacturing",
+      "gold": [],
+      "ranked": [
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.RoundTripEnergyEfficiencyAt50PercentOfCycleLife",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.EnergyRoundTripEfficiencyFade",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialRoundTripEnergyEfficiency",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion"
+      ],
+      "scores": [
+        0.2895496189594269,
+        0.27944129705429077,
+        0.27348893880844116,
+        0.26399990916252136,
+        0.22819039225578308
+      ],
+      "rank": null,
+      "margin": 0.0101
+    },
+    {
+      "case_id": "n-04",
+      "tier": "negative",
+      "query": "recycled cobalt content",
+      "gold": [],
+      "ranked": [
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.RoundTripEnergyEfficiencyAt50PercentOfCycleLife",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.CertifiedUsableBatteryEnergy",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate",
+        "TechnicalPropertyAreas.Lifetime.CRateOfRelevantCycleLifeTest"
+      ],
+      "scores": [
+        0.35579919815063477,
+        0.3175271153450012,
+        0.30401894450187683,
+        0.29702436923980713,
+        0.29169052839279175
+      ],
+      "rank": null,
+      "margin": 0.0383
+    },
+    {
+      "case_id": "n-05",
+      "tier": "negative",
+      "query": "name of the operator on shift",
+      "gold": [],
+      "ranked": [
+        "GeneralInformation.ManufacturerName",
+        "GeneralInformation.ManufacturerOrderCode",
+        "TechnicalPropertyAreas.PowerCapability.PowerCapabilityAt.powerCapabilityAt",
+        "TechnicalPropertyAreas.Lifetime.CapacityThresholdExhaustion",
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles"
+      ],
+      "scores": [
+        0.2567608058452606,
+        0.2388201355934143,
+        0.22239696979522705,
+        0.21208539605140686,
+        0.21068191528320312
+      ],
+      "rank": null,
+      "margin": 0.0179
+    },
+    {
+      "case_id": "n-06",
+      "tier": "negative",
+      "query": "how much does it cost",
+      "gold": [],
+      "ranked": [
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialRoundTripEnergyEfficiency",
+        "TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.RoundTripEnergyEfficiencyAt50PercentOfCycleLife",
+        "GeneralInformation.WarrantyPeriod",
+        "TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate"
+      ],
+      "scores": [
+        0.09271369874477386,
+        0.08699148893356323,
+        0.0868912786245346,
+        0.0849410891532898,
+        0.084633007645607
+      ],
+      "rank": null,
+      "margin": 0.0057
+    },
+    {
+      "case_id": "n-07",
+      "tier": "negative",
+      "query": "IP protection rating of the enclosure",
+      "gold": [],
+      "ranked": [
+        "TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity",
+        "TechnicalPropertyAreas.Temperature",
+        "TechnicalPropertyAreas.Resistance",
+        "TechnicalPropertyAreas.PowerCapability",
+        "TechnicalPropertyAreas.Temperature.TemperatureRangeIdleState_UpperBoundary"
+      ],
+      "scores": [
+        0.286696195602417,
+        0.2831495404243469,
+        0.27528995275497437,
+        0.27405720949172974,
+        0.24932420253753662
+      ],
+      "rank": null,
+      "margin": 0.0035
+    }
+  ]
+}

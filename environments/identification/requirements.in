@@ -1,0 +1,5 @@
+# Separate public-measurement importer and CPU inverse-dynamics environment.
+numpy==2.2.6
+scipy==1.16.2
+pandas==2.2.3
+mujoco==3.8.1

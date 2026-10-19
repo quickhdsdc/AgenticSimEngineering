@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "case_id": "kuka-joint2-synthetic-identification",
+  "model_id": "kuka-iiwa14",
+  "joint": "joint2",
+  "context": {"source": "synthetic_fixture", "operator_source": "delegated_operator", "description": "User-authorised synthetic workflow exploration; not device measurements."},
+  "parameters": {
+    "damping": {"semantic_id": "urn:ase:kuka-iiwa14:joint2:viscous-damping", "unit": "N*m*s/rad", "initial": 0.1, "bounds": [0.0, 3.0]},
+    "armature": {"semantic_id": "urn:ase:kuka-iiwa14:joint2:armature", "unit": "kg*m^2", "initial": 0.01, "bounds": [0.0, 0.5]}
+  },
+  "experiment": {"sample_dt_s": 0.01, "samples_per_run": 400, "torque_noise_std_nm": 0.005, "seed": 42},
+  "acceptance": {"scope": "synthetic_holdout_only", "torque_rmse_limit_nm": 0.02, "minimum_relative_improvement": 0.9},
+  "assumptions": ["Pinned KUKA geometry/inertial structure; identify only joint2 damping and armature", "Prescribed analytic excitation with exact q/qd/qdd; torque noise only", "Contact disabled; fixed base; no external load or device writes", "Thresholds and initial values are delegated exploration assumptions, not manufacturer limits"]
+}

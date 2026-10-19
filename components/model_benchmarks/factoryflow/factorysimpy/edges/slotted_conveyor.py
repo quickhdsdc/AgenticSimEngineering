@@ -1,0 +1,320 @@
+# @title conveyor for continuous flow reserve_get
+
+
+# if two puts comes together, both will get succeeded at same time
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+import simpy
+import random
+
+from factorysimpy.helper.item import Item
+from factorysimpy.edges.edge import Edge
+from factorysimpy.base.slotted_belt_store import BeltStore
+from factorysimpy.base.reservable_priority_req_filter_store import ReservablePriorityReqFilterStore
+from factorysimpy.base.reservable_priority_req_store import ReservablePriorityReqStore
+
+
+
+
+
+class BeltStore(BeltStore):
+    """
+    A specialized BeltStore for conveyor belt operations.
+
+    This class extends BeltStore to handle conveyor-specific item movement
+    with timing constraints while maintaining the interrupt/resume capabilities
+    from the parent class.
+    """
+
+    def __init__(self, env, capacity=float('inf'), delay=1):
+        """
+        Initializes a belt store for conveyor operations.
+
+        Args:
+            env: SimPy environment
+            capacity (int, optional): The maximum number of items the store can hold.
+            delay (float, optional): Time taken to process each item in the belt.
+        """
+        super().__init__(env, capacity, mode="FIFO", delay=delay)
+        
+
+    def _do_put(self, event, item):
+        """Override to handle the put operation with conveyor-specific logging."""
+        returnval = super()._do_put(event, item)
+        print(f"T={self.env.now:.2f}: BeltStore:_do_put: putting item on belt {item[0].id} and belt items are {[(i[0].id) for i in self.items]}")
+        return returnval
+class ConveyorBelt(Edge):
+    """
+    A conveyor belt system with optional accumulation.
+
+    Attributes:
+        
+        capacity (int): Maximum capacity of the belt.
+        state (str): state of the conveyor belt.
+        delay (float): Time interval between two successive movements on the belt.
+        accumulation (bool): Whether the belt supports accumulation (1 for yes, 0 for no).
+        
+    """
+    def __init__(self, env, id, capacity, delay,accumulating):
+        super().__init__(env, id, capacity )
+       
+        self.state = "IDLE_STATE"
+        #self.length= length #length of the item
+        
+        self.accumulating = accumulating
+        self.delay=delay
+        #self.delay = int(self.length/self.speed)*capacity
+       
+        self.belt = BeltStore(env, capacity, self.delay)
+      
+        
+        
+        #self.time_per_item = self.length/self.speed
+        #self.inp_buf=ReservablePriorityReqStore(env, capacity=1)
+        #self.out_buf=ReservablePriorityReqStore(env, capacity=1)
+        self.stats = {
+            "last_state_change_time": None,
+            "time_averaged_num_of_items_in_conveyor": 0,
+            "total_time_spent_in_states":{"IDLE_STATE": 0.0,"MOVING_STATE":0.0, "ACCUMULATING_STATE": 0.0, "STALLED_NONACCUMULATING_STATE": 0.0}
+        }
+        self.item_arrival_event = self.env.event()
+        # self.item_get_event=self.env.event()
+        self.get_events_available = self.env.event()
+        self.put_events_available = self.env.event()
+
+        
+        self.noaccumulation_mode_on=False
+      
+
+        # self.get_request_queue = []
+        # self.put_request_queue = []
+        # self.active_events = []
+        # self.get_dict = {}
+        # self.put_dict = {}
+
+
+        self.env.process(self.behaviour())
+      
+    def initial_test(self):
+        assert self.src_node is not None , f"Conveyor '{self.id}' must have atleast 1 src_node."
+        assert self.dest_node is not None , f"Conveyor '{self.id}' must have atleast 1 dest_node."
+        
+
+    def _conveyor_stats_collector(self):
+        """
+        Periodically sample the number of items in the conveyor and compute the time-averaged value.
+        """
+        self.initial_test()
+
+
+        self.stats["time_averaged_num_of_items_in_conveyor"] = self.belt.time_averaged_num_of_items_in_store
+    
+    def update_final_conveyor_avg_content(self, simulation_end_time):
+        now = simulation_end_time
+        interval = now - self.belt._last_level_change_time
+        self.belt._weighted_sum += self.belt._last_num_items * interval
+        self.belt._last_level_change_time = now
+        self.belt._last_num_items = len(self.belt.items)+len(self.belt.ready_items)
+        
+        total_time = now
+        self.belt.time_averaged_num_of_items_in_store = (
+            self.belt._weighted_sum / total_time if total_time > 0 else 0.0
+        )
+        self._conveyor_stats_collector()
+
+
+
+    def is_empty(self):
+      """Check if the belt is completely empty."""
+      return (len(self.belt.items)+len(self.belt.ready_items) == 0  )
+
+    def belt_occupancy(self):
+          return len(self.belt.items)+len(self.belt.ready_items)
+
+    def is_full(self):
+          """Check if the belt is full."""
+          return len(self.belt.items)+len(self.belt.ready_items) == self.belt.capacity
+
+    def can_get(self):
+        """Check if an item can be retrieved from the belt."""
+        #first_item_to_go_out = self.items[0] if self.items else None
+        if not self.out_buf.items:
+            return False
+        else:
+           return True
+
+    def is_stalled(self):
+          """Check if the belt is stalled due to time constraints."""
+          if self.belt.ready_items and len(self.belt.reservations_get)==0 :
+            return True
+          else:
+            return False
+
+    def can_put(self):
+        """Check if an item can be added to the belt."""
+        if not self.inp_buf.items:
+            return True
+        else:
+            return False
+    
+    def reserve_put(self):
+       return self.belt.reserve_put()
+    
+    def put(self, event, item):
+        """
+        Put an item into the belt.
+        
+        Parameters
+        ----------
+        event : simpy.Event
+            The event that was reserved for putting an item.
+        item : Item
+            The item to be put on the belt.
+        
+        Returns
+        -------
+        simpy.Event
+            An event that will be triggered when the item is successfully put on the belt.
+        """
+        #delay=self.get_delay(self.delay)
+        print(f"T={self.env.now:.2f}: Conveyor:put: putting item {item.id} ")
+        delay = self.capacity * self.delay
+        item.conveyor_entry_time = self.env.now
+        item_to_put = (item, delay)
+        print(f"T={self.env.now:.2f}: {self.id }:put: putting item {item_to_put[0].id} on belt with delay {item_to_put[1]}")
+        return_val = self.belt.put(event, item_to_put)
+        self._conveyor_stats_collector()
+        # if len(self.belt.items)==1:
+        #     self.item_arrival_event.succeed()
+        #     print(f"T={self.env.now:.2f}: {self.id }:put: item arrival event succeeded")
+        # else: 
+            
+        #     self.put_events_available.succeed()
+        #     print(f"T={self.env.now:.2f}: {self.id }:put: item arrival event else succeeded")
+            
+        return return_val
+
+    def reserve_get(self):
+       return self.belt.reserve_get()
+    def get(self, event):
+        """
+        Get an item from the belt.
+        
+        Parameters
+        ----------
+        event : simpy.Event
+            The event that was reserved for getting an item.
+        
+        Returns
+        -------
+        Item
+            The item retrieved from the belt.
+        """
+        print(f"T={self.env.now:.2f}: {self.id }:get: getting item from belt")
+        item = self.belt.get(event)
+        item.conveyor_exit_time = self.env.now
+        self._conveyor_stats_collector()
+        # event= self.env.event()
+        # self.get_events_available.succeed()
+    
+        return item
+
+    
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+    def behaviour(self):
+       #event_list=[self.belt.ready_item_event, self.get_events_available, self.put_events_available]
+       
+       while True:
+          print(f"T={self.env.now:.2f}: {self.id } is in {self.state}")
+          
+          
+          
+          # if self.chosen_triggered_event is not None:
+          if self.is_empty():
+             self.set_conveyor_state("IDLE_STATE")
+             yield self.item_arrival_event
+             self.item_arrival_event = self.env.event()
+             print(f"T={self.env.now:.2f}: {self.id }item_arrival  event triggered")
+             
+             
+          elif not self.is_empty() and not self.is_stalled():
+             self.set_conveyor_state("MOVING_STATE")
+             
+             if self.belt.noaccumulation_mode_on==True:
+                self.belt.noaccumulation_mode_on=False
+                
+          elif self.is_stalled():
+              if self.accumulating:
+                 self.set_conveyor_state("STALLED_ACCUMULATING_STATE")
+              else:
+                
+                 self.set_conveyor_state("STALLED_NONACCUMULATING_STATE")
+                 self.belt.noaccumulation_mode_on=True
+                
+               
+        
+          else:
+            print(self.belt.items, self.belt.ready_items, self.is_stalled())
+            raise ValueError(f"Conveyor {self.id} in unknown state {self.state}")
+          
+          yield self.env.timeout(self.delay)
+            
+    def set_conveyor_state(self, new_state):
+        """
+        Set the conveyor state and manage belt store interrupts/resumes.
+        
+        Args:
+            new_state (str): The new conveyor state
+        """
+        old_state = self.state
+        self.state = new_state
+        
+        print(f"T={self.env.now:.2f}: {self.id} state changed from {old_state} to {new_state}")
+        
+        # Control belt store based on conveyor state changes
+        if old_state in ["MOVING_STATE", "IDLE_STATE"] and new_state in ["STALLED_ACCUMULATING_STATE", "STALLED_NONACCUMULATING_STATE"]:
+            # When conveyor becomes stalled (either accumulating or non-accumulating), apply selective interruption
+            self.belt.selective_interrupt(f"Conveyor {self.id} selective interruption - {new_state}")
+        elif old_state in ["STALLED_ACCUMULATING_STATE", "STALLED_NONACCUMULATING_STATE"] and new_state in ["MOVING_STATE", "IDLE_STATE"]:
+            # When conveyor resumes to moving or becomes idle, resume all belt store processes
+            self.belt.resume_all_move_processes()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

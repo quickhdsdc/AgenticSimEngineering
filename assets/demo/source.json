@@ -1,0 +1,14 @@
+{
+  "model": "KUKA LBR iiwa 14",
+  "source_kind": "reference_simulation",
+  "backend": "Newton",
+  "device": "cpu",
+  "physical_validation": "not_established",
+  "frames": 80,
+  "simulation_seconds": 2,
+  "display_seconds": 8,
+  "source_task": "examples/kuka-iiwa14-visual-study.json (execution.device=cpu)",
+  "study_payload_sha256": "ccd467c5bf613d6b1923e400b6a0d075050ea7c999691befa59c4cd1e10209ea",
+  "mesh_license": "../robots/menagerie/kuka_iiwa_14/LICENSE",
+  "playback_sha256": "a82abcaabf02e60135e0c0629cedbd5e504c15c8c025616f5b1cf0a9461ee5cb"
+}

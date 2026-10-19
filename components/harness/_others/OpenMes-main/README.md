@@ -1,0 +1,592 @@
+<div align="center">
+
+# OpenMES
+
+### Open-Source Manufacturing Execution System
+
+*Powerful, flexible, and tablet-ready MES for small manufacturers*
+
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
+[![Livewire](https://img.shields.io/badge/Livewire-4-4E56A6?logo=livewire&logoColor=white)](https://livewire.laravel.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![ISA-95](https://img.shields.io/badge/ISA--95-compatible-blueviolet)](./docs/isa95.md)
+
+**🚀 [Try the live demo → demo-2.getopenmes.com](https://demo.getopenmes.com/register)**
+*Free demo account — active for 3 hours, no credit card required*
+
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/fw3fG78pZj)
+
+
+</div>
+
+---
+
+## What is OpenMES?
+
+**OpenMES** is a self-hosted, open-source MES (Manufacturing Execution System) built for small and mid-sized manufacturers — woodworking, metal fabrication, plastics and assembly shops — who need real production tracking without enterprise complexity or licensing costs.
+
+![OpenMES on desktop, mobile and web](docs/screenshots/openmes-desktop-mobile-web.png)
+
+
+### Why OpenMES?
+
+- 🎯 **Purpose-built for small manufacturers** — woodworking, metal fabrication, plastics and assembly shops. No enterprise bloat, just what a real shop floor needs
+- 🆓 **Truly free and open-source** — AGPL-3.0, no per-user fees, no modules to unlock, no vendor lock-in
+- 📱 **Tablet-first design** — touch-optimized screens for shop-floor operators
+- 📊 **Real-time production visibility** — work orders, batches, quality checks, downtime reasons and reports for every line
+- 🔌 **Connects to your machines and ERP** — native MQTT machine data collection, REST API, CSV/XLS import (SAP, Odoo, Comarch), PrestaShop connector
+- 🚀 **Deploy in minutes** — single-command Docker deployment; an old office PC is enough
+- 🔒 **Security-first** — OWASP Top 10 compliant from day one
+- 📐 **ISA-95 aligned** — Level 3 MES with ISA-95 / IEC 62264 hierarchies and MOM coverage ([details](./docs/isa95.md))
+
+---
+
+## Features
+
+### Production Planner
+
+Drag-and-drop production scheduling with Gantt-style views across multiple production lines.
+
+![Weekly Planner](docs/screenshots/schedule-weekly.png)
+
+- **Weekly / Daily / Hourly / Monthly views** — switch between planning horizons
+- **Drag & drop scheduling** — assign and move work orders across lines and shifts
+- **Hourly Gantt view** — minute-level precision with resize and cross-line moves
+- **Real-time polling** — live updates when changes happen on the shop floor
+- **Backlog panel** — unassigned orders with priority filtering and search
+- **Overdue alerts** — visual flagging of overdue orders on the timeline
+
+![Hourly Gantt View](docs/screenshots/schedule-hourly.png)
+
+### Production Management
+
+- **Multi-line production** - Manage multiple production lines simultaneously
+- **Work order tracking** - Complete work order lifecycle management
+- **Batch production** - Support partial completion with multiple batches
+- **Process templates** - Reusable, step-by-step process definitions
+- **Data import** - Bulk-load product types, materials, work orders and recipes from CSV/Excel with column mapping, saved profiles and live progress
+- **Real-time status** - Live production status updates
+
+### Operator Experience
+
+![Operator Queue](docs/screenshots/operator-queue.png)
+
+![Operator Workstation View](docs/screenshots/operator-workstation.png)
+
+- **Step-by-step guidance** - Clear instructions for every operation
+- **Sequential workflow** - Enforce process order to prevent mistakes
+- **One-tap actions** - Start, complete, report issues with single tap
+- **PWA support** - Install on tablets, works offline
+- **Offline mode** - Queue actions when network is unavailable
+- **Tablet-optimized** - Large touch targets (48px+), minimal text input
+
+### Issue & Andon System
+
+- **Problem reporting** - Operators report issues instantly from any step
+- **Automatic blocking** - Critical issues halt production automatically
+- **Issue escalation** - Route problems to supervisors with notifications
+- **Resolution tracking** - Complete issue lifecycle (Open → Acknowledged → Resolved → Closed)
+- **Predefined categories** - Material shortage, quality issues, tool failures, etc.
+
+### Analytics & Reporting
+
+- **Supervisor Dashboard** - Real-time KPIs and production metrics
+- **Interactive Charts** - Throughput, cycle time, issue trends, step performance
+- **Production Reports** - Summary, batch completion, downtime reports
+- **CSV Export** - Export all reports for further analysis
+- **Traceability** - Complete audit trail for every action
+
+### Security & Compliance
+
+- **Immutable audit logs** - PostgreSQL-enforced, cannot be altered
+- **Complete traceability** - Track every action, user, and timestamp
+- **Role-based access** - Admin, Supervisor, Operator roles
+- **Line-based filtering** - Operators only see assigned lines
+- **Compliance-ready** - ISO 9001, AS9100 compatible audit trail
+
+---
+
+## Extensibility & Modules
+
+OpenMES is built to be extended! Use our comprehensive **hook system** to add custom functionality without modifying core code.
+
+A module drops into `backend/modules/`, is toggled in **Admin → Modules**, and
+plugs into three kinds of extension point — with **zero runtime cost when
+disabled**:
+
+### Hook System
+
+- **Domain events** — react to production activity:
+  - Work orders — `WorkOrderCreated`, `WorkOrderUpdated`, `WorkOrderCompleted`
+  - Batches & steps — `BatchCreated`, `StepStarted`, `StepCompleted`
+  - Machine — `WorkstationStateChanged`, `MachineMessageReceived`
+  - Users — `UserAssignedToLine`
+  - **`ResourceChanged`** — a generic CRUD hook for **any** curated resource (work orders, customers, materials, lines, …) on create/update/delete
+  - **`WorkOrderScheduled`** — a work order is placed/moved on the planner
+- **Menu hooks** (`MenuRegistry`) — add links and dropdowns to the sidebar
+- **Dashboard widget hooks** (`WidgetRegistry`) — add cards to the admin dashboard
+
+### Create Custom Modules
+
+```php
+// In your module's ServiceProvider::boot()
+use App\Events\WorkOrder\WorkOrderCompleted;
+use App\Services\MenuRegistry;
+use Illuminate\Support\Facades\Event;
+
+// React to an order completing (observe — never mutate core state here)
+Event::listen(WorkOrderCompleted::class, function ($event) {
+    ExternalErp::notifyCompletion($event->workOrder);
+});
+
+// Add a link to the sidebar
+app(MenuRegistry::class)->addItem('production', 'My Page', url('/modules/mine'));
+```
+
+### Example Use Cases
+
+- **ERP Integration** - Sync with SAP, Odoo, or custom systems
+- **Custom Notifications** - Email, SMS, Slack, Teams
+- **Quality Control** - Automated inspections and checks
+- **IoT Integration** - Connect machines and sensors
+- **Custom Reports** - Generate PDFs, Excel, or API exports
+- **Inventory Management** - Auto-update stock levels
+- **Barcode/RFID** - Track materials and products
+
+🛠️ **Build a module (step-by-step tutorial)**: [backend/modules/README.md](backend/modules/README.md) — from an empty folder to a running module, plus a code map of how it all works
+📚 **Hook reference**: [HOOKS.md](HOOKS.md) — every event, menu and widget hook, with payloads and examples
+📁 **Reference Modules**: [`backend/modules/ExampleShowcase`](backend/modules/ExampleShowcase) (all hooks) · [`backend/modules/ExampleHooks`](backend/modules/ExampleHooks) (minimal)
+
+---
+
+## 📦 Built-in Modules
+
+OpenMES ships with optional modules that can be enabled from **Admin → Modules**.
+
+### Packaging — EAN Barcode Scanning Station
+
+Dedicated station for scanning finished products with a barcode reader (EAN/QR) before shipping or warehouse handoff.
+
+**How it works:**
+
+1. Operator opens `/packaging/station` on a dedicated workstation or tablet
+2. Scans an EAN barcode with a USB/Bluetooth reader (or types it manually)
+3. The system looks up which work order the EAN belongs to and increments its `packed_qty` counter
+4. Live stats update every 3 seconds: packed today, plan, backlog, realisation %
+
+**Features:**
+
+- **EAN management** — assign one or multiple EAN codes to any work order (`Admin → Packaging → EAN Codes`)
+- **Scan history** — every scan is logged with timestamp, user, and result (success / unknown EAN / error)
+- **Shift-based counters** — `packed_qty` resets each shift; shift boundaries are configurable
+- **Manual reset** — `php artisan packaging:reset-shift` resets all counters immediately
+- **Admin dashboard** — read-only overview of all lines with the same live stats as the operator view
+
+**Routes:**
+
+| URL | Access | Description |
+|---|---|---|
+| `/packaging/station` | Operator, Supervisor, Admin | Scanning station |
+| `/packaging/` | Supervisor, Admin | Admin overview |
+| `/packaging/eans` | Supervisor, Admin | EAN code management |
+
+**Required migrations** (run automatically on first deploy):
+
+```
+create_work_order_eans_table
+create_packaging_scan_logs_table
+add_packed_qty_to_work_orders_table
+```
+
+---
+
+## Architecture
+
+OpenMES uses a **dead-simple** Laravel monolith architecture:
+
+```
+┌─────────────────┐
+│  Laravel App    │  :80 (serves everything)
+│  (Blade + API)  │
+└────────┬────────┘
+         │
+    ┌────▼─────┐
+    │ PostgreSQL│
+    └──────────┘
+```
+
+**Stack:**
+- **Backend**: Laravel 12 with Blade templates
+- **Frontend**: Tailwind CSS 4 + Alpine.js for interactivity
+- **Real-time**: Livewire 4 for dynamic components
+- **Charts**: Chart.js for analytics
+- **Database**: PostgreSQL 17+ with immutable audit logs
+- **Deployment**: Docker Compose (2 containers only!)
+
+### Why This Architecture?
+
+- **Ultra Simple**: Just 2 containers (Laravel + PostgreSQL)
+- **One-Command Install**: clone, run installer, done
+- **No Reverse Proxy**: Laravel serves directly on port 80
+- **Easy Maintenance**: Single codebase, traditional Laravel patterns
+- **LAN Optimized**: Server-rendered pages, perfect for local networks
+- **Mobile Ready**: Responsive Blade templates work on tablets
+- **Fast**: Built-in assets compilation with Vite
+
+### ISA-95 Compatibility
+
+OpenMES architecture maps onto the ISA-95 / IEC 62264 standard for Manufacturing Operations Management at Level 3. See [docs/isa95.md](./docs/isa95.md) for the full coverage matrix across Production, Maintenance, Quality, and Inventory operations.
+
+---
+
+## 🚀 Installation
+
+### Prerequisites
+
+- Docker & Docker Compose (20.10+)
+- Git
+
+### Installation 🎯
+
+**One command — clone and run the installer:**
+
+```bash
+git clone https://github.com/Mes-Open/OpenMes.git
+cd OpenMes
+./install.sh
+```
+
+`install.sh` generates secure credentials into `.env`, **auto-selects a free host port** (80 if it's available, otherwise the next free one — e.g. 8080), builds the app from the cloned source, and starts it in **production**. When it finishes it prints your URL and admin login. Use `./install.sh --yes` to accept all defaults non-interactively.
+
+**Windows?** In **PowerShell** (Docker Desktop) run the equivalent installer — same behaviour as `install.sh`:
+
+```powershell
+.\install.ps1
+```
+
+(Under WSL2 just use `./install.sh`.)
+
+**Prefer plain Compose?** `docker compose up -d --build` also works — it builds from source and serves on port 80 (override with `HTTP_PORT`/`HTTPS_PORT` in `.env` if 80 is taken).
+
+### First boot
+
+With Docker, the database is migrated and the admin account is created
+automatically on first boot (from the credentials in `.env`) — no manual wizard
+step is needed. Open the URL the installer printed and log in.
+
+> Running OpenMES outside Docker (bare PHP)? A web-based setup wizard guides you
+> through database and admin configuration the first time you open the site.
+
+### First Steps After Installation
+
+1. **Login** with your admin credentials
+2. **Create production lines** in the admin panel
+3. **Add users** (operators, supervisors) and assign them to lines
+4. **Import work orders** via CSV or create manually
+5. **Install PWA on tablets** for offline support
+
+### Troubleshooting
+
+**Containers not starting?**
+```bash
+# Check container logs
+docker-compose logs backend
+docker-compose logs postgres
+
+# Restart containers
+docker-compose restart
+
+# Rebuild containers (if needed)
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+**Database connection errors?**
+```bash
+# Make sure postgres is healthy
+docker-compose ps
+
+# Check database credentials
+grep DB_PASSWORD .env backend/.env
+
+# Restart backend
+docker-compose restart backend
+```
+
+**Application not loading?**
+```bash
+# Check if services are running
+docker-compose ps
+
+# View backend logs
+docker-compose logs -f backend
+
+# Rebuild backend (includes asset build)
+docker-compose build --no-cache backend
+docker-compose up -d
+```
+
+**Port 80 already in use?**
+```bash
+# Check what's using port 80
+sudo lsof -i :80
+
+# Edit docker-compose.yml to use different port:
+# Change: - "80:8000" to "8080:8000"
+# Then access at: http://localhost:8080
+```
+
+---
+
+## 📱 PWA Installation (Tablets)
+
+### iOS (iPad)
+1. Open Safari and navigate to OpenMES
+2. Tap the Share button
+3. Select "Add to Home Screen"
+4. Name it "OpenMES" and tap Add
+5. Launch from home screen
+
+### Android (Tablets)
+1. Open Chrome and navigate to OpenMES
+2. Tap the menu (⋮)
+3. Select "Install app" or "Add to Home Screen"
+4. Confirm installation
+5. Launch from home screen
+
+**Benefits:**
+- Full-screen mode (no browser chrome)
+- Works offline with automatic sync
+- Native app-like experience
+- Touch-optimized for manufacturing floor
+
+---
+
+## 📚 Documentation
+
+- [User Guides](docs/) - Operator, Supervisor, and Admin guides
+- [Customization Layers](docs/customization-layers.md) - Standard / configuration / customer vs vendor custom development
+- [API Documentation](docs/API_DOCUMENTATION.md) - REST API reference
+- [PWA Testing Guide](docs/pwa-testing-guide.md) - Offline functionality testing
+- [Technical Documentation](docs/development.md) - For developers
+- [MQTT Connectivity Testing](docs/mqtt-connectivity.md) - Machine connection testing guide
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Whether it's bug reports, feature requests, documentation, or code - we'd love your help.
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests
+5. Submit a pull request
+
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details.
+
+---
+
+## Working on the React frontend
+
+OpenMES is incrementally adopting **React via [Inertia.js](https://inertiajs.com/)** alongside the existing Blade + Livewire UI. Both render trees coexist — new pages can opt into React without touching anything else.
+
+### Live-edit workflow (no local Node install required)
+
+The point of this setup: pull the repo, drop it on a server (FTP/SSH/whatever), edit `.jsx` files in place, refresh the browser. No `npm install` on your laptop, no build step in your hands. A container handles it.
+
+Start the stack with the dev overlay:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+That overlay (`docker-compose.dev.yml`):
+
+- Spins up a `frontend` container running `vite build --watch`. It watches `backend/resources/` and rebuilds `backend/public/build/` in ~100ms whenever you save a file.
+- Bind-mounts the application source (`app/`, `routes/`, `resources/`, `public/`, …) into the backend container so PHP/Blade edits are live too.
+
+Workflow:
+
+1. Edit `backend/resources/js/Pages/Foo.jsx` (or any source file).
+2. The watcher rebuilds automatically — check `docker compose logs -f frontend` if you want to see it.
+3. Refresh the browser.
+
+### Adding a new React page
+
+1. Create the page component at `backend/resources/js/Pages/Foo.jsx`:
+
+   ```jsx
+   import { Head } from '@inertiajs/react';
+
+   export default function Foo({ greeting }) {
+       return (
+           <>
+               <Head title="Foo" />
+               <h1>{greeting}</h1>
+           </>
+       );
+   }
+   ```
+
+2. Add a route in `backend/routes/web.php`:
+
+   ```php
+   Route::get('/foo', fn () => Inertia::render('Foo', [
+       'greeting' => 'Hello from Laravel',
+   ]));
+   ```
+
+3. Visit `/foo`. Props from the controller arrive as React props.
+
+### Production builds
+
+Production deployments do not use `docker-compose.dev.yml`. The image's `Dockerfile` already runs `npm ci && npm run build` at image build time, so the production container ships with pre-built assets — no Node process at runtime.
+
+---
+
+## Live data sync (Reverb + TanStack DB)
+
+OpenMES live-syncs read data from Laravel to React/mobile clients over a single
+WebSocket. Clients **subscribe to a named collection** (a server-defined query)
+rather than querying tables directly: they load one snapshot over HTTP, then
+receive deltas as they happen. Writes still go through Laravel controllers as
+before.
+
+### Architecture — snapshot, then deltas
+
+```
+1. snapshot:  client ─► GET /api/collections/{name}  (CollectionController, authed + tenant-scoped)
+                        ◄─ { rows: [...], at: <unix ts> }
+
+2. deltas:    Laravel ─► CollectionChanged ─► Reverb ─► private channel col.{tenant}.{collection}
+                        ◄─ insert / update / delete, applied by the client's collection adapter
+
+   writes:    client ─► Laravel controllers (validation, auth, Eloquent events) ─► Postgres
+```
+
+- **Laravel** owns the collection registry (`app/Sync/ShapeRegistry.php` +
+  `app/Sync/Shapes/`): each entry pins a table, a column allowlist and an
+  optional server-built `where`. Clients request collections by name, never by
+  table. `CollectionController` serves the snapshot; `App\Events\CollectionChanged`
+  broadcasts each row change.
+- **Reverb** runs as a sidecar container speaking the Pusher protocol. Channels
+  are private and namespaced per tenant (`col.{tenantKey}.{collection}`), authorized
+  in `routes/channels.php` via the session cookie at `/broadcasting/auth`.
+- **Caddy** proxies `/app/*` to Reverb. One multiplexed WebSocket carries every
+  collection channel, so the browser's ~6-connection HTTP/1.1 cap doesn't apply
+  and no PHP worker is ever held open.
+- **Clients** use `lib/echo.js` (one app-wide `laravel-echo` connection) and
+  `lib/realtimeCollection.js`, which feeds a TanStack DB collection.
+
+### Adding a new collection
+
+Two files:
+
+1. **Define the shape.** `backend/app/Sync/Shapes/MyShape.php`:
+
+   ```php
+   class MyShape extends Shape {
+       public function table(): string { return 'my_table'; }
+       public function columns(): array { return ['id', 'name', 'status']; }
+       public function where(User $user): ?string {
+           return "tenant_id = {$user->tenant_id}";
+       }
+   }
+   ```
+
+   Simple lookup tables can skip the class and use an inline
+   `['table', 'columns', 'where'?]` config instead.
+
+2. **Register it.** Add to the `$shapes` map in `backend/app/Sync/ShapeRegistry.php`:
+
+   ```php
+   'my_collection_name' => MyShape::class,
+   ```
+
+Then subscribe from React — the hooks in `lib/useSyncedShape.js` handle the
+snapshot and the channel for you:
+
+```jsx
+const { data, isLoading } = useSyncedShape('my_collection_name');
+```
+
+`useLiveShape` is the same function under a different name (call-site intent
+only). Hot app-wide collections are shared via `LiveShapesProvider` — don't
+subscribe to them again per page.
+
+### Security model
+
+- Clients **cannot pick the table** — they pick a collection name. Adding a new
+  collection is a deliberate code change.
+- Clients **cannot pick which columns** to read — the shape's `columns()` method
+  is the whitelist. Sensitive columns (password hashes, tokens, PII) simply
+  aren't listed.
+- Clients **cannot escape the server WHERE** — both the snapshot and the delta
+  projection are built server-side from the registry entry.
+- Both halves are authorized: the snapshot endpoint requires auth and applies the
+  tenant scope, and the delta channel is private, so a user only receives their
+  own tenant's rows (plus global `"g"` collections).
+
+### Operational notes
+
+- **App-server runtime.** The backend serves via **Laravel Octane on RoadRunner**
+  (`octane:start` is the Dockerfile `CMD`) — a concurrent, in-memory runtime. The
+  old `php artisan serve` was single-threaded and serialized every request; it
+  remains only as a documented dev fallback. Octane keeps the framework booted
+  between requests, so watch for state that assumes a fresh boot per request
+  (singletons, static props) — validate the full app under Octane before a
+  production rollout.
+- **Broadcasting is synchronous.** `CollectionChanged` implements
+  `ShouldBroadcastNow` because `QUEUE_CONNECTION=sync`; a write's broadcast
+  happens inline with the request. Moving to a real queue driver would make
+  delivery async — check the latency assumptions in the UI before doing so.
+- **Widget registry regression.** The Blade dashboard supported a `WidgetRegistry`
+  extension API where modules registered Blade views into named zones
+  (`admin_dashboard.kpi`, `admin_dashboard.main`, `admin_dashboard.sidebar`). The
+  React dashboard does **not** render these. No bundled module currently uses the
+  registry, so nothing actively breaks — but a future React-based widget extension
+  API needs to be designed before third-party modules can extend the new dashboard.
+
+---
+
+## 📄 License
+
+OpenMES uses a **layered / dual-licensing** model:
+
+- **Core** — **GNU Affero General Public License v3.0 (AGPL-3.0)** — see [LICENSE](LICENSE).
+- **Modules** (`modules/`) — **Academic Free License 3.0 (AFL-3.0)** (permissive; modules may be closed/proprietary) — see [LICENSE-AFL-3.0.txt](LICENSE-AFL-3.0.txt).
+- **Commercial licenses** are also available for partners who cannot accept AGPL obligations, OEM/white-label, and hosted/SaaS offerings.
+
+Under AGPL-3.0 you can use, modify, distribute and use OpenMES privately, provided you disclose source for network/distributed modified versions, keep derivative works under AGPL-3.0, and state your changes.
+
+Contributions are accepted under the **Contributor License Agreement** ([CLA.md](CLA.md)) — you keep your copyright and grant the rights that make the dual-licensing model possible.
+
+See [LICENSING.md](LICENSING.md) for the full model and [CONTRIBUTING](docs/CONTRIBUTING.md) for how to contribute.
+
+---
+
+## 📞 Support
+
+### Free Support
+- 📖 Read the [documentation](docs/)
+- 🔍 Search [existing issues](https://github.com/Mes-Open/OpenMes/issues)
+- 💬 Ask in [discussions](https://github.com/Mes-Open/OpenMes/discussions)
+
+### Commercial Support
+Need help with deployment, customization, or training?
+Contact us at **jakub.przepiora@nice-code.com**
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the manufacturing community**
+
+Made by manufacturers, for manufacturers
+
+⭐ If you find OpenMES useful, please give it a star!
+
+</div>

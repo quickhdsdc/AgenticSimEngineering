@@ -1,0 +1,24 @@
+import { Head } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import ResourceForm from '../../../components/ResourceForm';
+import { customerFields, customerInitial } from './fields';
+import { __ } from '../../../lib/i18n';
+
+export default function CustomerEdit({ customer, basePath }) {
+    return (
+        <div className="max-w-7xl mx-auto">
+            <Head title={__('Edit Customer')} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('Edit Customer')}</h1>
+            <ResourceForm
+                action={`${basePath}/${customer.id}`}
+                method="put"
+                fields={customerFields()}
+                initial={customerInitial(customer)}
+                submitLabel={__('Save Changes')}
+                cancelHref={basePath}
+            />
+        </div>
+    );
+}
+
+CustomerEdit.layout = (page) => <AppLayout>{page}</AppLayout>;

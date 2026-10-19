@@ -1,0 +1,10 @@
+[project]
+name = "mbs-isaac"
+version = "0.1.0"
+description = "声明式多体动力学建模库：spec → USD Physics articulation → PhysX 仿真"
+requires-python = ">=3.12"
+# 运行时依赖 Isaac Sim，**不单独建 venv**：
+# 请使用 projects/isaac_sim 的环境（仓库根的 run_mbs.bat 已封装）。
+# 这里只列纯 Python 部分，便于在无 Isaac 的机器上做 spec 层单元测试：
+#   uv run --with numpy python -c "from mbs_isaac.models import double_pendulum; ..."
+dependencies = ["numpy"]

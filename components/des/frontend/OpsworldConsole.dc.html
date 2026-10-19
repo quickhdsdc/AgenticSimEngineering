@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Opsworld Console" description="An operations-research console for a capability-gated solver API: world-model rail, generated scenario controls, policy editor with live gradients, relaxation lab, instance designer, solver arena and a real job queue" -->
+<helmet>
+<link rel="stylesheet" href="_ds/industry-56da51db-c12b-48b1-ac16-fad401d0c609/styles.css" />
+<title>opsworld — console</title>
+<script src="./ds-base.js"></script>
+<style>
+html,body{height:100%}
+body{margin:0;font-size:14px}
+.console{display:grid;grid-template-columns:296px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;height:100vh;background:var(--color-bg);color:var(--color-text)}
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:var(--space-4);padding:10px var(--space-4);border-bottom:1px solid var(--color-divider)}
+.brand{font-family:var(--font-heading);font-weight:600;font-size:19px;letter-spacing:.02em}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.k{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 52%,transparent)}
+.rail{grid-row:2/3;border-right:1px solid var(--color-divider);overflow:auto;padding:var(--space-4) var(--space-4) var(--space-8)}
+.stage{grid-row:2/3;overflow:auto;padding:var(--space-4) var(--space-6) var(--space-8);min-width:0}
+.dock{grid-column:1/-1;border-top:1px solid var(--color-divider);max-height:190px;overflow:auto;background:var(--color-bg)}
+.pick{display:flex;flex-direction:column;gap:1px;margin-bottom:var(--space-6)}
+.pick button{display:block;width:100%;text-align:left;padding:7px 9px;border:1px solid transparent;background:transparent;cursor:pointer;font:inherit;color:inherit}
+.pick button:hover{background:color-mix(in srgb,var(--color-text) 6%,transparent)}
+.pick button[data-active="1"]{border-color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 12%,transparent)}
+.pick .lbl{font-family:var(--font-heading);font-weight:600;font-size:15px;line-height:1.15}
+.pick .sub{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 50%,transparent)}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--color-divider);margin-bottom:var(--space-4)}
+.tabs button{padding:9px 16px;border:0;border-bottom:2px solid transparent;background:transparent;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:15px;color:color-mix(in srgb,var(--color-text) 62%,transparent)}
+.tabs button:hover{color:var(--color-text)}
+.tabs button[data-active="1"]{color:var(--color-text);border-bottom-color:var(--color-accent)}
+.stephead{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-family:var(--font-heading);font-weight:600}
+.stepno{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--color-accent);color:white;font-size:12px}
+.intro{border:1px solid var(--color-divider);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);background:color-mix(in srgb,var(--color-accent) 5%,transparent)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-size:12px;color:color-mix(in srgb,var(--color-text) 65%,transparent)}
+.flow strong{color:var(--color-text);font-weight:600}.flow i{font-style:normal;color:var(--color-accent)}
+.choice-note{font-size:12px;line-height:1.45;color:color-mix(in srgb,var(--color-text) 62%,transparent);margin:-4px 0 var(--space-3)}
+.solver-config{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:var(--space-3);margin:var(--space-3) 0}
+.result-empty{padding:32px;text-align:center;color:color-mix(in srgb,var(--color-text) 52%,transparent);border:1px dashed var(--color-divider)}
+.grid{display:grid;gap:var(--space-4)}
+.panel{border:1px solid var(--color-divider);padding:var(--space-4);position:relative;min-width:0}
+.panel>h4{margin:0 0 var(--space-3);font-size:15px;letter-spacing:.02em}
+.row{display:flex;align-items:center;gap:var(--space-3)}
+.between{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3)}
+.big{font-family:var(--font-heading);font-weight:600;font-size:44px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.rule{height:1px;background:var(--color-divider);margin:var(--space-3) 0}
+input[type=range]{width:100%;accent-color:var(--color-accent);height:18px}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:2px var(--space-2);align-items:baseline;margin-bottom:var(--space-3)}
+.ctl .help{grid-column:1/-1;font-size:11px;line-height:1.35;color:color-mix(in srgb,var(--color-text) 52%,transparent)}
+.ctl .wide{grid-column:1/-1}
+.bar{height:9px;background:color-mix(in srgb,var(--color-text) 8%,transparent);position:relative;overflow:hidden}
+.bar>span{display:block;height:100%}
+.stack{display:flex;height:22px;border:1px solid var(--color-divider)}
+.stack>span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);font-size:11px;margin-top:var(--space-2)}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px}
+.gradrow{display:grid;grid-template-columns:210px 1fr 62px 150px;gap:var(--space-3);align-items:center;padding:5px 0;border-bottom:1px solid color-mix(in srgb,var(--color-text) 7%,transparent)}
+.push{display:flex;align-items:center;height:12px;border-left:1px solid var(--color-divider)}
+.push .neg,.push .pos{flex:1;display:flex;height:8px}
+.push .neg{justify-content:flex-end}
+.push .neg span,.push .pos span{display:block;height:100%;background:var(--color-accent)}
+.pre{white-space:pre-wrap;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11.5px;line-height:1.5;margin:0;color:color-mix(in srgb,var(--color-text) 78%,transparent)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.dot{width:7px;height:7px;display:inline-block}
+.warn{border:1px solid var(--color-accent-700);padding:var(--space-2) var(--space-3);font-size:12.5px;line-height:1.45}
+table.table td,table.table th{padding:5px var(--space-2)}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:var(--space-3)}
+.figv{font-family:var(--font-heading);font-weight:600;font-size:23px;line-height:1.1;font-variant-numeric:tabular-nums}
+.verdict{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center}
+.scroll{overflow:auto}
+.hidden{display:none}
+.dot[data-mode="live"]{background:var(--color-accent)}
+.dot[data-mode="sample"]{background:var(--color-neutral-400)}
+.dot[data-mode="probing"]{background:var(--color-neutral-300)}
+.bar.viol>span{background:var(--color-accent-700)}
+.bar.timeout>span{background:var(--color-accent)}
+.chips button[data-active="1"]{border-color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 10%,transparent)}
+.stack.pal5>span:nth-child(5n+1),.legend.pal5>span:nth-child(5n+1) i{background:var(--color-accent)}
+.stack.pal5>span:nth-child(5n+2),.legend.pal5>span:nth-child(5n+2) i{background:var(--color-accent-800)}
+.stack.pal5>span:nth-child(5n+3),.legend.pal5>span:nth-child(5n+3) i{background:var(--color-accent-400)}
+.stack.pal5>span:nth-child(5n+4),.legend.pal5>span:nth-child(5n+4) i{background:var(--color-neutral-600)}
+.stack.pal5>span:nth-child(5n+5),.legend.pal5>span:nth-child(5n+5) i{background:var(--color-accent-700)}
+.legend.pal6>span:nth-child(6n+1) i,.runtbl tbody tr:nth-child(6n+1) .dot{background:var(--color-accent)}
+.legend.pal6>span:nth-child(6n+2) i,.runtbl tbody tr:nth-child(6n+2) .dot{background:var(--color-accent-900)}
+.legend.pal6>span:nth-child(6n+3) i,.runtbl tbody tr:nth-child(6n+3) .dot{background:var(--color-accent-400)}
+.legend.pal6>span:nth-child(6n+4) i,.runtbl tbody tr:nth-child(6n+4) .dot{background:var(--color-neutral-600)}
+.legend.pal6>span:nth-child(6n+5) i,.runtbl tbody tr:nth-child(6n+5) .dot{background:var(--color-accent-700)}
+.legend.pal6>span:nth-child(6n+6) i,.runtbl tbody tr:nth-child(6n+6) .dot{background:var(--color-accent-300)}
+</style>
+</helmet>
+<div class="console">
+<div class="topbar">
+<div class="brand">opsworld <span style="color:color-mix(in srgb,var(--color-text) 40%,transparent)">/ {{ appText }}</span></div>
+<div class="row" style="gap:6px"><i class="dot" data-mode="{{ mode }}"></i><span class="k">{{ modeLabel }}</span><span class="mono" style="font-size:11px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ modeDetail }}</span></div>
+<div style="margin-left:auto" class="row">
+<span class="k">{{ catalogText }}</span>
+<button class="btn btn-secondary" onClick="{{ toggleLocale }}">{{ languageText }}</button>
+<button class="btn btn-secondary" onClick="{{ reconnect }}">{{ reconnectText }}</button>
+</div>
+</div>
+<div class="rail">
+<div class="stephead"><span class="stepno">1</span><span>{{ chooseCaseText }}</span></div>
+<div class="pick">
+<sc-for list="{{ cases }}" as="c" hint-placeholder-count="2">
+<button data-active="{{ c.active }}" data-id="{{ c.id }}" onClick="{{ selectCase }}">
+<div class="lbl">{{ c.label }}</div>
+<div class="sub">{{ c.description }}</div>
+</button>
+</sc-for>
+</div>
+<div class="stephead"><span class="stepno">2</span><span>{{ configureInputText }}</span></div>
+<div class="choice-note">{{ inputHelpText }}</div>
+<sc-for list="{{ params }}" as="p" hint-placeholder-count="5">
+<div class="ctl">
+<label class="k" style="letter-spacing:.06em">{{ p.label }}</label>
+<span class="mono" style="font-size:12px">{{ p.display }}</span>
+<sc-if value="{{ p.isRange }}" hint-placeholder-val="{{ true }}">
+<input class="wide" type="range" min="{{ p.min }}" max="{{ p.max }}" step="{{ p.step }}" value="{{ p.value }}" data-name="{{ p.name }}" onChange="{{ onParam }}" />
+</sc-if>
+<sc-if value="{{ p.isEnum }}">
+<select class="input wide" value="{{ p.value }}" data-name="{{ p.name }}" onChange="{{ onParam }}">
+<sc-for list="{{ p.choices }}" as="c" hint-placeholder-count="2"><option value="{{ c }}">{{ c }}</option></sc-for>
+</select>
+</sc-if>
+<sc-if value="{{ p.isBool }}">
+<label class="radio wide"><input type="checkbox" checked="{{ p.value }}" data-name="{{ p.name }}" onChange="{{ onParam }}" /><span class="dot"></span>{{ enabledText }}</label>
+</sc-if>
+<div class="help">{{ p.help }}</div>
+</div>
+</sc-for>
+<div class="rule"></div>
+<div class="stephead"><span class="stepno">3</span><span>{{ chooseModelText }}</span></div>
+<div class="choice-note">{{ modelHelpText }}</div>
+<div class="pick">
+<sc-for list="{{ worlds }}" as="w" hint-placeholder-count="4">
+<button data-active="{{ w.active }}" data-id="{{ w.id }}" onClick="{{ selectWorld }}">
+<div class="lbl">{{ w.label }}</div>
+<div class="sub">{{ w.description }}</div>
+</button>
+</sc-for>
+</div>
+<details>
+<summary class="k" style="cursor:pointer">{{ compatibilityText }}</summary>
+<div style="margin:8px 0">
+<sc-for list="{{ capRows }}" as="c" hint-placeholder-count="3"><div class="between" style="font-size:11.5px;padding:3px 0"><span class="mono">{{ c.id }}</span><span style="text-align:right;max-width:210px">{{ c.text }}</span></div></sc-for>
+</div>
+<div class="warn"><span class="k">{{ routingTitleText }}</span><div style="margin-top:4px">{{ latencyNote }}</div></div>
+</details>
+</div>
+<div class="stage">
+<div class="intro">
+<div class="between"><div><strong>{{ caseLabel }}</strong> · {{ worldLabel }}</div><span class="tag tag-neutral">{{ scenarioLabel }}</span></div>
+<div class="flow" style="margin-top:7px"><strong>{{ flowInputText }}</strong><i>→</i><strong>{{ flowModelText }}</strong><i>→</i><strong>{{ flowSolverText }}</strong><i>→</i><strong>{{ flowResultText }}</strong></div>
+</div>
+<div class="tabs">
+<button data-active="{{ isArena }}" data-tab="arena" onClick="{{ selectTab }}">{{ experimentTabText }}</button>
+<button data-active="{{ isPolicy }}" data-tab="policy" onClick="{{ selectTab }}">{{ decisionTabText }}</button>
+<button data-active="{{ isInstance }}" data-tab="instance" onClick="{{ selectTab }}">{{ inputTabText }}</button>
+<button data-active="{{ isRelax }}" data-tab="relax" onClick="{{ selectTab }}">{{ diagnosticTabText }}</button>
+</div>
+<sc-if value="{{ errorText }}">
+<div class="warn" style="margin-bottom:var(--space-4);border-color:var(--color-accent)"><span class="k">{{ failedText }}</span><div class="mono" style="margin-top:4px;font-size:12px">{{ errorText }}</div></div>
+</sc-if>
+
+<sc-if value="{{ isPolicy }}" hint-placeholder-val="{{ true }}">
+<div class="choice-note" style="margin-bottom:var(--space-3)">{{ decisionSyncText }} <strong>{{ decisionSourceText }}</strong></div>
+<div class="grid" style="grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)">
+<div class="panel blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="between"><h4>{{ objectiveText }}</h4><span class="k">{{ evalLatency }}</span></div>
+<div class="row" style="align-items:flex-end;gap:var(--space-4)">
+<div class="big">{{ objective }}</div>
+<div style="padding-bottom:6px"><span class="tag {{ feasibleTag }}">{{ feasibleText }}</span></div>
+</div>
+<div class="mono" style="font-size:11px;margin-top:6px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ provenance }}</div>
+<div class="rule"></div>
+<div class="k" style="margin-bottom:6px">{{ kpiHeading }}</div>
+<sc-if value="{{ kpiIsFigures }}">
+<div class="figs">
+<sc-for list="{{ kpiSegs }}" as="s" hint-placeholder-count="3">
+<div><div class="k" style="letter-spacing:.06em">{{ s.name }}</div><div class="figv">{{ s.valueText }}</div></div>
+</sc-for>
+</div>
+<p class="pre" style="margin-top:var(--space-2)">{{ kpiNote }}</p>
+</sc-if>
+<sc-if value="{{ kpiIsStack }}" hint-placeholder-val="{{ true }}">
+<div class="stack pal5">
+<sc-for list="{{ kpiSegs }}" as="s" hint-placeholder-count="3"><span style="width: {{ s.pct }}%"></span></sc-for>
+</div>
+<div class="legend pal5">
+<sc-for list="{{ kpiSegs }}" as="s" hint-placeholder-count="3"><span><i></i><span class="mono">{{ s.name }} {{ s.valueText }}</span></span></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ hasViolations }}">
+<div class="rule"></div>
+<div class="k" style="margin-bottom:6px">{{ violationText }}</div>
+<sc-for list="{{ violRows }}" as="v" hint-placeholder-count="2">
+<div style="margin-bottom:7px">
+<div class="between" style="font-size:11.5px"><span><strong>{{ v.help }}</strong><div class="mono" style="font-size:10.5px;color:color-mix(in srgb,var(--color-text) 48%,transparent)">{{ v.name }}</div></span><span class="mono">{{ v.valueText }}</span></div>
+<div class="bar viol"><span style="width: {{ v.pct }}%"></span></div>
+</div>
+</sc-for>
+</sc-if>
+</div>
+<div class="panel blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<h4>{{ gradientText }}</h4>
+<div class="mono" style="font-size:11px;margin-bottom:var(--space-3);color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ sensKind }}</div>
+<pre class="pre">{{ sensText }}</pre>
+<sc-if value="{{ hasGradientControls }}">
+<div class="rule"></div>
+<div class="k" style="margin-bottom:6px">{{ gradientVerdictText }}</div>
+<div class="verdict">
+<span class="tag {{ descendTag }}">{{ descendText }}</span>
+<span class="tag tag-neutral mono">{{ cosineText }}</span>
+</div>
+<p class="pre" style="margin-top:6px">{{ descendNote }}</p>
+<sc-if value="{{ lastStepText }}"><p class="pre" style="margin:6px 0 0">{{ lastStepText }}</p></sc-if>
+<div class="rule"></div>
+<div class="row" style="flex-wrap:wrap;gap:var(--space-2)">
+<button class="btn btn-primary" disabled="{{ stepDisabled }}" onClick="{{ stepDown }}">{{ stepLabel }}</button>
+<button class="btn btn-secondary" disabled="{{ stepDisabled }}" onClick="{{ stepDown5 }}">×5</button>
+<button class="btn btn-secondary" onClick="{{ resetWeights }}">{{ resetText }}</button>
+</div>
+</sc-if>
+<sc-if value="{{ noGradientControls }}"><div class="warn" style="margin-top:var(--space-3)">{{ noGradientControlsText }}</div></sc-if>
+</div>
+</div>
+<div class="panel blueprint" style="margin-top:var(--space-4)">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="between"><h4>{{ rulesTitle }}</h4><span class="k">{{ weightGradientText }}</span></div>
+<sc-if value="{{ hasRules }}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{ ruleRows }}" as="r" hint-placeholder-count="8">
+<div class="gradrow">
+<div><strong style="font-size:12px">{{ r.label }}</strong><div class="mono" style="font-size:10px;color:color-mix(in srgb,var(--color-text) 48%,transparent)">{{ r.name }}</div><div class="help" style="font-size:10.5px">{{ r.help }}</div></div>
+<input type="range" min="-2" max="3" step="0.01" value="{{ r.value }}" data-index="{{ r.index }}" onChange="{{ onWeight }}" />
+<div class="mono" style="font-size:12px;text-align:right">{{ r.valueText }}</div>
+<div class="row" style="gap:8px">
+<div class="push" style="flex:1">
+<div class="neg"><span style="width: {{ r.negPct }}%"></span></div>
+<div class="pos"><span style="width: {{ r.posPct }}%"></span></div>
+</div>
+<span class="mono" style="font-size:11px;width:64px;text-align:right;color:color-mix(in srgb,var(--color-text) 60%,transparent)">{{ r.gradText }}</span>
+</div>
+</div>
+</sc-for>
+</sc-if>
+<sc-if value="{{ noRules }}">
+<p class="pre" style="margin-top:var(--space-2)">{{ noRulesText }}</p>
+<div class="rule"></div>
+<div class="k" style="margin-bottom:6px">{{ decisionEntriesTitle }}</div>
+<sc-for list="{{ decisionRows }}" as="d" hint-placeholder-count="5"><div class="between" style="padding:4px 0;border-bottom:1px solid color-mix(in srgb,var(--color-text) 7%,transparent)"><span class="mono" style="font-size:11px">{{ d.name }}</span><span class="mono">{{ d.count }}</span></div></sc-for>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isRelax }}">
+<sc-if value="{{ showRelaxationDiagnostics }}">
+<div class="panel blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="between"><h4>{{ temperatureText }}</h4><span class="k">{{ sweepLatency }}</span></div>
+<div class="row" style="margin-bottom:var(--space-3);gap:var(--space-4)">
+<div class="seg">
+<label class="seg-opt"><input type="radio" name="taugrid" checked="{{ gridCoarse }}" data-grid="coarse" onChange="{{ onGrid }}" />{{ coarseText }}</label>
+<label class="seg-opt"><input type="radio" name="taugrid" checked="{{ gridFine }}" data-grid="fine" onChange="{{ onGrid }}" />{{ fineText }}</label>
+</div>
+<span class="k">{{ exactCostText }} {{ exactCost }}</span>
+</div>
+{{ tauChart }}
+<div class="legend">
+<span><i style="background:#5980a6"></i>{{ gapLegendText }}</span>
+<span><i style="background:#1d2d3d"></i>{{ cosineLegendText }}</span>
+<span><i style="background:#b7b7ba"></i>{{ unresolvedLegendText }}</span>
+</div>
+<div class="rule"></div>
+<div class="scroll">
+<table class="table mono">
+<thead><tr><th>τ</th><th>{{ gapText }}</th><th>{{ cosineHeaderText }}</th><th>{{ unresolvedText }}</th><th>{{ descendsText }}</th><th>{{ improvementText }}</th></tr></thead>
+<tbody>
+<sc-for list="{{ tauRows }}" as="r" hint-placeholder-count="8">
+<tr><td>{{ r.tau }}</td><td>{{ r.gap }}</td><td>{{ r.cos }}</td><td>{{ r.unres }}</td><td><span class="tag {{ r.tag }}">{{ r.descends }}</span></td><td>{{ r.improvement }}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<div class="warn" style="margin-top:var(--space-4)"><span class="k">{{ whyColumnsText }}</span><div style="margin-top:4px">{{ sweepNote }}</div></div>
+</div>
+</sc-if>
+<sc-if value="{{ noModelDiagnostics }}">
+<div class="panel blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><h4>{{ diagnosticUnavailableTitle }}</h4><p class="pre">{{ diagnosticUnavailableText }}</p></div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isInstance }}">
+<div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+<div class="panel blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<h4>{{ instanceText }}</h4>
+<div class="mono" style="font-size:11px;margin-bottom:var(--space-3);color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ instanceId }}</div>
+<sc-for list="{{ instRows }}" as="r" hint-placeholder-count="5">
+<div class="between" style="padding:4px 0;border-bottom:1px solid color-mix(in srgb,var(--color-text) 7%,transparent)"><span class="k" style="letter-spacing:.06em">{{ r.k }}</span><span class="mono" style="font-size:13px">{{ r.v }}</span></div>
+</sc-for>
+<sc-if value="{{ scaleWarning }}">
+<div class="warn" style="margin-top:var(--space-3)">{{ scaleWarning }}</div>
+</sc-if>
+<div class="rule"></div>
+<div class="k" style="margin-bottom:6px">{{ entitiesText }}</div>
+<sc-if value="{{ hasItemAttributeRows }}">
+<div class="scroll"><table class="table mono"><thead><tr><th>{{ itemCol }}</th><th>{{ demandCol }}</th><th>{{ valueCol }}</th><th>{{ areaCol }}</th><th>{{ variabilityCol }}</th><th>{{ leadTimeCol }}</th></tr></thead><tbody>
+<sc-for list="{{ itemAttributeRows }}" as="r" hint-placeholder-count="8"><tr><td>{{ r.item }}</td><td>{{ r.demand }}</td><td>{{ r.value }}</td><td>{{ r.area }}</td><td>{{ r.cv }}</td><td>{{ r.lead }}</td></tr></sc-for>
+</tbody></table></div>
+</sc-if>
+<sc-if value="{{ hasJobAttributeRows }}">
+<div class="scroll"><table class="table mono"><thead><tr><th>{{ jobCol }}</th><th>{{ processingCol }}</th><th>{{ weightCol }}</th><th>{{ dueCol }}</th></tr></thead><tbody>
+<sc-for list="{{ jobAttributeRows }}" as="r" hint-placeholder-count="8"><tr><td>{{ r.job }}</td><td>{{ r.processing }}</td><td>{{ r.weight }}</td><td>{{ r.due }}</td></tr></sc-for>
+</tbody></table></div>
+</sc-if>
+<sc-if value="{{ hasEntityChips }}">
+<div class="chips">
+<sc-for list="{{ entityChips }}" as="c" hint-placeholder-count="8"><span class="tag {{ c.tone }} mono">{{ c.text }}</span></sc-for>
+</div>
+</sc-if>
+<p class="pre" style="margin-top:var(--space-3)">{{ entityLegendText }}</p>
+</div>
+<div class="panel blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="between"><h4>{{ verdictText }}</h4><span class="tag {{ feasibleTag }}">{{ feasibleText }}</span></div>
+<p class="choice-note" style="margin:0 0 var(--space-2)">{{ decisionSourceText }}</p>
+<div class="big" style="font-size:34px">{{ objective }}</div>
+<div class="mono" style="font-size:11px;margin:6px 0 var(--space-3);color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ provenance }}</div>
+<sc-if value="{{ kpiIsFigures }}">
+<div class="figs">
+<sc-for list="{{ kpiSegs }}" as="s" hint-placeholder-count="4">
+<div><div class="k" style="letter-spacing:.06em">{{ s.name }}</div><div class="figv">{{ s.valueText }}</div></div>
+</sc-for>
+</div>
+<p class="pre" style="margin-top:var(--space-2)">{{ kpiNote }}</p>
+</sc-if>
+<sc-if value="{{ kpiIsStack }}" hint-placeholder-val="{{ true }}">
+<div class="stack pal5">
+<sc-for list="{{ kpiSegs }}" as="s" hint-placeholder-count="4"><span style="width: {{ s.pct }}%"></span></sc-for>
+</div>
+<div class="legend pal5">
+<sc-for list="{{ kpiSegs }}" as="s" hint-placeholder-count="4"><span><i></i><span class="mono">{{ s.name }} {{ s.valueText }}</span></span></sc-for>
+</div>
+</sc-if>
+<div class="rule"></div>
+<div class="k" style="margin-bottom:6px">{{ violatedFamiliesText }}</div>
+<sc-if value="{{ hasViolations }}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{ violRows }}" as="v" hint-placeholder-count="2">
+<div style="margin-bottom:7px">
+<div class="between" style="font-size:11.5px"><span><strong>{{ v.help }}</strong><div class="mono" style="font-size:10.5px;color:color-mix(in srgb,var(--color-text) 48%,transparent)">{{ v.name }}</div></span><span class="mono">{{ v.valueText }}</span></div>
+<div class="bar viol"><span style="width: {{ v.pct }}%"></span></div>
+</div>
+</sc-for>
+</sc-if>
+<sc-if value="{{ noViolations }}">
+<p class="pre">{{ noViolationsText }}</p>
+</sc-if>
+<div class="rule"></div>
+<pre class="pre">{{ evalText }}</pre>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isArena }}">
+<div class="panel blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="stephead"><span class="stepno">4</span><span>{{ chooseSolverText }}</span></div>
+<p class="choice-note">{{ solverHelpText }}</p>
+<div class="chips" style="margin-bottom:var(--space-3)">
+<sc-for list="{{ solverChips }}" as="s" hint-placeholder-count="4">
+<button class="btn btn-secondary" data-active="{{ s.active }}" data-id="{{ s.id }}" onClick="{{ selectSolver }}">{{ s.label }}</button>
+</sc-for>
+</div>
+<div class="warn"><strong>{{ solverLabel }}</strong><div style="margin-top:4px">{{ solverDescription }}</div></div>
+<div class="solver-config">
+<sc-for list="{{ solverParams }}" as="p" hint-placeholder-count="2">
+<div class="ctl">
+<label class="k">{{ p.label }}</label><span class="mono">{{ p.display }}</span>
+<sc-if value="{{ p.isRange }}"><input class="wide" type="range" min="{{ p.min }}" max="{{ p.max }}" step="{{ p.step }}" value="{{ p.value }}" data-name="{{ p.name }}" onChange="{{ onSolverParam }}" /></sc-if>
+<sc-if value="{{ p.isEnum }}"><select class="input wide" value="{{ p.value }}" data-name="{{ p.name }}" onChange="{{ onSolverParam }}"><sc-for list="{{ p.choiceRows }}" as="c" hint-placeholder-count="3"><option value="{{ c.value }}">{{ c.label }}</option></sc-for></select></sc-if>
+<sc-if value="{{ p.isBool }}"><label class="radio wide"><input type="checkbox" checked="{{ p.value }}" data-name="{{ p.name }}" onChange="{{ onSolverParam }}" /><span class="dot"></span>{{ p.valueText }}</label></sc-if>
+<div class="help">{{ p.help }}</div>
+</div>
+</sc-for>
+</div>
+<div class="row" style="flex-wrap:wrap;gap:var(--space-4);align-items:flex-end">
+<sc-if value="{{ showEvaluationBudget }}">
+<div style="min-width:240px;flex:1">
+<div class="between"><span class="k">{{ budgetText }}</span><span class="mono" style="font-size:12px">{{ budget }}</span></div>
+<input type="range" min="20" max="4000" step="20" value="{{ budget }}" onChange="{{ onBudget }}" />
+</div>
+</sc-if>
+<sc-if value="{{ exactBudgetNote }}"><div class="choice-note" style="flex:1;min-width:280px;margin:0">{{ exactBudgetNote }}</div></sc-if>
+<sc-if value="{{ showQueueChoice }}">
+<label class="radio"><input type="checkbox" checked="{{ forceJob }}" onChange="{{ onForceJob }}" /><span class="dot"></span>{{ backgroundText }}</label>
+</sc-if>
+<button class="btn btn-primary" onClick="{{ runSolver }}">{{ runText }}</button>
+<button class="btn btn-secondary" onClick="{{ clearRuns }}">{{ clearText }}</button>
+</div>
+<div class="warn" style="margin-top:var(--space-3)">{{ routingNote }}</div>
+<div class="rule"></div>
+<div class="stephead"><span class="stepno">5</span><span>{{ compareText }}</span></div>
+<sc-if value="{{ noRuns }}"><div class="result-empty">{{ emptyResultText }}</div></sc-if>
+<sc-if value="{{ hasRuns }}"><div class="warn" style="margin-bottom:var(--space-3)">{{ scoreExplanation }}</div></sc-if>
+{{ convergenceChart }}
+<div class="legend pal6">
+<sc-for list="{{ runLegend }}" as="r" hint-placeholder-count="2"><span><i></i><span class="mono">{{ r.text }}</span></span></sc-for>
+</div>
+<div class="rule"></div>
+<div class="scroll">
+<table class="table mono runtbl">
+<thead><tr><th>{{ colRun }}</th><th>{{ colSolver }}</th><th>{{ colStatus }}</th><th>{{ colPath }}</th><th>{{ colInitial }}</th><th>{{ colBest }}</th><th>{{ colImprovement }}</th><th>{{ colEvaluations }}</th><th>{{ colSeconds }}</th><th></th></tr></thead>
+<tbody>
+<sc-for list="{{ runRows }}" as="r" hint-placeholder-count="2">
+<tr><td><span class="dot"></span> {{ r.n }}</td><td>{{ r.solver }}</td><td>{{ r.status }}</td><td>{{ r.mode }}</td><td>{{ r.initial }}</td><td>{{ r.best }}</td><td>{{ r.improvement }}</td><td>{{ r.evals }}</td><td>{{ r.seconds }}</td><td><button class="btn btn-ghost" data-run="{{ r.n }}" onClick="{{ inspectRun }}">{{ r.inspect }}</button></td></tr>
+</sc-for>
+</tbody>
+</table>
+<sc-if value="{{ evaluationFootnote }}"><p class="pre" style="margin-top:var(--space-2)">{{ evaluationFootnote }}</p></sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+<div class="dock {{ dockClass }}">
+<div class="row" style="padding:8px var(--space-4);gap:var(--space-4)">
+<span class="k">{{ jobsText }}</span>
+<span class="mono" style="font-size:11px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ jobNote }}</span>
+</div>
+<div class="scroll" style="padding:0 var(--space-4) var(--space-4)">
+<table class="table mono">
+<thead><tr><th>ID</th><th>{{ jobExperimentText }}</th><th>{{ jobStatusText }}</th><th>{{ jobQueuedText }}</th><th>{{ jobElapsedText }}</th><th>{{ jobTimeoutText }}</th><th></th></tr></thead>
+<tbody>
+<sc-for list="{{ jobRows }}" as="j" hint-placeholder-count="2">
+<tr>
+<td>{{ j.id }}</td><td>{{ j.kind }}</td>
+<td><span class="tag {{ j.tag }}">{{ j.status }}</span></td>
+<td>{{ j.queued }}</td><td>{{ j.elapsed }}</td>
+<td style="min-width:120px"><div class="bar timeout" style="height:6px"><span style="width: {{ j.timeoutPct }}%"></span></div></td>
+<td><button class="btn btn-ghost" data-id="{{ j.id }}" onClick="{{ cancelJob }}">{{ j.action }}</button></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+<sc-if value="{{ noJobs }}"><p class="pre" style="margin:var(--space-2) 0 0">{{ noJobsText }}</p></sc-if>
+</div>
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;http://127.0.0.1:8000&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Server&quot;,&quot;label&quot;:&quot;API base URL&quot;},&quot;startTab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;policy&quot;,&quot;options&quot;:[&quot;policy&quot;,&quot;relax&quot;,&quot;instance&quot;,&quot;arena&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Server&quot;,&quot;label&quot;:&quot;Tab on load&quot;},&quot;defaultWorld&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;intralogistics.sizing&quot;,&quot;options&quot;:[&quot;intralogistics.sizing&quot;,&quot;gradientshop.dispatch&quot;,&quot;intralogistics.plan&quot;,&quot;intralogistics.static&quot;,&quot;intralogistics.milp&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Server&quot;,&quot;label&quot;:&quot;World model on load&quot;},&quot;showJobDock&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Layout&quot;,&quot;label&quot;:&quot;Show the job queue dock&quot;}}">
+const SERIES = ['#5980a6', '#1d2d3d', '#94bce3', '#7a7a7d', '#416180', '#b5d9fd'];
+const COARSE = [2.0, 1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01];
+const FINE = Array.from({ length: 16 }, (_, i) => +(2.0 * Math.pow(0.01 / 2.0, i / 15)).toFixed(4));
+/* Summaries name their entities differently per domain — strings here, item or
+   job records there. One chip either way. */
+const chip = (x, tone) => ({
+  tone,
+  text: typeof x === 'string' ? x
+    : x && x.item ? `${x.item} · demand ${(+x.demand_rate).toFixed(1)} units/period`
+      : x && x.job ? `${x.job} · processing ${(+x.processing).toFixed(2)}`
+        : String(x),
+});
+const fmt = (x, n = 2) => (x === null || x === undefined || Number.isNaN(x) ? '—' : (+x).toLocaleString('en-US', { minimumFractionDigits: n, maximumFractionDigits: n }));
+const fmtMagnitude = (x) => Math.abs(+x) > 1e-6 && Math.abs(+x) < 1 ? '<1' : fmt(x, 0);
+const integeriseText = (text) => String(text || '').replace(/-?\d+\.\d+(?:e[+-]?\d+)?/gi, (m) => Math.round(Number(m)).toLocaleString('en-US'));
+const CONSTRAINT_HELP = {
+  '06_one_pick_location': ['每条有需求的“物料–工位”必须且只能选一个取料仓', 'Every demanded item–station pair must use exactly one pick warehouse'],
+  '06_no_pick_if_no_demand': ['没有需求时不得选择取料仓', 'No pick warehouse may be selected when demand is zero'],
+  '07_pick_warehouse_assignment': ['取料仓必须是该工位允许使用的仓库', 'The pick warehouse must be assigned to that station'],
+  '08_inventory_balance': ['物料总库存必须完整分配到各仓库', 'Each item’s total inventory must be fully allocated'],
+  '09_store_binary_upper': ['只有打开“在此存储”决策才能放库存', 'Inventory is allowed only where the store decision is active'],
+  '10_min_inventory_if_picked': ['取料仓必须满足最低库存', 'A pick warehouse must hold its minimum inventory'],
+  '11_kanban_two_carriers': ['Kanban 库存至少覆盖两个载具', 'Kanban inventory must cover at least two carriers'],
+  '12_product_warehouse_link': ['产品与其物料的取料仓选择必须一致', 'Product–warehouse links must cover their items’ pick choices'],
+  '14_reloc_start_carrier': ['搬运起点必须使用起点已选的载具', 'A relocation must use the carrier selected at its origin'],
+  '15_reloc_target_carrier': ['搬运终点必须使用终点已选的载具', 'A relocation must use the carrier selected at its destination'],
+  '17_replenishment_covers_demand': ['补货流入必须覆盖工位需求和继续下游的流出', 'Replenishment inflow must cover demand and downstream outflow'],
+  '17b_intermediate_inflow': ['使用中间仓时必须有流入', 'A used intermediate warehouse must have inflow'],
+  '17b_intermediate_outflow': ['使用中间仓时必须有流出', 'A used intermediate warehouse must have outflow'],
+  '17b_no_bypass': ['物料存在中间仓时，补货路线不得绕过它', 'A route may not bypass an intermediate warehouse storing the item'],
+  '18_incoming_quantity_limit': ['从收货口发出的数量不得超过可用来料', 'Goods-receipt outflow may not exceed incoming quantity'],
+  '19_one_carrier_if_stored': ['每个“物料–仓库”存储点只选一种载具', 'Each stored item–warehouse pair uses exactly one carrier type'],
+  '20_carrier_allowed': ['只能选择该仓库允许的载具类型', 'Only carrier types allowed at the warehouse may be selected'],
+  '21_carrier_capacity_covers_inventory': ['载具数量与容量必须装得下该处库存', 'Selected carrier count and capacity must cover inventory'],
+  '22_carrier_count_only_if_selected': ['只有选中某载具类型才能分配其数量', 'Carrier count is allowed only for the selected carrier type'],
+  '23_warehouse_capacity': ['各仓库使用面积不得超过规划容量', 'Used warehouse area may not exceed planned capacity'],
+  '24_transport_capacity': ['所有搬运占用不得超过运输能力', 'Total relocation load may not exceed transport capacity'],
+  '25_staging_area_avg': ['平均批量下的备料区面积不得超限', 'Staging area must fit the average lot size'],
+  '26_staging_area_max_lot': ['最大批量下的备料区面积不得超限', 'Staging area must fit the maximum lot size'],
+  '27_value_limit_point_of_use': ['线边使用点库存总价值不得超限', 'Inventory value at points of use may not exceed its limit'],
+  'aggregate_numerical_residual': ['多个很小的数值残差合计', 'Aggregate of several small numerical residuals'],
+};
+
+class Component extends DCLogic {
+  state = {
+    ready: false, mode: 'probing', modeNote: '',
+    locale: (() => { try { return localStorage.getItem('opsworld.locale') || (navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en'); } catch (_) { return 'en'; } })(),
+    tab: this.props.startTab === 'relax' || this.props.startTab === 'instance' ? this.props.startTab : 'arena',
+    worldId: this.props.defaultWorld || 'intralogistics.sizing',
+    schema: null, params: {}, decision: null, decisionSource: null,
+    weights: null, rules: null, evaluation: null, sens: null,
+    summary: null, sweep: null, tauRow: null, probe: null, lastStep: null,
+    grid: 'coarse', solver: null, solverParams: {}, budget: 200, forceJob: false,
+    runs: [], jobs: [], error: '', latency: {},
+  };
+
+  async componentDidMount() {
+    document.documentElement.lang = this.state.locale === 'zh' ? 'zh-CN' : 'en';
+    const mod = await import(new URL('api.js', document.baseURI).href);
+    this.client = mod.createClient({ base: this.props.apiBase || 'http://127.0.0.1:8000', onMode: (m, why) => this.setState({ mode: m, modeNote: why || '' }) });
+    await this.client.probe();
+    const schema = await this.client.schema(this.state.locale);
+    const params = {};
+    schema.scenarios.forEach((s) => { params[s.id] = Object.fromEntries(s.params.map((p) => [p.name, p.default])); });
+    const solverParams = {};
+    schema.solvers.forEach((s) => { solverParams[s.id] = Object.fromEntries((s.params || []).map((p) => [p.name, p.default])); });
+    this.setState({ schema, params, solverParams, mode: this.client.state.mode, modeNote: this.client.state.lastError || '' },
+      () => { this.loadWorld(); this.loadSweep(); });
+    this.armPoll();
+  }
+  componentWillUnmount() { clearTimeout(this._timer); this._timer = null; }
+
+  /* 500 ms poll, as the contract recommends. Self-rescheduling rather than an
+     interval, and re-armed from renderVals, so a remount can never leave a
+     running job updating nowhere. */
+  armPoll() {
+    if (this._timer) return;
+    this._timer = setTimeout(async () => {
+      this._timer = null;
+      try { await this.pollJobs(); } catch (e) { /* a dead server is reported by the probe */ }
+      this.armPoll();
+    }, 500);
+  }
+
+  /* -- derived ------------------------------------------------------ */
+  world() { return this.state.schema && this.state.schema.worlds.find((w) => w.id === this.state.worldId); }
+  scenarioSpec() { const w = this.world(); return w && this.state.schema.scenarios.find((s) => s.id === w.scenario); }
+  scenarioParams() { const s = this.scenarioSpec(); return (s && this.state.params[s.id]) || {}; }
+  guard(fn) { return fn.catch((e) => { this.setState({ error: String(e.message || e) }); return null; }); }
+
+  /* -- server calls -------------------------------------------------- */
+  async loadWorld() {
+    const w = this.world(); if (!w) return;
+    const body = { world: w.id, scenario: this.scenarioParams() };
+    const init = await this.guard(this.client.initial(body));
+    if (!init) return;
+    const rules = (init.describe && init.describe.rules) || null;
+    const weights = Array.isArray(init.decision) ? init.decision : null;
+    const solvers = w.solvers || [];
+    this.setState({
+      rules, weights, decision: init.decision, evaluation: init.evaluation,
+      decisionSource: { kind: 'initial' }, sens: null, probe: null,
+      lastStep: null, error: '',
+      solver: solvers.includes(this.state.solver) ? this.state.solver : solvers[0] || null,
+      latency: { ...this.client.state.latency },
+    }, () => { this.loadSummary(); this.loadTauRow(); this.loadSweep(); if (weights) this.loadGradient(); });
+  }
+  async loadSummary() {
+    const s = this.scenarioSpec(); if (!s) return;
+    const out = await this.guard(this.client.scenario({ scenario: s.id, params: this.scenarioParams() }));
+    if (out) this.setState({ summary: out.summary });
+  }
+  async loadGradient() {
+    const w = this.world(); if (!w || !w.capabilities.includes('C2a')) { this.setState({ sens: null, probe: null }); return; }
+    const out = await this.guard(this.client.gradient({ world: w.id, scenario: this.scenarioParams(), decision: this.state.weights }));
+    if (out) this.setState({ sens: out }, () => this.probeDescent());
+  }
+
+  /* The one verdict that counts (D15): the cosine does not predict whether a
+     step along the relaxed gradient lowers the real objective, in either
+     direction — so take the step on a copy and ask the evaluator. Two 3 ms
+     calls, and it is the difference between a usable gradient and a decorative
+     one. */
+  async probeDescent() {
+    const w = this.world(), d = this.state.sens && this.state.sens.descent_direction;
+    const before = this.state.evaluation && this.state.evaluation.objective;
+    if (!d || !this.state.weights || before === undefined || before === null) { this.setState({ probe: null }); return; }
+    const alpha = 0.25, stepped = this.state.weights.map((v, i) => v + alpha * d[i]);
+    const out = await this.guard(this.client.evaluate({ world: w.id, scenario: this.scenarioParams(), decision: stepped }));
+    if (!out) return;
+    const after = out.evaluation.objective;
+    this.setState({ probe: { alpha, before, after, improvement: before - after, descends: after < before - 1e-9 } });
+  }
+
+  /* The cosine at the τ actually dialled in — shown next to the probe, because
+     the pair disagreeing is the finding. */
+  async loadTauRow() {
+    const spec = this.scenarioSpec();
+    if (!spec || spec.id !== 'gradientshop.dispatch') { this.setState({ tauRow: null }); return; }
+    const p = this.scenarioParams();
+    const out = await this.guard(this.client.tau({ scenario: p, taus: [p.tau] }));
+    if (out && out.rows && out.rows[0]) this.setState({ tauRow: out.rows[0] });
+  }
+
+  async evaluateNow(then) {
+    const w = this.world(); if (!w) return;
+    const out = await this.guard(this.client.evaluate({ world: w.id, scenario: this.scenarioParams(), decision: this.state.weights || undefined }));
+    if (out) this.setState({ evaluation: out.evaluation, latency: { ...this.client.state.latency } }, () => { this.loadGradient(); if (then) then(); });
+  }
+  async loadSweep() {
+    if (this.state.worldId !== 'gradientshop.dispatch') {
+      this.setState({ sweep: null });
+      return;
+    }
+    const p = this.state.params['gradientshop.dispatch'] || {};
+    const out = await this.guard(this.client.tau({ scenario: p, taus: this.state.grid === 'fine' ? FINE : COARSE }));
+    if (out) this.setState({ sweep: out, latency: { ...this.client.state.latency } });
+  }
+  async pollJobs() {
+    if (!this.client) return;
+    if (this.state.tab !== 'arena' && !this.state.jobs.length) return;
+    const out = await this.client.jobs().catch(() => null);
+    if (!out) return;
+    const jobs = out.jobs || [];
+    /* The dock shows the whole server queue — including jobs another client
+       submitted — but only this session's runs are charted. */
+    this._mine = this._mine || new Set();
+    jobs.filter((j) => j.status === 'done' && j.result && this._mine.has(j.id) && !this.harvested(j.id)).forEach((j) => this.harvest(j));
+    this.setState({ jobs });
+  }
+  harvested(id) { return this.state.runs.some((r) => r.jobId === id); }
+  harvest(job) {
+    const [, world, solver] = job.kind.split(':');
+    if (world !== this.state.worldId) return;
+    this.acceptResult(job.result, solver, 'job', job.elapsed_seconds, job.id);
+  }
+  runOf(result, solver, mode, seconds, jobId, n) {
+    return { n: n + 1, solver, mode, jobId, seconds, color: SERIES[n % SERIES.length], history: result.history || [], score: result.score, initial: result.initial_score, improvement: result.improvement, evals: result.evaluations_used, provenance: result.evaluation && result.evaluation.provenance, evaluation: result.evaluation, decision: result.decision };
+  }
+  acceptResult(result, solver, mode, seconds, jobId) {
+    const vectorDecision = !!(this.world() && this.world().capabilities.includes('C2a') && Array.isArray(result.decision));
+    this.setState((s) => {
+      const run = this.runOf(result, solver, mode, seconds, jobId, s.runs.length);
+      return {
+        runs: [...s.runs, run], decision: result.decision,
+        weights: vectorDecision ? result.decision : null,
+        evaluation: result.evaluation || s.evaluation,
+        decisionSource: { kind: 'run', n: run.n, solver },
+        sens: null, probe: null, lastStep: null,
+      };
+    }, () => { if (vectorDecision) this.loadGradient(); });
+  }
+
+  /* -- handlers ------------------------------------------------------ */
+  selectWorld = (e) => { const id = e.currentTarget.dataset.id; if (id !== this.state.worldId) { this._mine = new Set(); this.setState({ worldId: id, runs: [] }, () => this.loadWorld()); } };
+  selectCase = (e) => {
+    const id = e.currentTarget.dataset.id;
+    const worldId = id === 'gradientshop' ? 'gradientshop.dispatch' : 'intralogistics.sizing';
+    if (worldId !== this.state.worldId) { this._mine = new Set(); this.setState({ worldId, runs: [], tab: 'arena' }, () => this.loadWorld()); }
+  };
+  selectTab = (e) => this.setState({ tab: e.currentTarget.dataset.tab });
+  selectSolver = (e) => this.setState({ solver: e.currentTarget.dataset.id });
+  onGrid = (e) => this.setState({ grid: e.currentTarget.dataset.grid }, () => this.loadSweep());
+  onBudget = (e) => this.setState({ budget: +e.currentTarget.value });
+  onForceJob = (e) => this.setState({ forceJob: e.currentTarget.checked });
+  onSolverParam = (e) => {
+    const el = e.currentTarget;
+    const solver = this.state.schema.solvers.find((x) => x.id === this.state.solver);
+    const p = solver && solver.params.find((x) => x.name === el.dataset.name);
+    if (!p) return;
+    const value = p.kind === 'bool' ? el.checked : p.kind === 'enum' ? el.value : +el.value;
+    this.setState((s) => ({ solverParams: { ...s.solverParams, [s.solver]: { ...(s.solverParams[s.solver] || {}), [p.name]: value } } }));
+  };
+  clearRuns = () => { this._mine = new Set(); this.setState({ runs: [] }, () => this.loadWorld()); };
+  inspectRun = (e) => {
+    const run = this.state.runs.find((r) => r.n === +e.currentTarget.dataset.run);
+    if (!run) return;
+    const vectorDecision = !!(this.world() && this.world().capabilities.includes('C2a') && Array.isArray(run.decision));
+    this.setState({
+      decision: run.decision, weights: vectorDecision ? run.decision : null,
+      evaluation: run.evaluation, decisionSource: { kind: 'run', n: run.n, solver: run.solver },
+      sens: null, probe: null, lastStep: null, tab: 'policy',
+    }, () => { if (vectorDecision) this.loadGradient(); });
+  };
+  resetWeights = () => this.setState({ weights: (this.state.weights || []).map((_, i) => +(0.05 + 0.3 * i).toFixed(3)), lastStep: null }, () => this.evaluateNow());
+
+  onParam = (e) => {
+    const el = e.currentTarget, spec = this.scenarioSpec();
+    const p = spec.params.find((x) => x.name === el.dataset.name);
+    const value = p.kind === 'bool' ? el.checked : p.kind === 'enum' ? el.value : +el.value;
+    this._mine = new Set();
+    this.setState((s) => ({ runs: [], params: { ...s.params, [spec.id]: { ...s.params[spec.id], [p.name]: value } } }), () => {
+      clearTimeout(this._pt);
+      this._pt = setTimeout(() => { this.loadWorld(); this.loadTauRow(); if (spec.id === 'gradientshop.dispatch') this.loadSweep(); }, 90);
+    });
+  };
+  onWeight = (e) => {
+    const i = +e.currentTarget.dataset.index, v = +e.currentTarget.value;
+    const weights = this.state.weights.slice(); weights[i] = v;
+    this.setState({ weights }, () => { clearTimeout(this._wt); this._wt = setTimeout(() => this.evaluateNow(), 40); });
+  };
+  step(scale) {
+    const d = this.state.sens && this.state.sens.descent_direction;
+    if (!d || !this.state.weights) return;
+    const before = this.state.evaluation && this.state.evaluation.objective;
+    this.setState({ weights: this.state.weights.map((w, i) => +(w + scale * d[i]).toFixed(4)) },
+      () => this.evaluateNow(() => {
+        const after = this.state.evaluation && this.state.evaluation.objective;
+        this.setState({ lastStep: { alpha: scale, before, after, delta: after - before } });
+      }));
+  }
+  stepDown = () => this.step(0.25);
+  stepDown5 = () => this.step(1.25);
+  reconnect = async () => { await this.client.probe(); this.setState({ mode: this.client.state.mode, modeNote: this.client.state.lastError || '', error: '' }, () => { this.loadWorld(); this.loadSweep(); }); };
+  toggleLocale = async () => {
+    const locale = this.state.locale === 'zh' ? 'en' : 'zh';
+    const schema = await this.client.schema(locale);
+    document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+    try { localStorage.setItem('opsworld.locale', locale); } catch (_) { /* storage may be disabled */ }
+    this.setState({ locale, schema });
+  };
+
+  runSolver = async () => {
+    const w = this.world(); if (!w || !this.state.solver) return;
+    const body = { world: w.id, scenario: this.scenarioParams(), solver: this.state.solver, solver_params: this.state.solverParams[this.state.solver] || {}, budget: this.state.budget, force_job: this.state.forceJob };
+    const out = await this.guard(this.client.solve(body));
+    if (!out) return;
+    if (out.mode === 'inline') this.acceptResult(out.result, this.state.solver, 'inline', out.result.seconds || 0, null);
+    else { this._mine = this._mine || new Set(); this._mine.add(out.id); this.pollJobs(); }
+  };
+  cancelJob = (e) => { this.client.cancel(e.currentTarget.dataset.id).then(() => this.pollJobs()); };
+
+  /* -- charts (the only pieces the template cannot express) ---------- */
+  chart(series, opts) {
+    const h = React.createElement, W = 900, H = opts.height || 260, L = opts.left || 96, R = opts.right ? 54 : 16, T = 14, B = 34;
+    const kids = [];
+    const xs = (t) => L + t * (W - L - R), ys = (v, lo, hi) => H - B - ((v - lo) / ((hi - lo) || 1)) * (H - T - B);
+    for (let i = 0; i <= 4; i++) {
+      const y = T + (i / 4) * (H - T - B);
+      kids.push(h('line', { key: 'g' + i, x1: L, x2: W - R, y1: y, y2: y, stroke: 'rgba(29,31,32,0.12)', strokeWidth: 1 }));
+    }
+    (opts.yTicks || []).forEach((t, i) => kids.push(h('text', { key: 'yt' + i, x: L - 8, y: T + (i / 4) * (H - T - B) + 4, textAnchor: 'end', fontSize: 10, fill: 'rgba(29,31,32,0.55)', fontFamily: 'ui-monospace,Menlo,monospace' }, t)));
+    (opts.y2Ticks || []).forEach((t, i) => kids.push(h('text', { key: 'y2' + i, x: W - R + 8, y: T + (i / 4) * (H - T - B) + 4, fontSize: 10, fill: 'rgba(29,31,32,0.55)', fontFamily: 'ui-monospace,Menlo,monospace' }, t)));
+    (opts.xTicks || []).forEach((t, i) => kids.push(h('text', { key: 'xt' + i, x: xs(t.t), y: H - 10, textAnchor: 'middle', fontSize: 10, fill: 'rgba(29,31,32,0.55)', fontFamily: 'ui-monospace,Menlo,monospace' }, t.label)));
+    series.forEach((s, si) => {
+      if (!s.points.length) return;
+      const d = s.points.map((p, i) => `${i ? 'L' : 'M'}${xs(p[0]).toFixed(1)},${ys(p[1], s.lo, s.hi).toFixed(1)}`).join(' ');
+      kids.push(h('path', { key: 'p' + si, d, fill: 'none', stroke: s.color, strokeWidth: s.width || 1.75, strokeDasharray: s.dash || null }));
+      if (s.dots) s.points.forEach((p, i) => kids.push(h('rect', { key: `d${si}_${i}`, x: xs(p[0]) - 2, y: ys(p[1], s.lo, s.hi) - 2, width: 4, height: 4, fill: s.color })));
+    });
+    kids.push(h('line', { key: 'ax', x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: 'rgba(29,31,32,0.35)' }));
+    if (opts.zero !== undefined) kids.push(h('line', { key: 'z', x1: L, x2: W - R, y1: opts.zero, y2: opts.zero, stroke: 'rgba(29,31,32,0.3)', strokeDasharray: '3 3' }));
+    return h('svg', { viewBox: `0 0 ${W} ${H}`, style: { width: '100%', height: 'auto', display: 'block' }, preserveAspectRatio: 'none' }, kids);
+  }
+  tauChartEl() {
+    const rows = (this.state.sweep && this.state.sweep.rows) || [];
+    if (!rows.length) return null;
+    const n = rows.length - 1;
+    const gaps = rows.map((r) => r.gap_pct), gLo = Math.min(0, ...gaps), gHi = Math.max(...gaps, 0.001);
+    const at = (i) => (n ? i / n : 0.5);
+    const series = [
+      { color: '#5980a6', dots: true, lo: gLo, hi: gHi, points: rows.map((r, i) => [at(i), r.gap_pct]) },
+      { color: '#1d2d3d', dots: true, lo: -1.05, hi: 1.05, points: rows.map((r, i) => [at(i), r.grad_cosine]) },
+      { color: '#b7b7ba', dash: '4 3', lo: -1.05, hi: 1.05, points: rows.map((r, i) => [at(i), r.unresolved_fraction]) },
+    ];
+    return this.chart(series, {
+      right: true, height: 250,
+      yTicks: [gHi, gHi * 0.75, gHi * 0.5, gHi * 0.25, gLo].map((v) => fmt(v, 1) + '%'),
+      y2Ticks: ['+1.0', '+0.5', '0.0', '−0.5', '−1.0'],
+      xTicks: rows.filter((_, i) => i % Math.ceil(rows.length / 8) === 0).map((r, k, arr) => ({ t: at(rows.indexOf(r)), label: 'τ=' + r.tau })),
+    });
+  }
+  convergenceEl() {
+    const runs = this.state.runs.filter((r) => r.history.length > 1);
+    if (!runs.length) return null;
+    const all = runs.flatMap((r) => r.history), lo = Math.min(...all), hi = Math.max(...all);
+    const maxN = Math.max(...runs.map((r) => r.history.length));
+    const series = runs.map((r) => ({ color: r.color, dots: true, lo, hi, points: r.history.map((v, i) => [i / (maxN - 1), v]) }));
+    const tickIndexes = [...new Set([0, Math.floor((maxN - 1) / 4), Math.floor((maxN - 1) / 2), Math.floor(3 * (maxN - 1) / 4), maxN - 1])];
+    return this.chart(series, {
+      height: 280,
+      yTicks: [hi, hi - (hi - lo) / 4, (hi + lo) / 2, lo + (hi - lo) / 4, lo].map((v) => fmt(v, 0)),
+      xTicks: tickIndexes.map((i) => ({ t: maxN > 1 ? i / (maxN - 1) : 0.5, label: maxN === 2 ? (i === 0 ? (this.state.locale === 'zh' ? '初始' : 'initial') : (this.state.locale === 'zh' ? '结果' : 'result')) : String(i) })),
+    });
+  }
+
+  renderVals() {
+    if (this.client) this.armPoll();
+    const s = this.state, schema = s.schema, w = this.world(), spec = this.scenarioSpec();
+    const ev = s.evaluation || {}, summary = s.summary || {};
+    const kpis = Object.entries(ev.kpis || {});
+    const kpiTotal = kpis.reduce((a, [, v]) => a + Math.abs(v), 0) || 1;
+    const rawViols = Object.entries(ev.violations || {});
+    const viols = rawViols.filter(([, v]) => Math.abs(v) > 1e-6);
+    // The API carries raw floating-point residuals for auditing.  The UI uses
+    // Evaluation.violated()'s per-family 1e-6 convention, so an optimal MILP
+    // does not appear to breach fourteen constraints whose displayed value is 0.
+    const evaluationFeasible = viols.length === 0;
+    const violMax = Math.max(...viols.map(([, v]) => Math.abs(v)), 1e-9);
+    /* A stacked bar claims its segments sum to the whole. Test that before
+       drawing one: dispatch reports a relaxed cost and a signed gap, which are
+       a comparison, not a decomposition. */
+    const kpiSum = kpis.reduce((a, [, v]) => a + v, 0);
+    const additive = kpis.length > 1 && kpis.every(([, v]) => v >= 0)
+      && ev.objective !== undefined && Math.abs(kpiSum - ev.objective) <= 0.02 * Math.abs(ev.objective || 1);
+    const probe = s.probe, tauRow = s.tauRow;
+    const grads = (s.sens && s.sens.sensitivity && s.sens.sensitivity.values) || [];
+    const gMax = Math.max(...grads.map((g) => Math.abs(g)), 1e-9);
+    const lat = s.latency || {};
+    const relocation = summary.relocation_variables;
+    const isZh = s.locale === 'zh';
+    const ui = isZh ? {
+      appText: '实验台', languageText: 'EN', reconnectText: '重新连接',
+      chooseCaseText: '选择应用案例', configureInputText: '配置案例输入', enabledText: '启用',
+      chooseModelText: '选择建模方法', modelHelpText: '同一个案例可采用不同的决策表示和评价模型；建模方法决定可用求解器。',
+      compatibilityText: '为什么这些求解器可用？', routingTitleText: '运行方式',
+      flowInputText: '案例输入', flowModelText: '建模方法', flowSolverText: '求解器', flowResultText: '运行结果',
+      experimentTabText: '运行实验与结果', decisionTabText: '查看选中的决策', inputTabText: '输入与可行性', diagnosticTabText: '模型专属诊断', failedText: '运行失败',
+      chooseSolverText: '选择求解器并设置运行限制', budgetText: '计算预算（最多评价多少个候选方案）', backgroundText: '转为后台任务',
+      runText: '运行这个求解器', clearText: '清空结果', compareText: '比较实验结果',
+      emptyResultText: '还没有结果。运行一个求解器后，再换另一个求解器运行，即可在相同案例、建模方法和预算下比较。',
+      colRun: '序号', colSolver: '求解器', colStatus: '引擎 / 终止状态', colPath: '运行方式', colInitial: '初始 score', colBest: '最佳 score↓', colImprovement: 'score 降低', colEvaluations: '评价次数', colSeconds: '耗时(秒)',
+      jobsText: '后台任务', jobExperimentText: '实验', jobStatusText: '状态', jobQueuedText: '排队', jobElapsedText: '运行时间', jobTimeoutText: '超时进度',
+      noJobsText: '暂无后台任务。较慢的建模方法或较大的计算预算会自动进入后台队列。',
+      objectiveText: '目标成本', violationText: '约束违反量（不是简单的是/否）', gradientText: '梯度反馈',
+      gradientVerdictText: '沿梯度走一步是否真的改善？', resetText: '重置权重', weightGradientText: '权重 · 目标对权重的梯度',
+      temperatureText: '排序松弛温度诊断', coarseText: '8 个温度', fineText: '16 个对数间隔温度', exactCostText: '精确离散成本',
+      gapLegendText: '代理与精确成本差距（左轴）', cosineLegendText: '梯度余弦（右轴）', unresolvedLegendText: '未分辨任务对比例（右轴）',
+      gapText: '差距 %', cosineHeaderText: '余弦', unresolvedText: '未分辨比例', descendsText: '一步是否改善？', improvementText: '改善', whyColumnsText: '为什么同时显示这些指标',
+      instanceText: '输入实例', entitiesText: '实例对象', verdictText: '当前方案评价', violatedFamiliesText: '违反的约束族',
+      noViolationsText: '当前设置下没有违反约束。降低容量宽松系数后，贪心构造可能不再可行。',
+    } : {
+      appText: 'experiment console', languageText: '中文', reconnectText: 'Reconnect',
+      chooseCaseText: 'Choose a use case', configureInputText: 'Configure case inputs', enabledText: 'Enabled',
+      chooseModelText: 'Choose a modelling method', modelHelpText: 'A use case may have several decision representations and evaluators; the model determines which solvers are compatible.',
+      compatibilityText: 'Why are these solvers available?', routingTitleText: 'Execution route',
+      flowInputText: 'Case inputs', flowModelText: 'Modelling method', flowSolverText: 'Solver', flowResultText: 'Results',
+      experimentTabText: 'Run experiment & results', decisionTabText: 'Inspect selected decision', inputTabText: 'Inputs & feasibility', diagnosticTabText: 'Model-specific diagnostics', failedText: 'Run failed',
+      chooseSolverText: 'Choose a solver and run limits', budgetText: 'Evaluation budget (maximum candidate decisions scored)', backgroundText: 'Run as background job',
+      runText: 'Run this solver', clearText: 'Clear results', compareText: 'Compare results',
+      emptyResultText: 'No results yet. Run one solver, then select and run another to compare them on the same case, model and budget.',
+      colRun: 'Run', colSolver: 'Solver', colStatus: 'Engine / termination', colPath: 'Route', colInitial: 'Initial score', colBest: 'Best score ↓', colImprovement: 'Score decrease', colEvaluations: 'Evaluations', colSeconds: 'Seconds',
+      jobsText: 'Background jobs', jobExperimentText: 'Experiment', jobStatusText: 'Status', jobQueuedText: 'Queued', jobElapsedText: 'Elapsed', jobTimeoutText: 'Timeout',
+      noJobsText: 'No background jobs. Slower models or larger budgets are queued automatically.',
+      objectiveText: 'Objective cost', violationText: 'Constraint violation magnitude (not just yes/no)', gradientText: 'Gradient feedback',
+      gradientVerdictText: 'Does one gradient step actually improve the decision?', resetText: 'Reset weights', weightGradientText: 'weight · ∂objective/∂weight',
+      temperatureText: 'Relaxation-temperature diagnostics', coarseText: '8 temperatures', fineText: '16 log-spaced temperatures', exactCostText: 'exact discrete cost',
+      gapLegendText: 'surrogate-to-exact cost gap (left)', cosineLegendText: 'gradient cosine (right)', unresolvedLegendText: 'unresolved job pairs (right)',
+      gapText: 'gap %', cosineHeaderText: 'cosine', unresolvedText: 'unresolved', descendsText: 'one step improves?', improvementText: 'improvement', whyColumnsText: 'Why these metrics appear together',
+      instanceText: 'Input instance', entitiesText: 'Entities', verdictText: 'Current-decision evaluation', violatedFamiliesText: 'Violated constraint families',
+      noViolationsText: 'No constraint family is breached at these settings. Reducing the capacity allowance can make the greedy construction infeasible.',
+    };
+    const caseId = s.worldId.startsWith('gradientshop.') ? 'gradientshop' : 'intralogistics';
+    const caseInfo = caseId === 'gradientshop'
+      ? { id: 'gradientshop', label: isZh ? '案例一：生产调度' : 'Case 1: Production scheduling', description: isZh ? '单机任务排序 · 可微离散事件仿真' : 'Single-machine sequencing · differentiable DES' }
+      : { id: 'intralogistics', label: isZh ? '案例二：厂内物流' : 'Case 2: Intralogistics', description: isZh ? '物料供给、库存与仓库配置' : 'Material supply, inventory and warehouse configuration' };
+    const activeSolver = schema && schema.solvers.find((x) => x.id === s.solver);
+    const isExact = s.solver === 'exact';
+    const sourceSolver = s.decisionSource && s.decisionSource.solver
+      ? schema.solvers.find((x) => x.id === s.decisionSource.solver) : null;
+    const decisionSourceText = !s.decisionSource || s.decisionSource.kind === 'initial'
+      ? (isZh ? '初始决策（还不是求解器结果）' : 'Initial decision (not a solver result yet)')
+      : (isZh ? `实验 #${s.decisionSource.n} 的结果 · ${sourceSolver ? sourceSolver.label : s.decisionSource.solver}` : `Result of run #${s.decisionSource.n} · ${sourceSolver ? sourceSolver.label : s.decisionSource.solver}`);
+    const hasGradientControls = !!(w && w.capabilities.includes('C2a') && s.weights);
+    const showRelaxationDiagnostics = !!(w && w.id === 'gradientshop.dispatch');
+
+    const params = (spec ? spec.params : []).map((p) => {
+      const value = this.scenarioParams()[p.name];
+      return {
+        name: p.name, label: p.label, help: p.help, value,
+        min: p.min, max: p.max, step: p.step || (p.kind === 'int' ? 1 : 0.01), choices: p.choices || [],
+        isRange: p.kind === 'int' || p.kind === 'float', isEnum: p.kind === 'enum', isBool: p.kind === 'bool',
+        display: p.kind === 'enum' || p.kind === 'bool' ? String(value) : fmt(value, Number.isInteger(+value) ? 0 : 2),
+      };
+    });
+    const selectedSolverParams = (activeSolver ? activeSolver.params : []).map((p) => {
+      const value = (s.solverParams[s.solver] || {})[p.name];
+      return {
+        name: p.name, label: p.label, help: p.help, value,
+        min: p.min, max: p.max, step: p.step || (p.kind === 'int' ? 1 : 0.01),
+        isRange: p.kind === 'int' || p.kind === 'float', isEnum: p.kind === 'enum', isBool: p.kind === 'bool',
+        choiceRows: (p.choices || []).map((choice) => ({ value: choice, label: choice === 'auto' ? (isZh ? '自动选择' : 'Auto-select') : choice })),
+        valueText: value ? (isZh ? '启用' : 'Enabled') : (isZh ? '关闭' : 'Disabled'),
+        display: p.kind === 'bool' ? (value ? (isZh ? '启用' : 'Enabled') : (isZh ? '关闭' : 'Disabled')) : p.kind === 'enum' ? String(value) : fmt(value, Number.isInteger(+value) ? 0 : 3),
+      };
+    });
+
+    const jobs = (s.jobs || []).map((j) => ({
+      id: j.id, kind: j.kind, status: isZh ? ({ queued: '排队中', running: '运行中', done: '完成', failed: '失败', cancelled: '已取消' }[j.status] || j.status) : j.status,
+      tag: j.status === 'done' ? 'tag-accent' : j.status === 'running' ? 'tag-outline' : 'tag-neutral',
+      queued: fmt(j.queued_seconds, 2) + ' s', elapsed: fmt(j.elapsed_seconds, 2) + ' s',
+      timeoutPct: Math.min(100, (100 * (j.elapsed_seconds || 0)) / (j.timeout_seconds || 300)),
+      action: ['done', 'failed', 'cancelled'].includes(j.status) ? '—' : (isZh ? '取消' : 'Cancel'),
+    }));
+
+    return {
+      ...ui,
+      /* chrome */
+      mode: s.mode,
+      modeLabel: s.mode === 'live' ? (isZh ? '已连接后端' : 'live server') : s.mode === 'sample' ? (isZh ? '演示数据' : 'sample data') : (isZh ? '正在连接…' : 'probing…'),
+      modeDetail: s.mode === 'live' ? (this.props.apiBase || '127.0.0.1:8000').replace(/^https?:\/\//, '') : s.modeNote || 'no server reached',
+      dockClass: this.props.showJobDock === false ? 'hidden' : '',
+      modeNote: s.modeNote, reconnect: this.reconnect, toggleLocale: this.toggleLocale,
+      worldCount: schema ? schema.worlds.length : '—', solverCount: schema ? schema.solvers.length : '—',
+      maxJobs: schema ? schema.limits.max_concurrent_jobs : '—',
+      errorText: s.error,
+
+      /* rail */
+      catalogText: isZh ? `2 个应用案例 · ${schema ? schema.worlds.length : '—'} 种建模方法 · ${schema ? schema.solvers.length : '—'} 个求解器` : `2 use cases · ${schema ? schema.worlds.length : '—'} modelling methods · ${schema ? schema.solvers.length : '—'} solvers`,
+      cases: [
+        { id: 'gradientshop', label: isZh ? '案例一：生产调度' : 'Case 1: Production scheduling', description: isZh ? '任务排序与完工成本' : 'Job sequencing and completion cost', active: caseId === 'gradientshop' ? '1' : '0' },
+        { id: 'intralogistics', label: isZh ? '案例二：厂内物流' : 'Case 2: Intralogistics', description: isZh ? '物料供给与仓库配置' : 'Material supply and warehouse configuration', active: caseId === 'intralogistics' ? '1' : '0' },
+      ],
+      selectCase: this.selectCase,
+      worlds: (schema ? schema.worlds : []).filter((x) => x.id.startsWith(caseId + '.')).map((x) => ({ id: x.id, label: x.label, description: x.description, caps: x.capabilities.join(' '), active: x.id === s.worldId ? '1' : '0' })),
+      selectWorld: this.selectWorld,
+      caseLabel: caseInfo.label, worldLabel: w ? w.label : '—',
+      scenarioLabel: spec ? spec.label : '—',
+      inputHelpText: isZh ? `${spec ? spec.label : '—'}。修改参数后，实例和初始结果会自动更新。` : `${spec ? spec.label : '—'}. The instance and initial result update automatically when an input changes.`,
+      params, onParam: this.onParam,
+      capRows: (w ? w.capabilities : []).map((c) => ({ id: c, text: (schema && schema.capabilities[c]) || '' })),
+      latencyNote: w
+        ? (w.inline_max_budget > 0
+          ? (isZh ? `预算不超过 ${w.inline_max_budget} 时直接返回；更大的实验进入后台队列。` : `${w.label} returns inline up to ${w.inline_max_budget} evaluations; larger runs enter the background queue.`)
+          : (isZh ? '该建模方法的求解实验全部进入后台队列。' : `${w.label} runs every solver as a background job.`))
+        : '',
+
+      /* tabs */
+      selectTab: this.selectTab,
+      isPolicy: s.tab === 'policy' ? '1' : '', isRelax: s.tab === 'relax' ? '1' : '',
+      isInstance: s.tab === 'instance' ? '1' : '', isArena: s.tab === 'arena' ? '1' : '',
+      decisionSourceText,
+      decisionSyncText: isZh ? '这里检查的是：' : 'Decision currently inspected:',
+      hasGradientControls: hasGradientControls ? '1' : '', noGradientControls: hasGradientControls ? '' : '1',
+      noGradientControlsText: isZh ? '这个建模方式不提供 C2a 决策梯度，因此没有“沿梯度走一步”控件。MILP 的影子价格 C2b 也不是决策搜索方向。' : 'This modelling method does not provide a C2a decision gradient, so no gradient-step controls apply. MILP shadow prices (C2b) are not a decision-search direction either.',
+      showRelaxationDiagnostics: showRelaxationDiagnostics ? '1' : '', noModelDiagnostics: showRelaxationDiagnostics ? '' : '1',
+      diagnosticUnavailableTitle: isZh ? '当前建模方式没有专属诊断页' : 'No model-specific diagnostic for this method',
+      diagnosticUnavailableText: isZh ? `${w ? w.label : '当前模型'} 不使用 SoftSort 温度，因此不应显示调度 case 的松弛温度曲线。当前决策的成本与可行性请看“查看选中的决策”和“输入与可行性”。` : `${w ? w.label : 'This model'} does not use a SoftSort temperature, so the production-scheduling relaxation chart does not apply. Inspect the selected decision and Inputs & feasibility for its cost and constraint status.`,
+
+      /* evaluation */
+      objective: ev.objective === undefined ? '—' : fmt(ev.objective, 0),
+      feasibleText: ev.objective === undefined ? (isZh ? '尚无评价' : 'no verdict')
+        : !evaluationFeasible ? (isZh ? `违反 ${viols.length} 个约束族 · Σ ${fmtMagnitude(ev.total_violation)}` : `${viols.length} constraint famil${viols.length > 1 ? 'ies' : 'y'} breached · Σ ${fmtMagnitude(ev.total_violation)}`)
+          : (isZh ? '没有违反约束' : 'no violated constraints'),
+      feasibleTag: evaluationFeasible ? 'tag-neutral' : 'tag-outline',
+      kpiHeading: additive ? (isZh ? '成本构成' : 'Cost components') : (isZh ? '关键指标（不等于成本构成）' : 'Reported KPIs — not cost components'),
+      kpiIsStack: additive ? '1' : '', kpiIsFigures: additive ? '' : '1',
+      kpiNote: additive ? '' : (isZh ? '这些指标不相加得到目标成本。松弛差距 = 代理成本 − 精确成本；负数表示代理低估真实成本。' : 'These do not sum to the objective. Relaxation gap = surrogate cost − exact cost; negative means the surrogate under-reports the real cost.'),
+      provenance: ev.provenance || '',
+      evalLatency: `evaluate ${lat['/api/evaluate'] || lat['/api/initial'] || '—'} ms`,
+      evalText: integeriseText(ev.text),
+      kpiSegs: kpis.map(([k, v]) => ({ name: k, valueText: fmt(v, 0), pct: (100 * Math.abs(v)) / kpiTotal })),
+      hasViolations: viols.length ? '1' : '', noViolations: viols.length ? '' : '1',
+      violRows: viols.map(([k, v]) => {
+        const help = CONSTRAINT_HELP[k] || [k, k];
+        return { name: k, help: isZh ? help[0] : help[1], valueText: fmtMagnitude(v), pct: (100 * Math.abs(v)) / violMax };
+      }),
+
+      /* policy */
+      rulesTitle: s.rules ? (isZh ? `物料属性规则 — ${s.rules.length} 个可学习权重` : `Item-attribute rules — ${s.rules.length} learnable weights`) : (isZh ? '决策' : 'Decision'),
+      hasRules: s.rules && s.weights ? '1' : '', noRules: s.rules && s.weights ? '' : '1',
+      noRulesText: w && !w.capabilities.includes('C2a')
+        ? (isZh ? `${w.label} 使用结构化决策，不是可拖动的权重向量。下方显示当前选中方案在各变量族中的非零项数。` : `${w.label} uses a structured decision rather than editable weights. The counts below show non-zero entries in each variable family of the selected decision.`)
+        : (isZh ? '正在加载初始决策…' : 'Loading the initial decision…'),
+      decisionEntriesTitle: isZh ? '当前方案的非零决策项' : 'Non-zero entries in the selected decision',
+      decisionRows: s.decision && !Array.isArray(s.decision) ? Object.entries(s.decision).map(([name, table]) => ({ name, count: table && typeof table === 'object' ? Object.values(table).filter((v) => typeof v !== 'number' || Math.abs(v) > 1e-9).length : 0 })) : [],
+      ruleRows: (s.rules || []).map((name, i) => {
+        const g = grads[i] === undefined ? 0 : grads[i];
+        const copy = ({
+          HIGH_TURNOVER: isZh ? ['高周转', '需求率越高，倾向更大载具'] : ['High turnover', 'Higher demand rate favours a larger carrier'],
+          LOW_VALUE: isZh ? ['低单价', '库存便宜，批量放大的持有代价较低'] : ['Low unit value', 'Cheap inventory makes larger batches less costly'],
+          SMALL_PART: isZh ? ['小体积', '单件占地越小，倾向更大载具'] : ['Small part', 'Smaller footprint favours a larger carrier'],
+          LONG_LEAD: isZh ? ['长提前期', '补货越慢，倾向多备料；当前 case 中各物料相同'] : ['Long lead time', 'Slower replenishment favours more stock; equal for all items in this case'],
+          VOLATILE: isZh ? ['高波动需求', '需求 CV 越高，倾向更深缓冲；当前 case 中各物料相同'] : ['Volatile demand', 'Higher demand CV favours a deeper buffer; equal for all items in this case'],
+          EOQ: isZh ? ['经济订货量', '按 √(需求率/单价) 给出容量倾向'] : ['Economic order quantity', 'Uses √(demand rate / unit value) as the size signal'],
+          VALUE_DENSITY: isZh ? ['单位面积价值', '每平方米越贵，倾向更小载具'] : ['Value density', 'More value per area favours a smaller carrier'],
+          FLAT: isZh ? ['统一基准', '不看物料属性，整体放大或缩小'] : ['Common baseline', 'Raises or lowers every item independent of attributes'],
+        })[name] || [name, ''];
+        return { name, label: copy[0], help: copy[1], index: i, value: (s.weights || [])[i], valueText: fmt((s.weights || [])[i], 2), grad: g, gradText: fmt(g, 3), negPct: g < 0 ? (100 * -g) / gMax : 0, posPct: g > 0 ? (100 * g) / gMax : 0 };
+      }),
+      sensKind: s.sens && s.sens.sensitivity ? `kind = ${s.sens.sensitivity.kind}${s.sens.sensitivity.kind === 'pathwise' ? (isZh ? ' — 可以沿它更新决策' : ' — a direction you may step along') : (isZh ? ' — 约束价格，不是搜索方向' : ' — a constraint price, not a search direction')}` : (isZh ? '该建模方法没有梯度信息' : 'no sensitivity for this model'),
+      sensText: (s.sens && s.sens.sensitivity && s.sens.sensitivity.text) || (isZh ? '只有声明 C2a 的建模方法才能提供梯度。' : 'A gradient is available only when the model declares C2a.'),
+      onWeight: this.onWeight, stepDown: this.stepDown, stepDown5: this.stepDown5, resetWeights: this.resetWeights,
+      descendTag: !probe ? 'tag-neutral' : probe.descends ? 'tag-accent' : 'tag-outline',
+      descendText: !probe ? (isZh ? '没有可检查的梯度' : 'no gradient to check')
+        : probe.descends ? (isZh ? `✓ 一步（α ${probe.alpha}）使成本降低 ${fmt(probe.improvement, 4)}` : `✓ one step (α ${probe.alpha}) lowers cost by ${fmt(probe.improvement, 4)}`)
+          : (isZh ? `✗ 一步（α ${probe.alpha}）没有改善（${fmt(-probe.improvement, 4)}）` : `✗ one step (α ${probe.alpha}) does not improve (${fmt(-probe.improvement, 4)})`),
+      cosineText: tauRow ? `cosine ${fmt(tauRow.grad_cosine, 3)} at τ=${tauRow.tau} · unresolved ${fmt(tauRow.unresolved_fraction, 2)}` : 'no relaxation cosine for this world model',
+      descendNote: !probe ? 'A gradient exists only where the world model declares C2a.'
+        : tauRow && ((tauRow.grad_cosine > 0.5 && !probe.descends) || (tauRow.grad_cosine < -0.5 && probe.descends))
+          ? 'The cosine and the step disagree — which is the point. D15: the cosine compares two gradients sharing a Jacobian and agrees exactly where both vanish, so it does not predict usability in either direction. Trust the step.'
+          : probe.descends ? 'Measured, not inferred: the step was taken on a copy of the decision and re-evaluated.'
+            : 'The gradient still renders, but at these settings it points nowhere useful — stepping is disabled rather than offered.',
+      stepDisabled: !probe || !probe.descends,
+      stepLabel: probe && probe.descends ? `Step along −∇ (−${fmt(probe.improvement, 3)})` : 'Step along −∇',
+      lastStepText: s.lastStep ? `last step α=${s.lastStep.alpha}: ${fmt(s.lastStep.before, 4)} → ${fmt(s.lastStep.after, 4)} (${s.lastStep.delta <= 0 ? '' : '+'}${fmt(s.lastStep.delta, 4)}) — ${s.lastStep.delta < 0 ? 'better' : 'worse, and the check said so'}` : '',
+
+      /* relaxation */
+      tauChart: this.tauChartEl(),
+      sweepLatency: `sweep ${lat['/api/relaxation/tau'] || '—'} ms`,
+      exactCost: s.sweep ? fmt(s.sweep.exact_cost, 0) : '—',
+      gridCoarse: s.grid === 'coarse', gridFine: s.grid === 'fine', onGrid: this.onGrid,
+      tauRows: ((s.sweep && s.sweep.rows) || []).map((r) => ({
+        tau: r.tau, gap: fmt(r.gap_pct, 3) + ' %', cos: fmt(r.grad_cosine, 3),
+        unres: fmt(r.unresolved_fraction, 3),
+        tag: r.descends ? 'tag-accent' : 'tag-neutral', descends: r.descends ? (isZh ? '改善' : 'yes') : (isZh ? '否' : 'no'), improvement: fmt(r.improvement, 4),
+      })),
+      sweepNote: isZh ? '梯度余弦并不总能预测实际走一步是否改善，所以这里同时显示代理差距、余弦和实际下降检验。' : ((s.sweep && s.sweep.note) || 'Gradient cosine does not always predict whether an actual step improves, so the surrogate gap, cosine and operational descent check appear together.'),
+
+      /* instance */
+      entitiesText: w && w.id === 'intralogistics.sizing' ? (isZh ? '物料输入属性' : 'Item input attributes') : w && w.id === 'gradientshop.dispatch' ? (isZh ? '任务输入属性' : 'Job input attributes') : ui.entitiesText,
+      instanceId: summary.id || '',
+      instRows: [
+        summary.items && { k: isZh ? '物料' : 'items', v: summary.items.length },
+        summary.resources && { k: isZh ? '工位' : 'stations', v: summary.resources.length },
+        summary.warehouses && { k: isZh ? '仓库' : 'warehouses', v: summary.warehouses.length },
+        summary.carriers && { k: isZh ? '载具类型' : 'carrier types', v: summary.carriers.length },
+        summary.n_jobs && { k: isZh ? '任务' : 'jobs', v: summary.n_jobs },
+        summary.tau !== undefined && { k: isZh ? '松弛温度 τ' : 'temperature τ', v: summary.tau },
+        summary.objective && { k: isZh ? '目标' : 'objective', v: summary.objective },
+        summary.capacity_range && { k: isZh ? '载具容量范围' : 'carrier capacity', v: summary.capacity_range.join(' – ') },
+        relocation !== undefined && { k: isZh ? '搬运变量数' : 'relocation variables', v: relocation.toLocaleString('en-US') },
+      ].filter(Boolean),
+      scaleWarning: relocation > 5000 ? (isZh ? `${relocation.toLocaleString('en-US')} 个搬运变量：精确 MILP 很可能在时限内无法完成，建议使用物流构造式启发算法。` : `${relocation.toLocaleString('en-US')} relocation variables: the exact MILP is unlikely to finish within the limit; use the constructive supply heuristic.`) : '',
+      hasItemAttributeRows: w && w.id === 'intralogistics.sizing' && Array.isArray(summary.items) ? '1' : '',
+      itemCol: isZh ? '物料' : 'Item', demandCol: isZh ? '平均需求（件/期）' : 'Mean demand (units/period)',
+      valueCol: isZh ? '单价（€/件）' : 'Unit value (€/unit)', areaCol: isZh ? '单件占地（m²）' : 'Footprint (m²/unit)',
+      variabilityCol: isZh ? '需求波动 CV' : 'Demand variability (CV)', leadTimeCol: isZh ? '补货提前期（期）' : 'Lead time (periods)',
+      itemAttributeRows: (w && w.id === 'intralogistics.sizing' && Array.isArray(summary.items) ? summary.items : []).map((item) => ({
+        item: item.item, demand: fmt(item.demand_rate, 1), value: fmt(item.unit_value, 2), area: fmt(item.unit_area, 3), cv: fmt(item.demand_cv, 2), lead: fmt(this.scenarioParams().lead_time, 0),
+      })),
+      hasJobAttributeRows: w && w.id === 'gradientshop.dispatch' && Array.isArray(summary.jobs) ? '1' : '',
+      jobCol: isZh ? '任务' : 'Job', processingCol: isZh ? '处理时间' : 'Processing time', weightCol: isZh ? '权重' : 'Weight', dueCol: isZh ? '交期' : 'Due time',
+      jobAttributeRows: (w && w.id === 'gradientshop.dispatch' && Array.isArray(summary.jobs) ? summary.jobs : []).map((job) => ({ job: job.job, processing: fmt(job.processing, 2), weight: fmt(job.weight, 2), due: fmt(job.due, 2) })),
+      hasEntityChips: w && !['intralogistics.sizing', 'gradientshop.dispatch'].includes(w.id) ? '1' : '',
+      entityChips: [
+        ...(summary.items || []).slice(0, 16).map((x) => chip(x, 'tag-accent')),
+        ...(summary.resources || []).map((x) => chip(x, 'tag-outline')),
+        ...(summary.warehouses || []).map((x) => chip(x, 'tag-neutral')),
+        ...(summary.carriers || []).map((x) => chip(x, 'tag-outline')),
+        ...(summary.jobs || []).slice(0, 16).map((x) => chip(x, 'tag-neutral')),
+      ],
+      entityLegendText: w && w.id === 'intralogistics.sizing'
+        ? (isZh ? '每行是一种物料的已生成输入属性。例如 A1 的“平均需求 13.6 件/期”表示每个时间期平均消耗 13.6 件；它是载具尺寸策略的输入，不是求解结果。CV 是需求标准差/均值。' : 'Each row is a generated input item. For example, mean demand 13.6 units/period for A1 means that A1 consumes 13.6 units in an average time period. It is an input to the carrier-sizing policy, not a solver result. CV is demand standard deviation divided by its mean.')
+        : w && w.id === 'gradientshop.dispatch'
+          ? (isZh ? '每行是一个待排程任务的输入属性：处理时间、成本权重和交期。' : 'Each row contains one scheduling job’s input attributes: processing time, cost weight and due time.')
+          : (isZh ? 'A1… = 物料（Artikel）\nR1… = 工位/消耗资源（Resource）\nWE = 收货口/入库（Wareneingang）\nZL = 中央仓（Zentrallager）\nVL1… = 前置仓/中间仓（Vorlager）\nPL1… = 工位线边仓/使用点（Point of use）\nKLT = 小型载具 · GLT = 大型载具 · PAL = 托盘' : 'A1… = items (Artikel)\nR1… = consuming stations/resources\nWE = goods receipt (Wareneingang)\nZL = central warehouse (Zentrallager)\nVL1… = forward/intermediate warehouses (Vorlager)\nPL1… = point-of-use stores at stations\nKLT = small load carrier · GLT = large load carrier · PAL = pallet'),
+
+      /* arena */
+      solverChips: (w ? w.solvers : []).map((id) => {
+        const sv = schema.solvers.find((x) => x.id === id) || { label: id };
+        return { id, label: sv.label, active: id === s.solver ? '1' : '0' };
+      }),
+      solverLabel: activeSolver ? activeSolver.label : (isZh ? '尚无兼容求解器' : 'No compatible solver'),
+      solverDescription: activeSolver ? `${activeSolver.description}${isExact && s.mode === 'sample' ? (isZh ? ' 当前为离线演示模式，必须连接 Python 后端才能执行并给出证明。' : ' The console is in offline sample mode; connect the Python backend to execute it and issue a proof.') : ''}` : (isZh ? '请更换建模方法。' : 'Choose another modelling method.'),
+      solverHelpText: isZh ? `这里只显示与“${w ? w.label : '—'}”兼容的求解器。可逐个运行多个求解器，结果会保留在下方用于对比。` : `Only solvers compatible with “${w ? w.label : '—'}” are shown. Run several in turn and their results will remain below for comparison.`,
+      solverParams: selectedSolverParams, onSolverParam: this.onSolverParam,
+      selectSolver: this.selectSolver, budget: s.budget, onBudget: this.onBudget,
+      forceJob: s.forceJob, onForceJob: this.onForceJob, runSolver: this.runSolver, clearRuns: this.clearRuns,
+      showEvaluationBudget: isExact ? '' : '1', showQueueChoice: isExact ? '' : '1',
+      exactBudgetNote: isExact ? (isZh ? 'ExactSolver 不使用 evaluation budget。分支定界是一次完整求解；停止条件由上面的时间上限控制。' : 'ExactSolver does not use an evaluation budget. Branch and bound is one complete solve; the time limit above controls when it stops.') : '',
+      routingNote: w
+        ? (isExact
+          ? (isZh ? '精确求解始终作为后台任务运行。到达时间上限后可能返回当前可行解，但只有 termination = optimal 才证明最优。' : 'Exact solving always runs as a background job. It may return a feasible incumbent at the deadline, but only termination = optimal proves optimality.')
+          : (s.forceJob || s.budget > w.inline_max_budget
+          ? (isZh ? `本次实验将在后台运行：${s.forceJob ? '你选择了后台任务' : `预算 ${s.budget} 超过前台上限 ${w.inline_max_budget}`}。可在页面底部查看或取消。` : `This experiment will run in the background because ${s.forceJob ? 'background execution was selected' : `budget ${s.budget} exceeds the inline limit of ${w.inline_max_budget}`}. Track or cancel it below.`)
+          : (isZh ? `本次实验会直接返回：预算 ${s.budget} 不超过前台运行上限 ${w.inline_max_budget}。` : `This experiment will return inline: budget ${s.budget} is within the limit of ${w.inline_max_budget}.`)))
+        : '',
+      convergenceChart: this.convergenceEl(),
+      noRuns: s.runs.length ? '' : '1',
+      hasRuns: s.runs.length ? '1' : '',
+      scoreExplanation: isZh ? '图和表比较的是 score，不一定是原始成本：score = 目标成本 + 1,000,000 × 约束违反总量。方案可行时 score = 成本；方案不可行时，大数主要是罚分。横轴是求解器记录的步骤，Exact 只有“初始 → 结果”两点。' : 'The chart and table compare solver score, not always raw cost: score = objective + 1,000,000 × total constraint violation. For a feasible decision score equals cost; a huge infeasible score is mostly penalty. The horizontal axis is recorded solver steps; Exact has only initial → result.',
+      runLegend: s.runs.map((r) => {
+        const solver = schema.solvers.find((x) => x.id === r.solver);
+        return { text: `${r.n} · ${solver ? solver.label : r.solver} · ${isZh ? '最佳 score' : 'best score'} ${fmt(r.score, 0)}` };
+      }),
+      runRows: s.runs.map((r) => {
+        const solver = schema.solvers.find((x) => x.id === r.solver);
+        const status = r.solver === 'exact' ? ((r.provenance || '').match(/\[([^\]]+)\]$/) || [])[1] || (isZh ? '未知' : 'unknown') : '—';
+        return { n: r.n, solver: solver ? solver.label : r.solver, status, mode: r.mode === 'inline' ? (isZh ? '前台' : 'inline') : (isZh ? '后台' : 'background'), initial: fmt(r.initial, 0), best: fmt(r.score, 0), improvement: fmt(r.improvement, 0), evals: r.solver === 'exact' ? `${r.evals}*` : r.evals, seconds: fmt(r.seconds, 1), inspect: isZh ? '查看决策' : 'Inspect' };
+      }),
+      inspectRun: this.inspectRun,
+      evaluationFootnote: s.runs.some((r) => r.solver === 'exact') ? (isZh ? '* ExactSolver 的 2 次评价只指包装器评价了初始方案和返回方案，不是分支定界节点数。' : '* ExactSolver’s two evaluations are the wrapper’s initial and returned decisions, not branch-and-bound node count.') : '',
+
+      /* jobs */
+      jobRows: jobs, noJobs: jobs.length ? '' : '1', cancelJob: this.cancelJob,
+      jobNote: jobs.length ? (isZh ? `${s.jobs.filter((j) => j.status === 'running').length} 个运行中 · ${s.jobs.filter((j) => j.status === 'queued').length} 个排队中 · 每 500 ms 更新` : `${s.jobs.filter((j) => j.status === 'running').length} running · ${s.jobs.filter((j) => j.status === 'queued').length} queued · polling every 500 ms`) : (isZh ? '每 500 ms 更新' : 'polling every 500 ms'),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

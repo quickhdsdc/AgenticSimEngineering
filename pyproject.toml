@@ -1,0 +1,44 @@
+[project]
+name = "agentic-sim-engineering"
+version = "0.1.0"
+description = "Semantic contracts and execution foundations for agentic multi-fidelity simulation"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+des-reference = ["numpy>=1.26", "simpy==4.1.2"]
+harness = ["a4s-harness[ui,documents]"]
+festo = ["a4s-harness[ui,documents,opc,mes]"]
+workbench = ["a4s-harness[dev,ui,documents]", "mold-agent[llm]", "scipy"]
+dev = ["pytest==9.1.0", "ruff==0.15.4"]
+
+[project.scripts]
+ase = "agenticsim.__main__:main"
+ase-dialogue = "agenticsim.runtime.dialogue:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["agenticsim*"]
+
+[tool.setuptools.package-data]
+"agenticsim.visualization" = ["web/*"]
+
+[tool.uv.sources]
+a4s-harness = { path = "components/harness", editable = true }
+mold-agent = { path = "components/fem/agent_system", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+cache_dir = "work/cache/pytest"
+
+[tool.ruff]
+target-version = "py312"
+cache-dir = "work/cache/ruff"
+include = ["agenticsim/**/*.py", "scripts/**/*.py", "tests/**/*.py", "work/tools/**/*.py"]
+
+[tool.ruff.lint]
+select = ["F"]

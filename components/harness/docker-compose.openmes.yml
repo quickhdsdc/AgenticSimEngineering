@@ -1,0 +1,52 @@
+# Local demo instance, isolated from BaSyx and any upstream OpenMES deployment.
+# See docs/A4S-Harness-架构拆解.md (OpenMES quickstart) for local bootstrap.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: openmes
+      POSTGRES_USER: openmes
+      POSTGRES_PASSWORD: ${OPENMES_DB_PASSWORD:?Set OPENMES_DB_PASSWORD}
+    volumes:
+      - mes_database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openmes -d openmes"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  backend:
+    build:
+      context: ./_others/OpenMes-main
+      dockerfile: backend/Dockerfile
+    environment:
+      APP_NAME: OpenMES
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${OPENMES_APP_KEY:?Run the local bootstrap}
+      APP_URL: http://localhost:8092
+      APP_TIMEZONE: Europe/Berlin
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_DATABASE: openmes
+      DB_USERNAME: openmes
+      DB_PASSWORD: ${OPENMES_DB_PASSWORD:?Set OPENMES_DB_PASSWORD}
+      ADMIN_USERNAME: a4s-admin
+      ADMIN_EMAIL: a4s-admin@example.invalid
+      ADMIN_PASSWORD: ${OPENMES_ADMIN_PASSWORD:?Set OPENMES_ADMIN_PASSWORD}
+      LOG_CHANNEL: stderr
+      SESSION_DRIVER: database
+      QUEUE_CONNECTION: database
+      BROADCAST_CONNECTION: log
+    command: ["php", "artisan", "octane:start", "--server=roadrunner", "--host=0.0.0.0", "--port=8000", "--workers=2", "--max-requests=500"]
+    ports:
+      - "127.0.0.1:8092:8000"
+    volumes:
+      - mes_storage:/var/www/html/storage
+      - mes_cache:/var/www/html/bootstrap/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  mes_database:
+  mes_storage:
+  mes_cache:

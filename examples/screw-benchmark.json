@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "case_id": "screw-s01-post-cycle-quality-v1",
+  "source": "measurement",
+  "dataset": "https://zenodo.org/records/14887942",
+  "archive": "work/cache/datasets/screw-s01-v1.1.3/s01_thread-degradation.zip",
+  "archive_sha256": "b39d42eb3d65bf9974db7e7597675377fc0ca6c6f0cb5ac42decdd3447487bc7",
+  "split_seed": 42,
+  "split": "workpiece grouped 60/20/20, SHA-256 seed:workpiece ordering",
+  "threshold_candidates": [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 15, 20],
+  "scale_floors": {"duration_s": 0.01, "peak_torque_nm": 0.01, "end_torque_nm": 0.01, "angle_span_deg": 1, "mean_torque_nm": 0.01, "torque_std_nm": 0.01},
+  "reference_torque_window_nm": [1.2, 1.6],
+  "acceptance": {"scope": "dataset_quality_classification_only", "minimum_average_precision": 0.5, "maximum_false_positive_rate": 0.1},
+  "assumptions": [
+    "Detection occurs after each operation ends; no early warning or detection-delay claim",
+    "Ground truth is the station OK/NOK decision, not an independent thread inspection",
+    "Graph time is seconds, angle is degrees; archive README supplies the mapping; local timestamps have unknown timezone",
+    "Robust normal-training feature deviations, fixed scale floors and threshold grid are delegated baseline choices",
+    "Missing later steps can reflect early process termination; incomplete operations stay in evaluation",
+    "Duplicate times are retained; clocks must be nondecreasing; no derivative or uniform-rate assumption",
+    "No labels, result codes, controller limits or workpiece usage in detector features",
+    "This station and the MERL Panda experiments are separate physical cases",
+    "No device control, MES writes, causal fault diagnosis or certified deployment acceptance"
+  ]
+}

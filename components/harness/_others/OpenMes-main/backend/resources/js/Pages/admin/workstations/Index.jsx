@@ -1,0 +1,155 @@
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Icon } from '@openmes/ui';
+import AppLayout from '../../../layouts/AppLayout';
+import { ActiveBadge } from '../../../components/ResourceTable';
+import Tooltip from '../../../components/Tooltip';
+import useConfirm from '../../../components/useConfirm';
+import { __ } from '../../../lib/i18n';
+
+export default function WorkstationsIndex() {
+    const { line, workstations = [] } = usePage().props;
+    const { confirm, dialog: confirmDialog } = useConfirm();
+
+    const handleToggle = (ws) => {
+        router.post(`/admin/lines/${line.id}/workstations/${ws.id}/toggle-active`, {}, { preserveScroll: true });
+    };
+
+    const handleDelete = (ws) => {
+        confirm(
+            {
+                title: __('Are you sure you want to delete this workstation?'),
+                confirmLabel: __('Delete workstation'),
+            },
+            () => router.delete(`/admin/lines/${line.id}/workstations/${ws.id}`, { preserveScroll: true }),
+        );
+    };
+
+    return (
+        <div className="max-w-7xl mx-auto">
+            <Head title={__('Workstations — :name', { name: line.name })} />
+
+            <div className="mb-6">
+                <Link
+                    href={`/admin/lines/${line.id}`}
+                    className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4 text-sm"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    {__('Back to :name', { name: line.name })}
+                </Link>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-om-ink">{__('Workstations')}</h1>
+                        <p className="text-sm text-om-muted mt-1">{line.name}</p>
+                    </div>
+                    <Link
+                        href={`/admin/lines/${line.id}/workstations/create`}
+                        className="inline-flex items-center gap-1.5 bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
+                    >
+                        <Icon name="plus" size={14} />
+                        {__('Add Workstation')}
+                    </Link>
+                </div>
+            </div>
+
+            {workstations.length === 0 ? (
+                <div className="bg-om-card rounded-om-sm shadow-sm text-center py-12">
+                    <svg className="mx-auto h-16 w-16 text-om-faint mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <p className="text-lg font-medium text-om-muted">{__('No workstations yet')}</p>
+                    <p className="text-sm text-om-muted mt-1 mb-4">{__('Get started by creating your first workstation for this line.')}</p>
+                    <Link
+                        href={`/admin/lines/${line.id}/workstations/create`}
+                        className="inline-flex items-center gap-1.5 bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
+                    >
+                        <Icon name="plus" size={14} />
+                        {__('Create Workstation')}
+                    </Link>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {workstations.map((ws) => (
+                        <div key={ws.id} className="bg-om-card rounded-om-sm shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="text-lg font-bold text-om-ink">{ws.name}</h3>
+                                        <ActiveBadge active={ws.is_active} />
+                                    </div>
+                                    <p className="text-sm text-om-muted font-mono">{ws.code}</p>
+                                    {ws.workstation_type && (
+                                        <p className="text-xs text-om-muted mt-1">{__('Type: :type', { type: ws.workstation_type })}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="mb-4 p-3 bg-om-panel rounded-om-sm grid grid-cols-2 gap-3">
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-om-ink">{ws.template_steps_count}</p>
+                                    <p className="text-xs text-om-muted">{__('Template Steps')}</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-om-accent">{ws.workers_count}</p>
+                                    <p className="text-xs text-om-muted">{__('Workers')}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-4 border-t border-om-line2">
+                                <Link
+                                    href={`/admin/lines/${line.id}/workstations/${ws.id}/edit`}
+                                    className="flex-1 text-center text-sm px-3 py-2 border border-om-line rounded-om-sm text-om-muted hover:bg-om-bg font-medium"
+                                >
+                                    {__('Edit')}
+                                </Link>
+                                <Tooltip label={ws.is_active ? __('Deactivate') : __('Activate')}>
+                                    <button
+                                        onClick={() => handleToggle(ws)}
+                                        className="p-2 text-om-muted hover:text-om-ink"
+                                        aria-label={ws.is_active ? __('Deactivate') : __('Activate')}
+                                    >
+                                        {ws.is_active ? (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </Tooltip>
+                                {ws.template_steps_count === 0 ? (
+                                    <Tooltip label={__('Delete')}>
+                                        <button
+                                            onClick={() => handleDelete(ws)}
+                                            className="p-2 text-om-blocked hover:text-om-blocked"
+                                            aria-label={__('Delete')}
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </Tooltip>
+                                ) : (
+                                    <Tooltip label={__('Cannot delete — has template steps')}>
+                                        <span className="p-2 text-om-faintest">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                        </span>
+                                    </Tooltip>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {confirmDialog}
+        </div>
+    );
+}
+
+WorkstationsIndex.layout = (page) => <AppLayout>{page}</AppLayout>;

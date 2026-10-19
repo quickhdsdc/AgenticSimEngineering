@@ -1,0 +1,5 @@
+# Newton baseline plus official importer/contact-solver extras.
+# requirements.txt is the fully pinned installed Windows/Python 3.12 environment.
+newton[sim,importers]==1.2.1
+warp-lang==1.13.0
+numpy==2.5.3

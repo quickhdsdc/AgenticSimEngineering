@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "merl-panda-offline-identification",
+  "model_id": "franka-panda",
+  "source": "measurement",
+  "operator_source": "delegated_operator",
+  "mapping_status": "provisional",
+  "joint_order": ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"],
+  "mapping": {"position": "q", "velocity": "dq", "acceleration": "ddq", "torque": "tau_interp", "time": "t"},
+  "units": {"position": "rad", "velocity": "rad/s", "acceleration": "rad/s^2", "torque": "N*m", "time": "s"},
+  "sample_stride": 10,
+  "bounds": {"damping": [0, 20], "armature": [0, 2], "coulomb": [0, 10], "offset": [-5, 5]},
+  "smooth_velocity_rad_s": 0.02,
+  "acceptance": {"scope": "public_dataset_holdout_only", "pooled_rmse_limit_nm": 2.0, "minimum_relative_improvement": 0.2, "maximum_joint_rmse_regression_nm": 0.1},
+  "sources": {
+    "data": "https://zenodo.org/records/12516500",
+    "processing": "https://www.merl.com/publications/docs/TR2024-077.pdf",
+    "target_and_split": "https://github.com/merlresearch/LIP4RobotInverseDynamics/blob/main/RealData/PANDA/config/gen_config.py",
+    "unit_reference": "https://frankarobotics.github.io/libfranka/0.15.0/structfranka_1_1RobotState.html"
+  },
+  "assumptions": [
+    "SI and positive joint-coordinate mapping are provisional; acquisition-to-column transformations are not fully documented",
+    "tau_interp is the publisher's inverse-dynamics target; exact interpolation and link-side channel provenance remain unresolved",
+    "Accelerations derive from acausal differentiation, not an independent acceleration sensor",
+    "Pinned Menagerie structure/inertias, gravity -9.81 m/s^2, fixed base, closed stationary fingers and no added payload/contact",
+    "Bounded per-joint viscous, effective acceleration, smoothed Coulomb and offset corrections; not uniquely identified manufacturer parameters",
+    "Bounds, smoothing scale and acceptance limits are delegated engineering assumptions declared before holdout scoring",
+    "No tuning, model selection or threshold revision using holdout results"
+  ]
+}

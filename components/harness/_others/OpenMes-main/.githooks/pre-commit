@@ -1,0 +1,67 @@
+#!/bin/bash
+# Block ALL commits of module code.
+#
+# Both locations: the repository root, and backend/modules — which is what PHP
+# resolves as base_path('modules'), where ModuleManager looks, and what the dev
+# overlay bind-mounts. The three bundled examples are tracked source and are
+# allowed through; everything else under there belongs to its own repository.
+STAGED_MODULES=$(git diff --cached --name-only \
+    | grep -E "^(modules/|backend/modules/)" \
+    | grep -vE "^backend/modules/(README\.md|\.gitkeep|ExampleHooks/|ExampleShowcase/|OrderPinger/)" \
+    | grep -vE "^modules/README\.md$")
+
+if [ -n "$STAGED_MODULES" ]; then
+    echo ""
+    echo "BLOCKED: Committing module code is not allowed."
+    echo ""
+    echo "All modules are managed in separate repositories."
+    echo "Staged:"
+    echo "$STAGED_MODULES" | sed 's/^/  /'
+    echo ""
+    echo "Use: git reset HEAD modules/ backend/modules/"
+    echo ""
+    exit 1
+fi
+
+# ── CI test gate ─────────────────────────────────────────────────────────────
+# Run the SAME suite GitHub Actions runs on PRs to develop/main
+# (.github/workflows/tests.yml), so a commit that would turn CI red never
+# leaves the machine. Enabled by `composer install` (sets core.hooksPath).
+#
+# Escape hatches:
+#   git commit --no-verify     - skip all hooks once
+#   SKIP_TESTS=1 git commit    - skip only the test gate (e.g. WIP commit)
+if [ "$SKIP_TESTS" = "1" ]; then
+    echo "pre-commit: SKIP_TESTS=1 - skipping the test gate."
+    exit 0
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT/backend" || exit 1
+
+# Inertia feature tests need a Vite manifest (same reason CI builds assets).
+if [ ! -f public/build/manifest.json ]; then
+    echo "pre-commit: no Vite manifest - running npm run build..."
+    npm run build || exit 1
+fi
+
+# Frontend unit tests (Vitest) - same step CI runs. Fast (~sub-second); skipped
+# by the SKIP_TESTS escape hatch above along with the PHP suite.
+echo "pre-commit: running frontend tests (npm test)..."
+npm test || {
+    echo ""
+    echo "pre-commit: FRONTEND TESTS FAILED - commit aborted."
+    exit 1
+}
+
+# Same gate as CI's `php artisan test --stop-on-failure`. Invoked through
+# phpunit directly so the raised memory limit applies to the test process
+# itself (artisan test spawns children that ignore -d on the parent).
+echo "pre-commit: running the CI test suite (git commit --no-verify to skip)..."
+php -d memory_limit=1G vendor/bin/phpunit --stop-on-failure --no-progress || {
+    echo ""
+    echo "pre-commit: TESTS FAILED - commit aborted (this is what CI would do to your PR)."
+    exit 1
+}
+
+echo "pre-commit: tests green."

@@ -1,0 +1,30 @@
+[project]
+name = "mosim-training"
+version = "0.1.0"
+description = "MoSim 世界模型训练与评测（Neural ODE + 刚体结构先验）"
+requires-python = ">=3.12"
+dependencies = [
+    "torch==2.10.0",
+    "torchdiffeq==0.2.4",
+    "numpy",
+    "pyyaml",
+    "matplotlib",
+    "pillow",
+    "pytz",
+    "wandb",
+    "normflows",
+    "tqdm",
+]
+
+# 重建：uv sync
+# 训练时用 WANDB_MODE=disabled 可跳过 wandb 登录。
+# 上游 MoSim 官方 requirements 钉的是 torch 2.4.0 + dm_control，
+# 这里升到 2.10 cu128 以匹配本机 CUDA，且不装 dm_control
+# （我们的数据来自 Isaac Sim，不需要 dm_control 环境）。
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }

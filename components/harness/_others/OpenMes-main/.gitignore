@@ -1,0 +1,128 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+
+# Backend (Laravel)
+backend/vendor/
+backend/node_modules/
+backend/.env
+backend/.env.backup
+backend/storage/*.key
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/testing/*
+backend/storage/framework/views/*
+backend/storage/logs/*
+backend/bootstrap/cache/*
+backend/public/hot
+backend/public/storage
+backend/.phpunit.result.cache
+backend/.DS_Store
+backend/Homestead.json
+backend/Homestead.yaml
+backend/npm-debug.log
+backend/yarn-error.log
+
+# Frontend directory (removed — Blade templates used instead)
+/frontend/
+/design
+
+# AI assistant context files (CLAUDE.md is tracked — shared project
+# conventions for AI assistants; everything else stays local)
+**/.openmus_conversation*.txt
+.cursorrules
+.cursorignore
+.windsurfrules
+.aiderrules
+.copilot-instructions.md
+.github/copilot-instructions.md
+# Personal AI-assistant config stays out of the repo, but skills under
+# .claude/skills/ are shared project workflows and are tracked. The parent is
+# `.claude/*` rather than `.claude/`: git does not descend into an excluded
+# directory, so a negation inside one would never be reached.
+.claude/*
+!.claude/skills/
+.claude-flow/
+.mcp.json
+.agents/
+
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+
+# Playwright E2E (config + specs tracked; artifacts and node_modules ignored)
+/node_modules
+/test-results
+/playwright-report
+
+# Local binaries / installers
+cloudflared.deb
+
+# Project-specific
+.init_prompt
+/reference-app
+
+
+# Modules — all managed externally, never committed to public repo
+# (Packaging was promoted to core; remaining modules ship via private repos)
+modules/*
+!modules/README.md
+
+# Desktop app (Tauri) — kompilacje i wbudowywane runtime'y (nigdy nie commitować)
+desktop/node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/src-tauri/resources/
+desktop/winphp-staging/
+desktop/release/
+desktop/.linux-php-backup/
+desktop/.tauri.conf.json.bak
+
+.playwright-mcp
+_test_commands.ps1
+
+# Local dev scripts 
+*.ps1
+*.bat
+
+# Local PHP runtime / config
+backend/composer.phar
+backend/.rr.yaml
+backend/rr
+
+# Scratch / temp
+scratch/
+magika/
+
+# E2E local specs (not upstream)
+tests/e2e/car-production-buildout.spec.ts
+
+# CLA working files — contain contributor emails (PII), keep out of the repo.
+# Ignore the specific working docs only (NOT the whole docs/cla/ dir, so the
+# tracked CLA docs — CCLA-template.md, SETUP.md — stay versioned).
+docs/cla/contributors-audit.md
+docs/cla/ai-commits.md
+docs/cla/license-scan.md

@@ -1,0 +1,34 @@
+training:
+  training_stage: -1
+  seed: 42
+  lr: 0.001
+  num_epochs : 1000000000
+  t : 0.02
+  batch_size : 50000
+  save_path : 'ckpt'
+  keep_top : 5
+model:
+# model_param:
+  q_dim : 2
+  v_dim : 2
+  action_dim : 2
+  real_t : 0.01
+  activation : 'swish' #['softplus','atan','relu','swish']
+  is_atten : False
+  is_ode: True
+  is_visual: False
+  dynamic_model_type:  'resnet_pure'  #['rigid_body','resnet','resnet_pure']
+  ### Residual Module:
+  dynamics_hidden_block_num : 5
+  dynamics_network_width : 64
+  ### correctors:
+  crt_num : 0
+  crt_hidden_block_num : 5
+  crt_network_width : 128
+data:
+  ## data_path:
+  train_data_path : 'data/reacher/poisson/reacher_poisson.npz'
+  test_data_path : 'data/reacher/poisson/reacher_possion_test.npz'
+
+# python train.py --config configs/reacher_0crts_int.yaml --device cuda:7
+# 4-10

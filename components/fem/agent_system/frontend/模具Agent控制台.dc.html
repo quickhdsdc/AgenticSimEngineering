@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+SC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', 'IBM Plex Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #eef1f5; color: #171a1f; -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #c3cad3; border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #a7b0bb; background-clip: content-box; }
+  @keyframes ma-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  @keyframes ma-blink { 0%,100% { opacity: 1; } 50% { opacity: .15; } }
+  @keyframes ma-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes ma-dash { to { stroke-dashoffset: -14; } }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+</style>
+</helmet>
+<div style="display:flex; height:100vh; width:100vw; overflow:hidden;">
+
+  <!-- SIDEBAR -->
+  <aside style="width:236px; flex:0 0 236px; background:#12161d; color:#c8d0da; display:flex; flex-direction:column; border-right:1px solid #000;">
+    <div style="padding:20px 20px 16px; display:flex; align-items:center; gap:11px; border-bottom:1px solid #232a34;">
+      <div style="width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(37,99,235,.4);">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+      </div>
+      <div>
+        <div style="font-weight:700; font-size:15px; color:#fff; letter-spacing:.2px;">MoldAgent</div>
+        <div class="mono" style="font-size:10.5px; color:#5f6b7a; letter-spacing:.4px;">前期评估 · RFQ</div>
+      </div>
+    </div>
+
+    <div style="padding:14px 12px; flex:1; overflow-y:auto;">
+      <div class="mono" style="font-size:10px; color:#5a6472; letter-spacing:1px; padding:4px 10px 8px;">工作台</div>
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="5">
+        <button onClick="{{ item.onClick }}" style="{{ item.style }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><path d="{{ item.icon }}"/></svg>
+          <span style="flex:1; text-align:left;">{{ item.label }}</span>
+          <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ true }}"><span class="mono" style="font-size:10px; background:{{ item.badgeBg }}; color:{{ item.badgeColor }}; padding:1px 6px; border-radius:20px; font-weight:600;">{{ item.badge }}</span></sc-if>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="padding:14px 16px; border-top:1px solid #232a34; display:flex; align-items:center; gap:10px;">
+      <div style="width:32px; height:32px; border-radius:50%; background:#2b3442; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:13px; color:#aeb8c4;">陈</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:12.5px; color:#e6ebf1; font-weight:500;">陈工 · 资深模具</div>
+        <div class="mono" style="font-size:10px; color:#5f6b7a;">审核人 · 在线</div>
+      </div>
+      <div style="width:7px; height:7px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 3px rgba(34,197,94,.18);"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main style="flex:1; display:flex; flex-direction:column; min-width:0; background:#eef1f5;">
+
+    <!-- TOPBAR -->
+    <header style="height:60px; flex:0 0 60px; background:#fff; border-bottom:1px solid #e0e5eb; display:flex; align-items:center; padding:0 24px; gap:16px;">
+      <div style="flex:1; min-width:0;">
+        <div style="display:flex; align-items:center; gap:9px;">
+          <h1 style="margin:0; font-size:16px; font-weight:600; color:#171a1f;">{{ pageTitle }}</h1>
+          <span class="mono" style="font-size:11px; color:#8a929c;">{{ pageSub }}</span>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:7px; background:#f3f5f8; border:1px solid #e5eaf0; border-radius:8px; padding:6px 11px;">
+          <span style="width:7px; height:7px; border-radius:50%; background:#22c55e;"></span>
+          <span class="mono" style="font-size:11px; color:#4a525c;">AutoForm 求解器 · 就绪</span>
+        </div>
+        <button style="display:flex; align-items:center; gap:7px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          新建评估
+        </button>
+      </div>
+    </header>
+
+    <div style="flex:1; overflow-y:auto;">
+
+      <!-- ============ DASHBOARD ============ -->
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:24px 28px 40px; max-width:1320px;">
+        <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:22px;">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="6">
+            <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:15px 16px;">
+              <div style="font-size:12px; color:#7b8494; margin-bottom:10px;">{{ k.label }}</div>
+              <div style="display:flex; align-items:baseline; gap:5px;">
+                <div class="mono" style="font-size:26px; font-weight:600; color:{{ k.color }}; line-height:1;">{{ k.value }}</div>
+                <div class="mono" style="font-size:12px; color:#9aa3ae;">{{ k.unit }}</div>
+              </div>
+              <div class="mono" style="font-size:10.5px; color:{{ k.deltaColor }}; margin-top:8px;">{{ k.delta }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 340px; gap:18px;">
+          <!-- job table -->
+          <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; overflow-x:auto;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:15px 18px; border-bottom:1px solid #eef1f5; min-width:660px;">
+              <div style="font-weight:600; font-size:14px;">评估任务队列</div>
+              <div class="mono" style="font-size:11px; color:#8a929c;">{{ jobCount }} 项</div>
+            </div>
+            <div style="display:grid; grid-template-columns:110px minmax(150px,1.4fr) 120px 60px 60px 1fr 92px; gap:0; padding:9px 18px; background:#fafbfc; border-bottom:1px solid #eef1f5; font-size:11px; color:#8a929c; font-weight:500; min-width:660px; white-space:nowrap;">
+              <div>零件号</div><div>零件 / 客户</div><div>材质 · 料厚</div><div>迭代</div><div>耗时</div><div>进度</div><div style="text-align:right;">状态</div>
+            </div>
+            <sc-for list="{{ jobs }}" as="j" hint-placeholder-count="5">
+              <div onClick="{{ j.onOpen }}" style="display:grid; grid-template-columns:110px minmax(150px,1.4fr) 120px 60px 60px 1fr 92px; gap:0; align-items:center; padding:13px 18px; border-bottom:1px solid #f2f4f7; cursor:pointer; transition:background .12s; min-width:660px; white-space:nowrap;" style-hover="background:#f7f9fb;">
+                <div class="mono" style="font-size:12.5px; font-weight:600; color:#1d4ed8;">{{ j.id }}</div>
+                <div><div style="font-size:13px; font-weight:500; color:#242a31;">{{ j.part }}</div><div style="font-size:11px; color:#9aa3ae;">{{ j.cust }}</div></div>
+                <div class="mono" style="font-size:12px; color:#4a525c;">{{ j.mat }} · {{ j.t }}</div>
+                <div class="mono" style="font-size:12.5px; color:#4a525c;">{{ j.iters }}</div>
+                <div class="mono" style="font-size:12px; color:#8a929c;">{{ j.dur }}</div>
+                <div style="padding-right:14px;"><div style="height:6px; background:#eef1f5; border-radius:6px; overflow:hidden;"><div style="height:100%; width:{{ j.prog }}%; background:{{ j.progColor }}; border-radius:6px;"></div></div></div>
+                <div style="text-align:right;"><span style="font-size:11px; font-weight:600; color:{{ j.stColor }}; background:{{ j.stBg }}; padding:3px 9px; border-radius:20px; white-space:nowrap;">{{ j.status }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- side column -->
+          <div style="display:flex; flex-direction:column; gap:18px;">
+            <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:16px 18px;">
+              <div style="font-weight:600; font-size:14px; margin-bottom:14px;">近 7 日吞吐</div>
+              <div style="display:flex; align-items:flex-end; gap:9px; height:96px;">
+                <sc-for list="{{ throughput }}" as="d" hint-placeholder-count="7">
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; justify-content:flex-end; height:100%;">
+                    <div style="width:100%; display:flex; flex-direction:column; justify-content:flex-end; height:76px;">
+                      <div style="width:100%; height:{{ d.okH }}px; background:#22c55e; border-radius:4px 4px 0 0;"></div>
+                      <div style="width:100%; height:{{ d.ngH }}px; background:#f0b429;"></div>
+                    </div>
+                    <div class="mono" style="font-size:10px; color:#9aa3ae;">{{ d.day }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex; gap:16px; margin-top:12px; font-size:11px; color:#7b8494;"><span style="display:flex; align-items:center; gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:#22c55e;"></span>一次通过</span><span style="display:flex; align-items:center; gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:#f0b429;"></span>需迭代/人工</span></div>
+            </div>
+
+            <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:16px 18px; flex:1;">
+              <div style="font-weight:600; font-size:14px; margin-bottom:12px;">待审核 · 需要你</div>
+              <sc-for list="{{ reviewQueue }}" as="r" hint-placeholder-count="2">
+                <div onClick="{{ r.onOpen }}" style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid #f2f4f7; cursor:pointer;">
+                  <div style="width:8px; height:8px; border-radius:50%; background:{{ r.dot }}; flex:0 0 auto;"></div>
+                  <div style="flex:1; min-width:0;">
+                    <div class="mono" style="font-size:12.5px; font-weight:600; color:#242a31;">{{ r.id }} · {{ r.part }}</div>
+                    <div style="font-size:11px; color:#9aa3ae;">{{ r.note }}</div>
+                  </div>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c3cad3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ LIVE CONSOLE ============ -->
+      <sc-if value="{{ isConsole }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:20px 24px 36px;">
+        <!-- part header -->
+        <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:16px 20px; margin-bottom:16px; display:flex; align-items:center; gap:28px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="mono" style="font-size:17px; font-weight:600; color:#1d4ed8; white-space:nowrap;">Q2411040</span>
+              <span style="font-size:15px; font-weight:600; white-space:nowrap;">Bottom Cover</span>
+              <span style="font-size:11px; font-weight:600; color:{{ verColor }}; background:{{ verBg }}; padding:3px 10px; border-radius:20px; white-space:nowrap;">{{ verdictNow }}</span>
+            </div>
+            <div class="mono" style="font-size:11px; color:#8a929c; margin-top:4px;">客户 BOSCH · DEMO-0214M000A3</div>
+          </div>
+          <div style="display:flex; gap:26px; flex:0 0 auto;">
+            <div style="white-space:nowrap;"><div style="font-size:11px; color:#9aa3ae;">材质</div><div class="mono" style="font-size:13px; font-weight:500;">AL 1060</div></div>
+            <div style="white-space:nowrap;"><div style="font-size:11px; color:#9aa3ae;">料厚</div><div class="mono" style="font-size:13px; font-weight:500;">1.2 mm</div></div>
+            <div style="white-space:nowrap;"><div style="font-size:11px; color:#9aa3ae;">工序数</div><div class="mono" style="font-size:13px; font-weight:500;">3 序</div></div>
+            <div style="white-space:nowrap;"><div style="font-size:11px; color:#9aa3ae;">利用率</div><div class="mono" style="font-size:13px; font-weight:500;">71%</div></div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="display:flex; gap:9px;">
+            <button onClick="{{ onReset }}" style="display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #d9dfe6; color:#4a525c; border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer; font-family:inherit;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>重置
+            </button>
+            <button onClick="{{ onPlayToggle }}" style="display:flex; align-items:center; gap:7px; background:{{ playBtnBg }}; color:#fff; border:none; border-radius:8px; padding:8px 17px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="{{ playIcon }}"/></svg>{{ playLabel }}
+            </button>
+          </div>
+        </div>
+
+        <!-- pipeline stepper -->
+        <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:16px 20px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center;">
+            <sc-for list="{{ pipeline }}" as="s" hint-placeholder-count="7">
+              <div style="display:flex; align-items:center; flex:{{ s.flex }};">
+                <div style="display:flex; flex-direction:column; align-items:center; gap:7px; flex:0 0 auto;">
+                  <div style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:{{ s.circleBg }}; border:2px solid {{ s.circleBorder }}; color:{{ s.iconColor }}; {{ s.anim }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="{{ s.icon }}"/></svg>
+                  </div>
+                  <div style="font-size:11px; font-weight:{{ s.weight }}; color:{{ s.labelColor }}; white-space:nowrap;">{{ s.label }}</div>
+                </div>
+                <sc-if value="{{ s.hasBar }}" hint-placeholder-val="{{ true }}">
+                  <div style="flex:1; height:2px; background:#e6eaef; margin:0 6px 22px; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; width:{{ s.barFill }}%; background:#1d4ed8;"></div></div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 372px; gap:16px;">
+          <!-- LEFT: iterations + FLD -->
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <!-- iteration ladder -->
+            <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; overflow:hidden;">
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #eef1f5;">
+                <div style="font-weight:600; font-size:14px;">仿真 ⇄ 优化 迭代闭环</div>
+                <div class="mono" style="font-size:11px; color:#8a929c;">阈值 减薄≤22% · 起皱≤低 · FLD裕度≥3%</div>
+              </div>
+              <div style="display:grid; grid-template-columns:74px 88px 92px 84px 1.3fr 70px 82px 72px; padding:9px 18px; background:#fafbfc; border-bottom:1px solid #eef1f5; font-size:10.5px; color:#8a929c; font-weight:500;">
+                <div>迭代</div><div>凹模R</div><div>压边力</div><div>拉延筋</div><div>最大减薄率</div><div>起皱</div><div>FLD裕度</div><div style="text-align:right;">判定</div>
+              </div>
+              <sc-for list="{{ iterRows }}" as="it" hint-placeholder-count="4">
+                <div onClick="{{ it.onClick }}" style="display:grid; grid-template-columns:74px 88px 92px 84px 1.3fr 70px 82px 72px; align-items:center; padding:12px 18px; border-bottom:1px solid #f2f4f7; cursor:pointer; background:{{ it.rowBg }}; opacity:{{ it.opacity }}; transition:opacity .3s, background .12s; animation:ma-in .3s;">
+                  <div class="mono" style="font-size:12.5px; font-weight:600; color:{{ it.nColor }};">{{ it.label }}</div>
+                  <div class="mono" style="font-size:12px; color:#3a424c;">{{ it.R }}</div>
+                  <div class="mono" style="font-size:12px; color:#3a424c;">{{ it.bhf }}</div>
+                  <div class="mono" style="font-size:12px; color:#3a424c;">{{ it.bead }}</div>
+                  <div style="display:flex; align-items:center; gap:9px; padding-right:14px;">
+                    <div style="flex:1; height:7px; background:#eef1f5; border-radius:6px; position:relative; overflow:hidden;">
+                      <div style="position:absolute; left:0; top:0; bottom:0; width:{{ it.thinPct }}%; background:{{ it.thinColor }}; border-radius:6px;"></div>
+                      <div style="position:absolute; left:{{ thinThreshPct }}%; top:-2px; bottom:-2px; width:2px; background:#dc2626;"></div>
+                    </div>
+                    <span class="mono" style="font-size:12px; font-weight:600; color:{{ it.thinColor }}; width:44px;">{{ it.thin }}</span>
+                  </div>
+                  <div style="font-size:11.5px; color:{{ it.wrinkleColor }};">{{ it.wrinkle }}</div>
+                  <div class="mono" style="font-size:12px; color:{{ it.fldColor }};">{{ it.fld }}</div>
+                  <div style="text-align:right;"><span style="font-size:10.5px; font-weight:600; color:{{ it.vColor }}; background:{{ it.vBg }}; padding:2px 8px; border-radius:20px; white-space:nowrap;">{{ it.verdict }}</span></div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ notConverged }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:14px 18px; text-align:center; color:#a7b0bb; font-size:12px;">
+                  <span class="mono" style="animation:ma-pulse 1.2s infinite;">▚ 等待求解器返回结果 …</span>
+                </div>
+              </sc-if>
+            </div>
+
+            <!-- FLD + inspect -->
+            <div style="display:grid; grid-template-columns:1fr 300px; gap:16px;">
+              <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:16px 18px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                  <div style="font-weight:600; font-size:13.5px;">成形极限图 (FLD)</div>
+                  <div class="mono" style="font-size:11px; color:#8a929c;">迭代 {{ inspectLabel }}</div>
+                </div>
+                <svg viewBox="0 0 300 220" style="width:100%; height:auto; display:block;">
+                  <rect x="42" y="8" width="246" height="176" fill="#fafbfc" stroke="#eef1f5"/>
+                  <!-- safe zone under curve -->
+                  <path d="{{ fldSafeArea }}" fill="#ecf7ee" opacity="0.7"/>
+                  <!-- grid -->
+                  <line x1="165" y1="8" x2="165" y2="184" stroke="#e6eaef" stroke-width="1"/>
+                  <!-- FLC curve -->
+                  <path d="{{ fldCurve }}" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 3"/>
+                  <!-- points -->
+                  <sc-for list="{{ fldPoints }}" as="p" hint-placeholder-count="12">
+                    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ p.fill }}" opacity="0.85"/>
+                  </sc-for>
+                  <text x="165" y="205" text-anchor="middle" fill="#8a929c" font-size="10" font-family="IBM Plex Mono">次应变 minor →</text>
+                  <text x="16" y="96" text-anchor="middle" fill="#8a929c" font-size="10" font-family="IBM Plex Mono" transform="rotate(-90 16 96)">主应变 major →</text>
+                  <text x="60" y="24" fill="#dc2626" font-size="9.5" font-family="IBM Plex Mono">FLC 极限</text>
+                </svg>
+                <div style="display:flex; gap:14px; margin-top:6px; font-size:10.5px; color:#7b8494;">
+                  <span style="display:flex; align-items:center; gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#22c55e;"></span>安全</span>
+                  <span style="display:flex; align-items:center; gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#f0b429;"></span>临界</span>
+                  <span style="display:flex; align-items:center; gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#dc2626;"></span>破裂风险</span>
+                </div>
+              </div>
+
+              <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:16px 18px;">
+                <div style="font-weight:600; font-size:13.5px; margin-bottom:14px;">当前工况指标</div>
+                <sc-for list="{{ gauges }}" as="g" hint-placeholder-count="4">
+                  <div style="margin-bottom:15px;">
+                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+                      <span style="font-size:12px; color:#5b636d;">{{ g.label }}</span>
+                      <span class="mono" style="font-size:14px; font-weight:600; color:{{ g.color }};">{{ g.value }}</span>
+                    </div>
+                    <div style="height:6px; background:#eef1f5; border-radius:6px; overflow:hidden;"><div style="height:100%; width:{{ g.pct }}%; background:{{ g.color }}; border-radius:6px; transition:width .4s;"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: agent log + HITL -->
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div style="background:#0f141b; border:1px solid #1c2530; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #1c2530;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="width:8px; height:8px; border-radius:50%; background:{{ liveDot }}; {{ liveDotAnim }}"></span>
+                  <span style="font-size:13px; font-weight:600; color:#e6edf5;">Agent 执行日志</span>
+                </div>
+                <span class="mono" style="font-size:10.5px; color:#5f6b7a;">{{ logCountLabel }}</span>
+              </div>
+              <div style="padding:8px 4px; max-height:340px; overflow-y:auto;">
+                <sc-for list="{{ logLines }}" as="l" hint-placeholder-count="4">
+                  <div style="display:flex; gap:10px; padding:7px 12px; animation:ma-in .28s;">
+                    <span class="mono" style="font-size:10px; color:#4b5563; flex:0 0 auto; padding-top:2px;">{{ l.time }}</span>
+                    <span style="width:6px; height:6px; border-radius:50%; background:{{ l.dot }}; flex:0 0 auto; margin-top:6px;"></span>
+                    <div style="min-width:0;">
+                      <span class="mono" style="font-size:10.5px; font-weight:600; color:{{ l.agentColor }};">{{ l.agent }}</span>
+                      <span style="font-size:12px; color:#c2ccd8; line-height:1.5;"> {{ l.text }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ isRunning }}" hint-placeholder-val="{{ true }}">
+                  <div style="padding:7px 12px 10px 40px;"><span class="mono" style="font-size:12px; color:#3b82f6; animation:ma-blink 1s infinite;">▋</span></div>
+                </sc-if>
+              </div>
+            </div>
+
+            <!-- HITL gate -->
+            <div style="background:#fff; border:1px solid {{ hitlBorder }}; border-radius:12px; overflow:hidden;">
+              <div style="padding:13px 16px; background:{{ hitlHeaderBg }}; border-bottom:1px solid #eef1f5; display:flex; align-items:center; gap:8px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ hitlIconColor }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 3a9 9 0 1 0 9 9"/></svg>
+                <span style="font-size:13px; font-weight:600; color:#242a31;">人工审核关卡</span>
+              </div>
+              <div style="padding:16px;">
+                <div style="font-size:12.5px; color:#5b636d; line-height:1.6; margin-bottom:14px;">{{ hitlText }}</div>
+                <sc-if value="{{ hitlReady }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex; gap:9px;">
+                    <button onClick="{{ onApprove }}" style="flex:1; background:#16a34a; color:#fff; border:none; border-radius:8px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">批准 · 出报告</button>
+                    <button onClick="{{ onReject }}" style="flex:0 0 auto; background:#fff; border:1px solid #d9dfe6; color:#5b636d; border-radius:8px; padding:10px 14px; font-size:13px; cursor:pointer; font-family:inherit;">打回</button>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ hitlApproved }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ onGotoReport }}" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#e7f6ec; color:#15803d; border:1px solid #b9e3c6; border-radius:8px; padding:11px; font-size:13px; font-weight:600; cursor:pointer;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                    已批准 · 查看可行性报告
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ ORCHESTRATION GRAPH ============ -->
+      <sc-if value="{{ isGraph }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:24px 28px 40px;">
+        <div style="display:grid; grid-template-columns:1fr 320px; gap:18px;">
+          <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:20px; position:relative;">
+            <div style="font-weight:600; font-size:14px; margin-bottom:6px;">Agent 编排拓扑</div>
+            <div style="font-size:12px; color:#8a929c; margin-bottom:8px;">编排器驱动的仿真⇄优化闭环 · 点击节点查看职责</div>
+            <div style="overflow-x:auto; padding-bottom:4px;">
+            <div style="position:relative; width:900px; height:520px;">
+              <svg viewBox="0 0 900 520" style="position:absolute; inset:0; width:100%; height:100%;">
+                <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#98a2b3"/></marker><marker id="arb" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#3b82f6"/></marker></defs>
+                <sc-for list="{{ edges }}" as="e" hint-placeholder-count="8">
+                  <path d="{{ e.d }}" fill="none" stroke="{{ e.stroke }}" stroke-width="{{ e.w }}" stroke-dasharray="{{ e.dash }}" marker-end="{{ e.marker }}" style="{{ e.anim }}"/>
+                </sc-for>
+                <sc-for list="{{ edgeLabels }}" as="el" hint-placeholder-count="2">
+                  <text x="{{ el.x }}" y="{{ el.y }}" fill="{{ el.color }}" font-size="11" font-family="IBM Plex Mono" text-anchor="middle">{{ el.text }}</text>
+                </sc-for>
+              </svg>
+              <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="8">
+                <div onClick="{{ n.onClick }}" style="position:absolute; left:{{ n.left }}px; top:{{ n.top }}px; width:{{ n.w }}px; transform:translate(-50%,-50%); background:{{ n.bg }}; border:2px solid {{ n.border }}; border-radius:11px; padding:11px 12px; cursor:pointer; box-shadow:{{ n.shadow }}; transition:transform .1s;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:26px; height:26px; border-radius:7px; background:{{ n.iconBg }}; display:flex; align-items:center; justify-content:center; flex:0 0 auto;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ n.iconColor }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ n.icon }}"/></svg>
+                    </div>
+                    <div style="min-width:0;">
+                      <div style="font-size:12.5px; font-weight:600; color:{{ n.titleColor }}; white-space:nowrap;">{{ n.title }}</div>
+                      <div class="mono" style="font-size:9.5px; color:{{ n.subColor }};">{{ n.sub }}</div>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            </div>
+          </div>
+
+          <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; padding:20px; align-self:start;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+              <div style="width:36px; height:36px; border-radius:9px; background:{{ detailIconBg }}; display:flex; align-items:center; justify-content:center;">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{ detailIconColor }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ detailIcon }}"/></svg>
+              </div>
+              <div><div style="font-size:15px; font-weight:600;">{{ detailTitle }}</div><div class="mono" style="font-size:10.5px; color:#8a929c;">{{ detailSub }}</div></div>
+            </div>
+            <div style="font-size:12.5px; color:#5b636d; line-height:1.65; margin-bottom:16px;">{{ detailDesc }}</div>
+            <div style="border-top:1px solid #eef1f5; padding-top:14px;">
+              <div class="mono" style="font-size:10px; color:#9aa3ae; letter-spacing:.5px; margin-bottom:8px;">输入 → 输出</div>
+              <div style="font-size:12px; color:#3a424c; line-height:1.7;">{{ detailIO }}</div>
+            </div>
+            <div style="border-top:1px solid #eef1f5; padding-top:14px; margin-top:14px;">
+              <div class="mono" style="font-size:10px; color:#9aa3ae; letter-spacing:.5px; margin-bottom:8px;">工具 / 依赖</div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                <sc-for list="{{ detailTools }}" as="t" hint-placeholder-count="3">
+                  <span class="mono" style="font-size:11px; background:#f3f5f8; border:1px solid #e5eaf0; color:#4a525c; padding:3px 9px; border-radius:6px;">{{ t.name }}</span>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ REPORT ============ -->
+      <sc-if value="{{ isReport }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:24px; display:flex; justify-content:center;">
+        <div style="width:820px; background:#fff; border:1px solid #e4e9ef; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:hidden;">
+          <div style="height:8px; background:linear-gradient(90deg,#1d4ed8,#3b82f6);"></div>
+          <div style="padding:40px 52px 44px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #171a1f; padding-bottom:18px; margin-bottom:26px;">
+              <div>
+                <div class="mono" style="font-size:11px; color:#8a929c; letter-spacing:2px;">FEASIBILITY ASSESSMENT</div>
+                <h2 style="margin:6px 0 0; font-size:24px; font-weight:700;">前期可行性评估报告</h2>
+                <div style="font-size:14px; color:#5b636d; margin-top:4px;">Bottom Cover · DEMO-0214M000A3</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:11px; font-weight:600; color:#15803d; background:#e7f6ec; padding:4px 12px; border-radius:20px; display:inline-block;">✓ 评估通过</div>
+                <div class="mono" style="font-size:11px; color:#8a929c; margin-top:8px;">v1 · 2026-07-01</div>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:#eef1f5; border:1px solid #eef1f5; border-radius:8px; overflow:hidden; margin-bottom:28px;">
+              <sc-for list="{{ reportFacts }}" as="f" hint-placeholder-count="8">
+                <div style="background:#fafbfc; padding:12px 14px;"><div style="font-size:11px; color:#9aa3ae;">{{ f.k }}</div><div class="mono" style="font-size:13px; font-weight:600; color:#242a31; margin-top:3px;">{{ f.v }}</div></div>
+              </sc-for>
+            </div>
+
+            <h3 style="font-size:15px; font-weight:600; margin:0 0 12px; display:flex; align-items:center; gap:8px;"><span style="width:4px; height:15px; background:#1d4ed8; border-radius:2px;"></span>成型仿真结论</h3>
+            <p style="font-size:13.5px; color:#3a424c; line-height:1.75; margin:0 0 18px;">经 4 次仿真⇄优化迭代闭环，通过增大凹模圆角 (3.0→6.0mm) 与降低压边力 (200→150kN) 并配合拉延筋阻力优化，最大减薄率由 <b style="color:#dc2626;">28.5%</b> 收敛至 <b style="color:#16a34a;">19.8%</b>，低于 22% 安全阈值；起皱风险降至"低"，FLD 全部单元位于安全区。<b>该零件在当前材质与料厚下具备一次拉延成型可行性。</b></p>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px;">
+              <sc-for list="{{ reportMetrics }}" as="m" hint-placeholder-count="4">
+                <div style="border:1px solid #eef1f5; border-radius:8px; padding:13px 15px;">
+                  <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:12px; color:#7b8494;">{{ m.label }}</span><span class="mono" style="font-size:15px; font-weight:600; color:{{ m.color }};">{{ m.value }}</span></div>
+                  <div style="font-size:11px; color:#9aa3ae; margin-top:5px;">{{ m.note }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <h3 style="font-size:15px; font-weight:600; margin:0 0 12px; display:flex; align-items:center; gap:8px;"><span style="width:4px; height:15px; background:#1d4ed8; border-radius:2px;"></span>推荐工艺方案</h3>
+            <div style="display:flex; gap:10px; margin-bottom:22px;">
+              <sc-for list="{{ processSteps }}" as="p" hint-placeholder-count="3">
+                <div style="flex:1; border:1px solid #e4e9ef; border-radius:9px; padding:14px; text-align:center;">
+                  <div class="mono" style="font-size:11px; color:#1d4ed8; font-weight:600;">OP{{ p.n }}</div>
+                  <div style="font-size:13.5px; font-weight:600; margin:6px 0 3px;">{{ p.name }}</div>
+                  <div style="font-size:11px; color:#9aa3ae;">{{ p.note }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <h3 style="font-size:15px; font-weight:600; margin:0 0 12px; display:flex; align-items:center; gap:8px;"><span style="width:4px; height:15px; background:#f0b429; border-radius:2px;"></span>风险与建议</h3>
+            <ul style="margin:0 0 24px; padding-left:20px; font-size:13px; color:#3a424c; line-height:1.9;">
+              <li>凸模圆角过渡区减薄率 19.8%，接近安全边界，建议试模阶段重点监控。</li>
+              <li>材料利用率 71%，建议评估交错排样以降低材料成本约 6-8%。</li>
+              <li>压边力窗口较窄 (140-160kN)，量产需保证压边圈刚度与稳定性。</li>
+            </ul>
+
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #eef1f5; padding-top:20px;">
+              <div style="font-size:11px; color:#9aa3ae; line-height:1.6;">本报告由 MoldAgent 自动生成<br>并经资深工程师人工审核批准</div>
+              <div style="text-align:center;"><div style="font-family:'Brush Script MT',cursive; font-size:22px; color:#1d4ed8; border-bottom:1px solid #d9dfe6; padding:0 24px 2px;">陈工</div><div class="mono" style="font-size:10px; color:#9aa3ae; margin-top:5px;">审核签署 · 2026-07-01</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ KNOWLEDGE BASE ============ -->
+      <sc-if value="{{ isKb }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:24px 28px 40px;">
+        <div style="display:grid; grid-template-columns:400px 1fr; gap:18px;">
+          <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #eef1f5;">
+              <div style="font-weight:600; font-size:14px;">优化规则库</div>
+              <span class="mono" style="font-size:11px; color:#8a929c;">{{ ruleCount }} 条 · 已启用</span>
+            </div>
+            <sc-for list="{{ rules }}" as="r" hint-placeholder-count="5">
+              <div onClick="{{ r.onClick }}" style="padding:13px 18px; border-bottom:1px solid #f2f4f7; cursor:pointer; background:{{ r.bg }}; border-left:3px solid {{ r.accent }};">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;">
+                  <span class="mono" style="font-size:12px; font-weight:600; color:{{ r.idColor }};">{{ r.id }}</span>
+                  <span class="mono" style="font-size:10.5px; color:#9aa3ae;">命中 {{ r.hits }}</span>
+                </div>
+                <div style="font-size:12.5px; color:#3a424c; line-height:1.5;">{{ r.name }}</div>
+              </div>
+            </sc-for>
+            <div style="padding:13px 18px;"><button style="width:100%; background:#f3f5f8; border:1px dashed #c3cad3; color:#5b636d; border-radius:8px; padding:9px; font-size:12.5px; cursor:pointer; font-family:inherit;">+ 新增规则</button></div>
+          </div>
+
+          <div style="background:#fff; border:1px solid #e4e9ef; border-radius:12px; overflow:hidden; align-self:start;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 18px; border-bottom:1px solid #eef1f5;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span class="mono" style="font-size:13px; font-weight:600; color:#1d4ed8;">{{ selRuleId }}</span>
+                <span class="mono" style="font-size:11px; color:#8a929c;">rule.yaml</span>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button style="background:#fff; border:1px solid #d9dfe6; color:#5b636d; border-radius:7px; padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit;">测试</button>
+                <button style="background:#1d4ed8; color:#fff; border:none; border-radius:7px; padding:6px 14px; font-size:12px; font-weight:500; cursor:pointer; font-family:inherit;">保存</button>
+              </div>
+            </div>
+            <div style="display:flex;">
+              <div class="mono" style="padding:18px 10px; background:#fafbfc; border-right:1px solid #eef1f5; color:#c3cad3; font-size:12.5px; line-height:1.9; text-align:right; user-select:none;">
+                <sc-for list="{{ yamlLineNums }}" as="ln" hint-placeholder-count="12"><div>{{ ln.n }}</div></sc-for>
+              </div>
+              <pre class="mono" style="margin:0; padding:18px 20px; font-size:12.5px; line-height:1.9; color:#242a31; overflow-x:auto; flex:1; white-space:pre;">{{ yamlText }}</pre>
+            </div>
+            <div style="border-top:1px solid #eef1f5; padding:14px 18px; display:flex; gap:26px;">
+              <div><div style="font-size:11px; color:#9aa3ae;">优先级</div><div class="mono" style="font-size:13px; font-weight:600;">{{ selRulePrio }}</div></div>
+              <div><div style="font-size:11px; color:#9aa3ae;">累计命中</div><div class="mono" style="font-size:13px; font-weight:600;">{{ selRuleHits }}</div></div>
+              <div><div style="font-size:11px; color:#9aa3ae;">最近命中</div><div class="mono" style="font-size:13px; font-weight:600;">Q2411040 · #1</div></div>
+              <div><div style="font-size:11px; color:#9aa3ae;">状态</div><div style="font-size:12.5px; font-weight:600; color:#16a34a;">● 已启用</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { view: 'console', playing: false, logIndex: 14, inspect: 3, node: 'orch', rule: 'R-thinning-01', approved: false };
+
+  componentWillUnmount() { clearInterval(this._t); }
+
+  // ---- static data ----
+  ITERS = [
+    { n:0, label:'基线', R:'3.0mm', bhf:'200kN', bead:'标准', thin:28.5, wrinkle:'中', wc:'#d97706', fld:-4.0, verdict:'NG' },
+    { n:1, label:'#1', R:'4.0mm', bhf:'180kN', bead:'-10%', thin:24.1, wrinkle:'中', wc:'#d97706', fld:1.5, verdict:'风险' },
+    { n:2, label:'#2', R:'5.0mm', bhf:'165kN', bead:'-20%', thin:21.3, wrinkle:'低', wc:'#16a34a', fld:5.2, verdict:'接近' },
+    { n:3, label:'#3', R:'6.0mm', bhf:'150kN', bead:'-25%', thin:19.8, wrinkle:'低', wc:'#16a34a', fld:8.6, verdict:'达标' },
+  ];
+
+  EVENTS = [
+    { agent:'信息Agent', ac:'#60a5fa', dot:'#3b82f6', stage:0, iters:0, text:'解析 RFQ 与 3D 数模，识别 AL 1060 / t1.2mm / 12 处关键特征' },
+    { agent:'展开Agent', ac:'#a78bfa', dot:'#8b5cf6', stage:1, iters:0, text:'计算展开毛坯，落料 268×214mm，材料利用率 71%' },
+    { agent:'仿真Agent', ac:'#38bdf8', dot:'#0ea5e9', stage:2, iters:0, text:'提交一步成型仿真 (OneStep)，网格 12.4k · 工况=基线参数' },
+    { agent:'判定Agent', ac:'#fbbf24', dot:'#f59e0b', stage:3, iters:1, text:'最大减薄 28.5% > 阈值 22% → NG，起皱风险 中' },
+    { agent:'优化Agent', ac:'#4ade80', dot:'#22c55e', stage:4, iters:1, text:'命中规则 R-thinning-01：凹模圆角 3.0→4.0mm' },
+    { agent:'仿真Agent', ac:'#38bdf8', dot:'#0ea5e9', stage:2, iters:1, text:'迭代 #1 重新提交仿真 …' },
+    { agent:'判定Agent', ac:'#fbbf24', dot:'#f59e0b', stage:3, iters:2, text:'最大减薄 24.1%，仍超阈值 → 风险' },
+    { agent:'优化Agent', ac:'#4ade80', dot:'#22c55e', stage:4, iters:2, text:'命中 R-thinning-02：压边力 180→165kN，拉延筋阻力 -20%' },
+    { agent:'仿真Agent', ac:'#38bdf8', dot:'#0ea5e9', stage:2, iters:2, text:'迭代 #2 重新提交仿真 …' },
+    { agent:'判定Agent', ac:'#fbbf24', dot:'#f59e0b', stage:3, iters:3, text:'最大减薄 21.3%，FLD 进入安全区 → 接近达标' },
+    { agent:'优化Agent', ac:'#4ade80', dot:'#22c55e', stage:4, iters:3, text:'微调：凹模圆角 5.0→6.0mm，压边力 165→150kN' },
+    { agent:'仿真Agent', ac:'#38bdf8', dot:'#0ea5e9', stage:2, iters:3, text:'迭代 #3 重新提交仿真 …' },
+    { agent:'判定Agent', ac:'#fbbf24', dot:'#f59e0b', stage:3, iters:4, text:'最大减薄 19.8%，起皱 低，FLD 全部安全 → 达标 ✓' },
+    { agent:'工艺Agent', ac:'#f472b6', dot:'#ec4899', stage:5, iters:4, text:'生成工序方案：拉延 → 修边 → 翻边整形，共 3 序' },
+    { agent:'报告Agent', ac:'#94a3b8', dot:'#64748b', stage:6, iters:4, text:'汇总生成《前期可行性评估报告 v1》，等待工程师审核' },
+  ];
+
+  PIPE = ['信息采集','毛坯展开','成型仿真','成形判定','参数优化','工艺方案','可行性报告'];
+  PIPE_ICONS = [
+    'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M9 13h6 M9 17h4',
+    'M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z',
+    'M12 2v4 M12 18v4 M4.9 4.9l2.8 2.8 M16.3 16.3l2.8 2.8 M2 12h4 M18 12h4 M4.9 19.1l2.8-2.8 M16.3 7.7l2.8-2.8',
+    'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+    'M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.2a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.3.5a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.4a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.3.5a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.2a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.2a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.3-.5a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.4a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.3-.5a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.2a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+    'M3 3v18h18 M18.7 8l-5.1 5.2-2.8-2.7L7 14.3',
+    'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
+  ];
+
+  RULES = [
+    { id:'R-thinning-01', prio:1, hits:128, name:'减薄率超限 → 增大凹模圆角',
+      yaml:'id: R-thinning-01\npriority: 1\ndescription: 减薄率超限时增大凹模圆角\ntrigger:\n  when: max_thinning > 0.22\n  and:  wrinkle_risk <= "中"\naction:\n  - param: die_radius\n    op: increase\n    step: 1.0        # mm\n    max: 8.0\nstop_when: max_thinning <= 0.22' },
+    { id:'R-thinning-02', prio:2, hits:96, name:'减薄率超限 → 降低压边力',
+      yaml:'id: R-thinning-02\npriority: 2\ndescription: 减薄仍超限时降低压边力\ntrigger:\n  when: max_thinning > 0.22\naction:\n  - param: blank_holder_force\n    op: scale\n    factor: 0.9\n  - param: draw_bead_restraint\n    op: decrease\n    step: 0.1\nguard: wrinkle_risk <= "中"' },
+    { id:'R-wrinkle-01', prio:1, hits:54, name:'起皱风险 → 提高压边力 / 加拉延筋',
+      yaml:'id: R-wrinkle-01\npriority: 1\ndescription: 起皱风险偏高时抑制起皱\ntrigger:\n  when: wrinkle_risk >= "高"\naction:\n  - param: blank_holder_force\n    op: scale\n    factor: 1.1\n  - param: draw_bead\n    op: add\n    count: 1' },
+    { id:'R-fld-01', prio:1, hits:73, name:'FLD 超限 → 组合调参',
+      yaml:'id: R-fld-01\npriority: 1\ndescription: FLD 单元进入破裂区时组合调参\ntrigger:\n  when: fld_margin < 0\naction:\n  - param: die_radius\n    op: increase\n    step: 1.0\n  - param: blank_holder_force\n    op: scale\n    factor: 0.92' },
+    { id:'R-util-01', prio:3, hits:22, name:'材料利用率过低 → 提示排样优化',
+      yaml:'id: R-util-01\npriority: 3\ndescription: 利用率偏低时提示排样优化\ntrigger:\n  when: nesting_util < 0.65\naction:\n  - flag: SUGGEST_NESTING\n    message: 建议评估双排 / 交错排样' },
+  ];
+
+  NODES = {
+    orch:{ title:'编排器', sub:'Orchestrator', desc:'流程状态机，驱动"展开→仿真→判定→优化"闭环，管理迭代预算、收敛判定与人工审核关卡的挂起/恢复。真实系统由 LangGraph 实现。', io:'RFQ 任务 → 各 Agent 调度 · 迭代收敛结果', tools:['LangGraph','状态存储','HITL 网关'], icon:'M12 2 2 7l10 5 10-5-10-5Z M2 17l10 5 10-5 M2 12l10 5 10-5', ic:'#1d4ed8', ibg:'#e0eaff', x:450,y:40,w:150 },
+    info:{ title:'信息Agent', sub:'Intake', desc:'解析 RFQ 文档与 3D 数模，抽取材质、料厚、公差、关键特征与成形工艺要求，形成结构化任务上下文。', io:'RFQ + STEP/数模 → 结构化零件规格', tools:['文档解析','CAD 读取','LLM 抽取'], icon:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6', ic:'#2563eb', ibg:'#e0eaff', x:120,y:180,w:150 },
+    unfold:{ title:'展开Agent', sub:'Blank', desc:'基于零件几何计算展开毛坯轮廓与落料尺寸，估算材料利用率，为一步成型提供初始坯料。', io:'零件规格 → 毛坯轮廓 / 落料尺寸 / 利用率', tools:['展开算法','排样估算'], icon:'M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8', ic:'#7c3aed', ibg:'#ede4ff', x:330,y:180,w:150 },
+    sim:{ title:'仿真Agent', sub:'AutoForm', desc:'调用 AutoForm 求解器执行一步/增量成型仿真，返回减薄率、增厚率、FLD、起皱等成形性场量。', io:'工况参数 → 成形性仿真结果场', tools:['AutoForm API','OneStep','网格生成'], icon:'M12 2v4 M12 18v4 M4.9 4.9l2.8 2.8 M2 12h4 M18 12h4 M16.3 7.7l2.8-2.8', ic:'#0284c7', ibg:'#dcf1fb', x:540,y:180,w:150 },
+    judge:{ title:'判定Agent', sub:'Evaluate', desc:'依据减薄率、起皱、FLD 裕度阈值判定成形性是否达标；未达标输出偏差诊断并触发优化。', io:'仿真结果 → 达标判定 + 偏差诊断', tools:['阈值规则','FLD 分析'], icon:'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', ic:'#d97706', ibg:'#fdefda', x:750,y:180,w:150 },
+    opt:{ title:'优化Agent', sub:'Optimize', desc:'命中知识库规则，调整凹模圆角、压边力、拉延筋等工艺参数生成新工况，回送仿真形成闭环。', io:'偏差诊断 + 规则库 → 新工况参数', tools:['规则引擎','参数搜索','KB'], icon:'M12.2 2h-.4a2 2 0 0 0-2 2 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z', ic:'#16a34a', ibg:'#e3f6e9', x:750,y:320,w:150 },
+    proc:{ title:'工艺Agent', sub:'Process', desc:'达标后生成推荐工序方案（拉延/修边/翻边等）与工艺参数窗口，供报告与后续模具设计使用。', io:'收敛工况 → 工序方案 / 参数窗口', tools:['工序库','LLM 规划'], icon:'M3 3v18h18 M18.7 8l-5.1 5.2-2.8-2.7L7 14.3', ic:'#db2777', ibg:'#fce4f1', x:450,y:320,w:150 },
+    report:{ title:'报告Agent', sub:'Report', desc:'汇总仿真结论、迭代过程、工艺方案与风险建议，生成可行性评估报告，进入人工审核关卡。', io:'全流程结果 → 可行性报告 (待审核)', tools:['模板引擎','LLM 撰写'], icon:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M16 13H8 M16 17H8', ic:'#64748b', ibg:'#eef1f5', x:450,y:450,w:150 },
+  };
+
+  JOBS = [
+    { id:'Q2411040', part:'Bottom Cover', cust:'BOSCH', mat:'AL 1060', t:'1.2mm', iters:4, dur:'11m', prog:100, status:'待审核' },
+    { id:'Q2412088', part:'Bracket Rear', cust:'VALEO', mat:'SPCC', t:'1.5mm', iters:2, dur:'6m', prog:60, status:'仿真中' },
+    { id:'Q2412103', part:'Heat Shield', cust:'BOSCH', mat:'AL 5052', t:'0.8mm', iters:0, dur:'—', prog:8, status:'排队' },
+    { id:'Q2411992', part:'Motor End Cap', cust:'DENSO', mat:'SUS304', t:'1.0mm', iters:5, dur:'18m', prog:100, status:'已完成' },
+    { id:'Q2411870', part:'Side Panel', cust:'BOSCH', mat:'SPCC', t:'0.9mm', iters:6, dur:'22m', prog:100, status:'NG-需人工' },
+  ];
+
+  // ---- helpers ----
+  statusStyle(s){
+    const m={'待审核':['#b45309','#fdf3e3'],'仿真中':['#1d4ed8','#e5edff'],'排队':['#64748b','#eef1f5'],'已完成':['#15803d','#e7f6ec'],'NG-需人工':['#dc2626','#fdecec']};
+    return m[s]||['#64748b','#eef1f5'];
+  }
+  verdictStyle(v){
+    const m={'NG':['#dc2626','#fdecec'],'风险':['#b45309','#fdf3e3'],'接近':['#0369a1','#e0f2fe'],'达标':['#15803d','#e7f6ec']};
+    return m[v]||['#64748b','#eef1f5'];
+  }
+
+  play=()=>{
+    if(this.state.logIndex>=this.EVENTS.length-1){ this.setState({logIndex:0,approved:false}); }
+    this.setState({playing:true});
+    clearInterval(this._t);
+    this._t=setInterval(()=>{
+      this.setState(s=>{
+        if(s.logIndex>=this.EVENTS.length-1){ clearInterval(this._t); return {playing:false}; }
+        const ni=s.logIndex+1;
+        return {logIndex:ni, inspect:this.EVENTS[ni].iters>0?this.EVENTS[ni].iters-1:0};
+      });
+    },1150);
+  };
+  pause=()=>{ clearInterval(this._t); this.setState({playing:false}); };
+
+  renderVals(){
+    const v=this.state.view;
+    const setView=(x)=>()=>{ this.setState({view:x}); };
+
+    // ---- NAV ----
+    const navDef=[
+      {key:'dashboard', label:'总览', icon:'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z'},
+      {key:'console', label:'运行控制台', icon:'M22 12h-4l-3 9L9 3l-3 9H2', badge:'RUN', badgeBg:'#1d4ed8', badgeColor:'#fff'},
+      {key:'graph', label:'编排图', icon:'M18 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M18 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M6 9a3 3 0 1 0 0 6 M15.5 6.5 8.5 13 M18 12v3'},
+      {key:'report', label:'可行性报告', icon:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8'},
+      {key:'kb', label:'知识库规则', icon:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'},
+    ];
+    const navItems=navDef.map(n=>{
+      const active=n.key===v;
+      return {...n,
+        onClick:setView(n.key),
+        style:`display:flex;align-items:center;gap:11px;width:100%;padding:9px 10px;margin-bottom:2px;border:none;border-radius:8px;font-family:inherit;font-size:13.5px;cursor:pointer;background:${active?'#1d3a6e':'transparent'};color:${active?'#fff':'#98a4b3'};font-weight:${active?'600':'400'};`,
+      };
+    });
+
+    const titles={dashboard:['评估总览','Dashboard'],console:['运行控制台 · Q2411040','Live Run'],graph:['Agent 编排','Orchestration'],report:['可行性评估报告','Report'],kb:['知识库规则','Knowledge Base']};
+
+    const out={
+      navItems,
+      pageTitle:titles[v][0], pageSub:titles[v][1],
+      isDashboard:v==='dashboard', isConsole:v==='console', isGraph:v==='graph', isReport:v==='report', isKb:v==='kb',
+    };
+
+    // ---- DASHBOARD ----
+    out.kpis=[
+      {label:'进行中',value:'3',unit:'项',color:'#171a1f',delta:'▲ 求解器 2 并发',deltaColor:'#8a929c'},
+      {label:'待审核',value:'2',unit:'项',color:'#b45309',delta:'需要你处理',deltaColor:'#b45309'},
+      {label:'今日完成',value:'8',unit:'项',color:'#171a1f',delta:'▲ +3 vs 昨日',deltaColor:'#16a34a'},
+      {label:'平均迭代',value:'3.6',unit:'次',color:'#171a1f',delta:'▼ -0.4 更快收敛',deltaColor:'#16a34a'},
+      {label:'平均耗时',value:'12',unit:'min',color:'#171a1f',delta:'原人工 ~4h',deltaColor:'#16a34a'},
+      {label:'一次通过率',value:'62',unit:'%',color:'#171a1f',delta:'▲ +7pt',deltaColor:'#16a34a'},
+    ];
+    out.jobCount=this.JOBS.length;
+    out.jobs=this.JOBS.map(j=>{ const [c,b]=this.statusStyle(j.status); return {...j, onOpen:setView('console'), stColor:c, stBg:b, progColor:j.status.startsWith('NG')?'#dc2626':(j.prog<100?'#1d4ed8':'#22c55e')}; });
+    const tp=[['一',6,1],['二',7,2],['三',5,1],['四',8,2],['五',6,0],['六',3,1],['日',8,1]];
+    out.throughput=tp.map(([day,ok,ng])=>({day,okH:ok*8,ngH:ng*8}));
+    out.reviewQueue=[
+      {id:'Q2411040',part:'Bottom Cover',note:'达标收敛 · 4 次迭代，待批准出报告',dot:'#f0b429',onOpen:setView('console')},
+      {id:'Q2411870',part:'Side Panel',note:'6 次迭代未收敛 · 需人工介入决策',dot:'#dc2626',onOpen:setView('console')},
+    ];
+
+    // ---- CONSOLE ----
+    const li=this.state.logIndex;
+    const ev=this.EVENTS[li];
+    const shownIters=ev.iters;
+    const running=this.state.playing;
+    out.isRunning=running;
+
+    // logs
+    const t0=42; // seconds start
+    out.logLines=this.EVENTS.slice(0,li+1).map((e,i)=>{
+      const sec=t0+i*7; const mm=String(Math.floor(sec/60)).padStart(2,'0'); const ss=String(sec%60).padStart(2,'0');
+      return {time:`${mm}:${ss}`, agent:e.agent, agentColor:e.ac, dot:e.dot, text:e.text};
+    });
+    out.logCountLabel=`${li+1} / ${this.EVENTS.length} 步`;
+    out.liveDot=running?'#3b82f6':'#4b5563';
+    out.liveDotAnim=running?'animation:ma-pulse 1.1s infinite;':'';
+    out.playLabel=running?'暂停':(li>=this.EVENTS.length-1?'重放':'运行');
+    out.playIcon=running?'M6 4h4v16H6z M14 4h4v16h-4z':'M8 5v14l11-7z';
+    out.playBtnBg=running?'#b45309':'#1d4ed8';
+    out.onPlayToggle=running?this.pause:this.play;
+    out.onReset=()=>{ clearInterval(this._t); this.setState({playing:false,logIndex:0,inspect:0,approved:false}); };
+
+    // iteration rows
+    const th=22; out.thinThreshPct=(th/32)*100;
+    out.iterRows=this.ITERS.map((it,i)=>{
+      const visible=i<shownIters;
+      const [vc,vb]=this.verdictStyle(it.verdict);
+      const sel=this.state.inspect===i;
+      const tc=it.thin>th?'#dc2626':(it.thin>20?'#d97706':'#16a34a');
+      return {...it,
+        onClick:()=>this.setState({inspect:i}),
+        opacity:visible?1:0.28,
+        rowBg:sel&&visible?'#f0f6ff':'transparent',
+        nColor:i===0?'#8a929c':'#1d4ed8',
+        thin:it.thin.toFixed(1)+'%', thinPct:Math.min(100,(it.thin/32)*100), thinColor:tc,
+        wrinkleColor:it.wc, fld:(it.fld>0?'+':'')+it.fld.toFixed(1)+'%', fldColor:it.fld<3?'#dc2626':'#16a34a',
+        verdict:it.verdict, vColor:vc, vBg:vb,
+      };
+    });
+    out.notConverged=running && shownIters<this.ITERS.length;
+
+    // pipeline
+    const curStage=ev.stage;
+    const furthest=Math.max(...this.EVENTS.slice(0,li+1).map(e=>e.stage), (li>=this.EVENTS.length-1?7:0));
+    const done7=li>=this.EVENTS.length-1;
+    out.pipeline=this.PIPE.map((label,i)=>{
+      let status;
+      if(done7) status='done';
+      else if(i<curStage) status='done';
+      else if(i===curStage) status='active';
+      else status='pending';
+      // stages passed in loop
+      if(!done7 && i<furthest && i<curStage) status='done';
+      const isDone=status==='done', isActive=status==='active';
+      return {label,
+        icon:this.PIPE_ICONS[i],
+        flex:i<this.PIPE.length-1?'1':'0 0 auto',
+        hasBar:i<this.PIPE.length-1,
+        barFill:isDone?100:(isActive?50:0),
+        circleBg:isDone?'#1d4ed8':(isActive?'#e0eaff':'#f3f5f8'),
+        circleBorder:isDone?'#1d4ed8':(isActive?'#1d4ed8':'#e0e5eb'),
+        iconColor:isDone?'#fff':(isActive?'#1d4ed8':'#a7b0bb'),
+        labelColor:isDone?'#1d4ed8':(isActive?'#171a1f':'#a7b0bb'),
+        weight:isActive?'600':'500',
+        anim:isActive&&running?'animation:ma-pulse 1.2s infinite;':'',
+      };
+    });
+
+    // header verdict
+    const lastVisible=shownIters>0?this.ITERS[shownIters-1]:this.ITERS[0];
+    const hv=shownIters>=4?'达标 ✓':(shownIters===0?'待运行':lastVisible.verdict);
+    const [hvc,hvb]=this.verdictStyle(shownIters>=4?'达标':lastVisible.verdict);
+    out.verdictNow=hv; out.verColor=hvc; out.verBg=hvb;
+
+    // gauges (current inspected iteration)
+    const insp=Math.min(this.state.inspect, this.ITERS.length-1);
+    const cur=this.ITERS[insp];
+    out.inspectLabel=cur.label;
+    out.gauges=[
+      {label:'最大减薄率',value:cur.thin.toFixed(1)+'%',pct:Math.min(100,(cur.thin/32)*100),color:cur.thin>th?'#dc2626':'#16a34a'},
+      {label:'FLD 安全裕度',value:(cur.fld>0?'+':'')+cur.fld.toFixed(1)+'%',pct:Math.max(6,Math.min(100,(cur.fld+6)/16*100)),color:cur.fld<3?'#dc2626':'#16a34a'},
+      {label:'凹模圆角 R',value:cur.R,pct:(parseFloat(cur.R)/8)*100,color:'#1d4ed8'},
+      {label:'压边力 BHF',value:cur.bhf,pct:(parseFloat(cur.bhf)/220)*100,color:'#1d4ed8'},
+    ];
+
+    // FLD
+    const X0=42,X1=288,Y0=8,Y1=184, cx=165;
+    out.fldCurve=`M${X0} ${Y0+30} Q ${cx} ${Y1-70} ${cx} ${Y1-96} Q ${cx} ${Y1-70} ${X1} ${Y0+14}`;
+    out.fldSafeArea=`M${X0} ${Y0+30} Q ${cx} ${Y1-70} ${cx} ${Y1-96} Q ${cx} ${Y1-70} ${X1} ${Y0+14} L ${X1} ${Y1} L ${X0} ${Y1} Z`;
+    // point clusters per iteration: lower iteration -> higher (riskier)
+    const lift=[64,44,26,10][insp]||10; // px above baseline safe region
+    const seeds=[[-0.12,.55],[0.02,.42],[0.14,.36],[0.22,.30],[-0.05,.50],[0.10,.40],[0.18,.33],[0.06,.46],[-0.15,.58],[0.0,.44],[0.12,.38],[0.20,.32]];
+    out.fldPoints=seeds.map(([mn,mj],k)=>{
+      const x=cx + mn*((X1-X0)/0.6);
+      const majAdj=mj - (0.34-lift/176)*0 + (lift/176)*0; // keep simple
+      const y=Y1 - (mj*220*(1-(3-insp)*0.06)) + (3-insp)*10;
+      const yy=Math.max(Y0+6,Math.min(Y1-4,y));
+      // color: distance to curve approx by insp
+      const risk = insp===0 ? (k%3===0?'#dc2626':(k%3===1?'#f0b429':'#22c55e'))
+                 : insp===1 ? (k%4===0?'#f0b429':'#22c55e')
+                 : insp===2 ? (k%6===0?'#f0b429':'#22c55e')
+                 : '#22c55e';
+      return {x:x.toFixed(1), y:yy.toFixed(1), fill:risk};
+    });
+
+    // HITL
+    const reachedReport=li>=this.EVENTS.length-1;
+    out.hitlReady=reachedReport && !this.state.approved;
+    out.hitlApproved=this.state.approved;
+    out.hitlBorder=reachedReport?'#b9e3c6':'#e4e9ef';
+    out.hitlHeaderBg=reachedReport?'#f2fbf5':'#fafbfc';
+    out.hitlIconColor=reachedReport?'#16a34a':'#a7b0bb';
+    out.hitlText=this.state.approved?'你已批准该评估结论，报告已归档并可交付客户。'
+      : reachedReport?'闭环已收敛达标（最大减薄 19.8%，起皱 低，FLD 安全）。请复核仿真结论与工艺方案后批准出具报告，或打回要求重新评估。'
+      : '流程运行中 · Agent 将在闭环收敛后把结论提交到本关卡等待你审核。';
+    out.onApprove=()=>this.setState({approved:true});
+    out.onReject=()=>this.setState({logIndex:0,approved:false,playing:false});
+    out.onGotoReport=setView('report');
+
+    // ---- GRAPH ----
+    const nodeKeys=['orch','info','unfold','sim','judge','opt','proc','report'];
+    const an=this.state.node;
+    out.nodes=nodeKeys.map(k=>{
+      const nd=this.NODES[k]; const active=k===an;
+      return {left:nd.x, top:nd.y, w:nd.w, title:nd.title, sub:nd.sub, icon:nd.icon,
+        onClick:()=>this.setState({node:k}),
+        bg:active?'#fff':'#fff', border:active?nd.ic:'#e4e9ef',
+        shadow:active?`0 4px 16px ${nd.ic}44`:'0 1px 3px rgba(0,0,0,.05)',
+        iconBg:nd.ibg, iconColor:nd.ic, titleColor:'#171a1f', subColor:active?nd.ic:'#9aa3ae'};
+    });
+    // edges (flow blue, control dashed grey, loop back)
+    const E=(x1,y1,x2,y2)=>`M${x1} ${y1} L${x2} ${y2}`;
+    const nd=this.NODES;
+    out.edges=[
+      // control from orchestrator (dashed)
+      {d:`M450 62 C 250 90, 120 120, 120 158`, stroke:'#cfd6df', w:1.4, dash:'4 4', marker:'', anim:''},
+      {d:`M470 62 C 330 100, 330 130, 330 158`, stroke:'#cfd6df', w:1.4, dash:'4 4', marker:'', anim:''},
+      {d:`M480 62 C 540 100, 540 130, 540 158`, stroke:'#cfd6df', w:1.4, dash:'4 4', marker:'', anim:''},
+      {d:`M500 62 C 750 90, 750 120, 750 158`, stroke:'#cfd6df', w:1.4, dash:'4 4', marker:'', anim:''},
+      // flow
+      {d:E(195,180,255,180), stroke:'#3b82f6', w:2, dash:'', marker:'url(#arb)', anim:''},
+      {d:E(405,180,465,180), stroke:'#3b82f6', w:2, dash:'', marker:'url(#arb)', anim:''},
+      {d:E(615,180,675,180), stroke:'#3b82f6', w:2, dash:'', marker:'url(#arb)', anim:''},
+      // judge -> opt (down)
+      {d:`M750 202 L750 298`, stroke:'#3b82f6', w:2, dash:'', marker:'url(#arb)', anim:''},
+      // opt -> sim (loop back, animated)
+      {d:`M675 320 C 560 300, 560 220, 540 202`, stroke:'#22c55e', w:2, dash:'6 4', marker:'url(#ar)', anim:'animation:ma-dash 1s linear infinite;'},
+      // judge -> proc (branch when converged)
+      {d:`M690 190 C 600 250, 560 320, 525 320`, stroke:'#94a3b8', w:1.6, dash:'2 4', marker:'url(#ar)', anim:''},
+      // proc -> report
+      {d:`M450 342 L450 428`, stroke:'#3b82f6', w:2, dash:'', marker:'url(#arb)', anim:''},
+    ];
+    out.edgeLabels=[
+      {x:600,y:270,text:'NG · 再优化',color:'#16a34a'},
+      {x:560,y:290,text:'达标',color:'#94a3b8'},
+    ];
+    const dd=this.NODES[an];
+    out.detailTitle=dd.title; out.detailSub=dd.sub; out.detailDesc=dd.desc; out.detailIO=dd.io;
+    out.detailIcon=dd.icon; out.detailIconBg=dd.ibg; out.detailIconColor=dd.ic;
+    out.detailTools=dd.tools.map(t=>({name:t}));
+
+    // ---- REPORT ----
+    out.reportFacts=[
+      {k:'客户',v:'BOSCH'},{k:'零件号',v:'DEMO-0214M000A3'},{k:'材质',v:'AL 1060'},{k:'料厚',v:'1.2 mm'},
+      {k:'工序数',v:'3 序'},{k:'迭代次数',v:'4 次'},{k:'评估耗时',v:'11 min'},{k:'材料利用率',v:'71%'},
+    ];
+    out.reportMetrics=[
+      {label:'最大减薄率',value:'19.8%',color:'#16a34a',note:'安全阈值 ≤ 22%'},
+      {label:'最大增厚率',value:'4.3%',color:'#16a34a',note:'法兰区，正常范围'},
+      {label:'FLD 安全裕度',value:'+8.6%',color:'#16a34a',note:'全部单元位于安全区'},
+      {label:'起皱风险',value:'低',color:'#16a34a',note:'压边力窗口 140-160kN'},
+    ];
+    out.processSteps=[
+      {n:'10',name:'拉延成型',note:'凹模 R6 · BHF 150kN'},
+      {n:'20',name:'修边冲孔',note:'轮廓 + 4 孔'},
+      {n:'30',name:'翻边整形',note:'法兰 90° · 回弹补偿'},
+    ];
+
+    // ---- KB ----
+    out.ruleCount=this.RULES.length;
+    const sr=this.RULES.find(r=>r.id===this.state.rule)||this.RULES[0];
+    out.rules=this.RULES.map(r=>{ const a=r.id===sr.id; return {...r,
+      onClick:()=>this.setState({rule:r.id}),
+      bg:a?'#f0f6ff':'#fff', accent:a?'#1d4ed8':'transparent', idColor:a?'#1d4ed8':'#3a424c'}; });
+    out.selRuleId=sr.id; out.yamlText=sr.yaml; out.selRulePrio='P'+sr.prio; out.selRuleHits=sr.hits+' 次';
+    out.yamlLineNums=sr.yaml.split('\n').map((_,i)=>({n:i+1}));
+
+    return out;
+  }
+}
+</script>
+</body>
+</html>

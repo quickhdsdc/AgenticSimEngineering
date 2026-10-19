@@ -1,0 +1,9 @@
+dm_control==1.0.22
+torch==2.4.0
+pytz
+torchdiffeq==0.2.4
+pillow==10.3.0
+tensorboard==2.17.0
+matplotlib
+normflows
+pyyaml

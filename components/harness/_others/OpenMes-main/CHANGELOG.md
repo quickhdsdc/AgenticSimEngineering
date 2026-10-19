@@ -1,0 +1,1240 @@
+# Changelog
+
+All notable changes to OpenMES are documented in this file.
+Format based on [Keep a Changelog](https://keepachangelog.com/).
+
+---
+
+## [Unreleased]
+
+## [0.23.1] - 2026-09-14
+
+### Changed
+- **Admin → Modules → Install uses the shared drag-and-drop file picker** — the ZIP box only opened a
+  file chooser on click; it now takes a dropped file too (`FileDropZone`, as in the importer), posts
+  through Inertia so a rejected file shows its error under the drop zone, and shows upload progress.
+  The upload is validated by a Form Request (`InstallModuleRequest`) instead of inline.
+- **Operator Workstation view follows the selected workstation** — switching from Queue to
+  Workstation with a workstation picked (e.g. `?workstation=10`) now shows only the orders whose
+  current step runs there — plus not-yet-started orders whose first step is there, so they can be
+  started from that station — and only that workstation's machine state, with an "All workstations"
+  link back to the whole line. `per_line` tracking keeps the whole-line view, and a workstation
+  account's assignment alone doesn't filter it — only an actual selection does. The Queue view shows
+  those not-yet-started orders as their own "To start at …" cards below "Ready at …", and its
+  polling count includes them.
+
+### Fixed
+- Installing a module from a ZIP in Admin → Modules always failed with "Could not open ZIP file": the upload was stored on the `local` disk (`storage/app/private`) but the installer was handed a `storage/app/…` path, so the file was never found and each attempt leaked its archive.
+- **Enabling a module did not create the tables it ships**, so every screen it contributes answered
+  500 with "relation … does not exist" the moment it was opened. Enabling ran `migrate`, but a
+  module's migrations are registered by its service provider, providers are registered at boot, and
+  the process doing the enabling booted with the module switched off — so `migrate` only ever saw
+  the application's own paths. It is now pointed at the module's own directory explicitly. Together
+  with the ZIP fix above this makes Admin → Modules → Install usable end to end; before, an install
+  reported success and then failed on first use.
+- Sidebar: a group stayed unhighlighted (and collapsed) on pages a module added to it, and a module's own group never highlighted at all — only core pages lit their group up. Module links now extend the group's match list, so the breadcrumb trail finds them too.
+- Uploads over PHP's 32 MB `post_max_size` (e.g. a backup archive for restore, which the app accepts up to 500 MB) crashed with a bare `PostTooLargeException` page. The Docker image now allows 512 MB and an oversized body is reported as a flash error (413 for JSON clients) instead.
+- Operator Queue: the "All" workstation chip now actually clears the selection (it fell back to
+  the workstation remembered in the session).
+- **Live lists stopped updating after a create or delete until a browser refresh** — returning to
+  the same list (e.g. the redirect after adding a work order in `/admin/work-orders`) mounted a new
+  synced collection while the old one was still shutting down, and the old one's `echo.leave()`
+  unsubscribed the channel both shared. Collection channels are now reference-counted
+  (`lib/sharedChannels.js`): a channel is left only when its last user releases it, which also stops
+  an unmounting list from cutting off the app-wide `work_orders_active` / `issues_open` feeds.
+- **Phantom rows in live lists after a rolled-back write** — collection deltas were broadcast from
+  model events mid-transaction, so a write that failed later in the same transaction still pushed
+  its row into every open list, where it stayed until a refresh. Deltas are now sent after the
+  transaction commits and dropped on rollback.
+- Operator Workstation view: the machine-state picker uses the shared `Dropdown` instead of a
+  native `<select>`, and structured extra-data values render as readable text instead of
+  `[object Object]`.
+
+## [0.23.0] - 2026-09-14
+
+### Added
+- **Example companies are now a choice, not a fixture.** Settings → Data offers a picker of
+  whole demo plants — each one its own lines, products, routings, bill of materials, orders,
+  customers, tooling, reported problems and shift history. Four are available: a garment print
+  shop, a precision machine shop, a craft bakery and a panel furniture factory. Picking a
+  different one replaces the current data, and the admin is signed back in afterwards.
+- **Panel furniture factory dataset** — flat-pack wardrobes, chests, desks and kitchen units.
+  The deepest bill of materials of the four: board becomes a blank, a blank becomes an edged
+  panel, edged panels become a carcase, and only then a product. The edged panel is drawn by
+  eight parents, so net requirements has to sum them before it knows what to build.
+
+- **Workers and Shifts are back in the menu.** Both pages still existed and still
+  worked, but nothing linked to them — and shift definitions feed OEE, downtime, scrap
+  and the shift monitor, so a system with no way to edit them silently ran on a fixed
+  06:00/18:00 split. Workers sits next to Users & Accounts, Shifts under Production.
+- **A module can now ship its own screens.** Pages are looked up in the app first and
+  then in any module installed under `modules/`, so a module is no longer limited to
+  server-rendered views. An installation with no modules behaves exactly as before.
+- **A plant board for the shop floor** *(Production → Plant Board)* — every active
+  workstation in the building as one tile, flat, with no grouping by line: a scoreboard
+  rather than a structure tree, with the line printed on the tile where it matters once
+  you have spotted a red one. A tile carries the machine state, the cause of the stop it
+  is on and how long that stop has been running, the order and product, the assigned
+  operators, and availability, performance and quality read from the same minutes as the
+  OEE report. The clock measures downtime, not time-in-state, and counts from when the
+  stop really began rather than from the start of the shift — a stop in its fifth hour
+  would otherwise be announced as being in its second. A station nothing has ever been
+  heard from is drawn differently from an idle one, because a dead collector reading as a
+  quiet machine is what stops anyone investigating it. `?kiosk=1` strips the app chrome
+  for a wall display and `?lines=` narrows it to chosen lines; the board says so when it
+  has stopped refreshing, since a frozen board is indistinguishable from a calm plant.
+- **Downtime reasons can be managed** *(Production → Downtime Reasons)* — operators have
+  always picked from this dictionary, but nothing could edit it: there was no screen and
+  no route, so a plant was stuck with the seeded reasons unless somebody opened the
+  database, and the OEE figures they feed could never be adapted to how that shop
+  actually loses time. Reasons are soft-deleted, so a stop already recorded against one
+  keeps its history, and the unique index on the code is partial — a retired code can be
+  used again. The form states what each kind does to availability rather than listing the
+  options, because that field quietly moves every OEE figure it touches.
+- **Extension points a module attaches to.** Tabs, synced collections, broadcasts and
+  trash types now pass through a filter before they are read, the menu registry takes an
+  explicit order and a badge a module can tag its own entries with, and models can carry
+  relations that point at module tables. An installed module registers itself through
+  these instead of being listed in application files.
+
+### Changed
+- **A page the build does not contain no longer white-screens.** Rendering an unknown
+  screen — a link that outlived its page, or a feature that is not installed — used to
+  throw, leaving a blank window with the reason only in the browser console. It now
+  shows a card that says the screen is unavailable.
+- **Release archives no longer carry locally installed modules.** Modules are by
+  definition not part of this repository, so a release built from it must not ship
+  them; the three bundled examples are unaffected.
+- **Extended plant administration now ships as a module.** ISA-95 structure (sites, areas,
+  factories, divisions), workforce (crews, skills, wage groups, absences, personnel
+  classes), warehousing, packaging, quality plans and inbound inspections leave the
+  application and become installable. What stays is what a plant needs to run production
+  on its own. **An installation that uses any of those screens must install the module to
+  keep them** — the migrations adopt the existing tables rather than recreating them, so
+  the data is kept either way. Workers stay in the application: a plant still hires
+  people, so that one screen remains and the module fills out the rest of the HR menu.
+  Menu entries a module contributes are tagged so it is clear at a glance which screens
+  come from where.
+- **The OEE report's reason ranking is now a Pareto.** The bars already said which reason
+  was worst; the running cumulative share says how far down the list is worth the effort.
+
+### Removed
+- **Area is no longer asked for on a production line.** The ISA-95 area dictionary left the
+  menu, so the line form was asking about something the user could no longer look up or
+  create. Nothing read the value — no report, no scheduling rule, no service — so the column
+  and the picker are gone from the list and both forms. Existing values stay in the database
+  untouched.
+
+### Fixed
+- **A line created from the list drawer can now be given its stock location.** The drawer
+  offered the area picker and not the warehouse one, so lines added without leaving the list
+  had nothing to consume material from until someone opened the full edit form.
+- **Enabling or disabling a module takes effect on the running server.** Toggling one
+  wrote the setting and flashed success while changing nothing: the screens kept
+  answering and the menu entries stayed put until somebody restarted the server by hand.
+  Whether it appeared to work at all came down to whether the worker happened to be
+  recycled for an unrelated reason, which is why it looked intermittent rather than
+  broken. A reload that cannot happen is now logged rather than swallowed.
+- **Upgrading no longer aborts on installations that never had certain foreign keys.**
+  `migrate` died with `constraint "lines_area_id_foreign" ... does not exist`. The case
+  was meant to be handled, but the guard could not work where it sat, and on PostgreSQL a
+  failed statement aborts the surrounding transaction regardless of what catches it.
+
+## [0.22.0] - 2026-09-08
+
+### Added
+- **A shortage of a manufactured subassembly is now reported as such** — previously nothing
+  said "not enough pleat packs to build this order". The net-requirements report exploded
+  straight through a subassembly to the raw materials it is made from, so the subassembly
+  never appeared and the stock of it already on the shelf was ignored; the per-order check
+  that did cover it was an API endpoint no screen called.
+  - MRP now nets level by level: a subassembly's gross demand is met from its own stock
+    first and only the shortfall explodes downwards, so packs on the shelf pull no media and
+    a subassembly that runs out is listed by name.
+  - The planner marks any order stock cannot cover, naming the missing components on hover,
+    so it is visible while scheduling rather than when an operator tries to start.
+  - The operator's work-order screen leads with the same warning, listing what is needed,
+    what is free and what is missing.
+- **Every demo product now has a process template, and work orders carry it** — only the
+  HEPA-13 Standard had a routing, so the other four products showed "0 templates" and their
+  work orders had no steps for an operator to work through. Each product type now gets its
+  own routing (slim assembly, pre-filter and carbon production, HVAC cassette), and the
+  seeder snapshots it onto the work order with `toSnapshot()` instead of a hand-rolled
+  header — so the snapshot carries the steps and the BOM the way the application writes it.
+- **Demo data now spans a fortnight either side of the day it is seeded** — it used to be a
+  single-day snapshot, so the planner emptied out after tomorrow and the shift monitor had
+  only the shift in progress. The planner now gets two weeks of scheduled orders and
+  maintenance ahead of today, and `ShiftMonitorDemoSeeder` lays down two weeks of finished
+  shifts behind the live one, so paging back through the monitor keeps finding real shifts.
+  History only goes backwards on purpose: the monitor draws what machines actually did, and
+  a shift that has not run yet has no counters to show.
+- **Demo data now includes shifts, maintenance and a live shift monitor** — the demo had no
+  shifts at all, so the planner and the shift monitor both fell back to a synthetic window;
+  it now seeds round-the-clock morning/afternoon/night cover. The planner board gains
+  maintenance to show: tools, three recurring schedules for its "Add maintenance" modal, and
+  five events across the current week — a completed job, one in progress (the maintenance
+  side of the seeded carbon-press issue) and three upcoming. `ShiftMonitorDemoSeeder` now
+  also knows the air-filter stations, and `DemoDataSeeder` runs it last, so the monitor opens
+  on a shift in progress with a state timeline, a per-minute counter feed and a couple of
+  stops left unclassified for the "needs a cause" flow.
+- **Demo data now includes received material lots** — `AirFilterDemoSeeder` seeds fifteen
+  lots across the demo materials, covering every lot status: stock on hand, a delivery still
+  in quarantine awaiting inbound QC, one rejected by it, one consumed down to zero, and a
+  time-expired adhesive beside its live replacement. Chemicals carry manufacturing and expiry
+  dates, and every lot carries a supplier lot reference, so the Material Lots list, the lot
+  pickers and traceability search have real data instead of an empty state.
+- **Demo data now includes a bill of materials for every product** — `AirFilterDemoSeeder`
+  seeds the purchased parts (media grades, frame profiles, resin, carbon, seals, cartons)
+  and a BOM for each routing: HEPA-13 Standard and Slim, pre-filter, carbon and the HVAC
+  cassette. The HEPA-13 Standard BOM is two-level — it consumes a manufactured sub-assembly,
+  the pleat pack, which has its own routing and BOM — so exploding it reaches raw media with
+  scrap cascading between levels. The BOM screens, the net-requirements report and
+  `BomExplosionService` all have a realistic structure to work on instead of an empty one.
+
+- **Validate an import before running it** *(admin)* — the column-mapping step gains a **Validate only** button beside Run Import. It reads, maps and feeds the file to the importer exactly as a real run — inside a transaction that always rolls back — so the result reports what the import *would* do, including what only the database can answer (unique collisions, missing foreign keys), and writes nothing. The run appears in the history labelled **Validation only**, with "Would create" / "Would update" counters and the same per-row error list. Live-sync deltas are suppressed for the duration, so a validation never pushes rows to open browsers that no later delta takes back.
+- **Unified data importer** *(Admin → Import)* — one PrestaShop-style screen loads
+  **product types, materials, work orders and bills of materials** from CSV / XLS / XLSX:
+  pick the entity, see its available fields (required ones starred) and download a sample
+  file, upload with a chosen separator and encoding (UTF-8, ISO-8859-1, Windows-1250), set
+  the run options (strategy, external system, category filter, default material type,
+  target line and planning period, replace/merge for recipes), map columns (auto-detected
+  from English and Polish headers, saved as reusable per-entity profiles), and run. The run
+  is **queued** and its progress bar, counters and history list update **live** through the
+  `data_imports` synced collection; finished runs list every failed row with its file line,
+  field and reason, downloadable as CSV. Supervisors get the same screen for work orders
+  under Supervisor → Orders. Behind it, each entity is an `EntityImporter` adapter in
+  `app/Import` over the existing ERP import services, one `SpreadsheetReader` replaces the
+  three parsers the old importers carried, and a new `import` tab gates the admin mount.
+  The tab is granted to Admin only — it loads master data and can replace recipes, so
+  roles that used the old work-order importer get it deliberately in Settings → Access.
+- **Consumption is deducted from the workshop location it came off** — stock levels per storage location now reflect what production actually used. Allocation already moved the plant-wide quantity and the picked lot, but nothing said *where* the material physically was, so a plant running several stores could not tell which one had emptied.
+  - **Each line names its stock location.** A production line gains a **Stock location** (Admin → Lines), picked from the raw-material warehouses. Optional: a plant that doesn't track stock per location leaves it unset and nothing changes.
+  - **The location is resolved most-specific-first.** The **picked lot's** warehouse wins (it knows exactly where it sits), then the **line's** stock location, then the plant's **default raw-material** warehouse. Once a deduction has been made the location is **frozen on the allocation**, so a later correction always credits back the location that actually gave the material up — even if the lot has since been moved or the line re-pointed.
+  - **Split across the stores it really came from.** Lot picking is FEFO across the material's lots and knows nothing about stores, so one allocation can draw from two — each pick's share is booked against its own lot's warehouse, **frozen on the pick at its first deduction** so a lot moved afterwards still credits back the store that gave the material up. A picked lot the location cannot cover is refused on its own account: a healthy material total is not the same answer as the lot being there. **Scrap counts as consumed** for this: it left the store too, unlike the leftover that is returned.
+  - **Booked by difference, never twice.** Consumption is recorded more than once for the same allocation (an operator's entry, a correction, then batch completion finalising the rest), so the balance moves by the **difference** each time. A downward correction credits the location back, and cancelling a batch returns everything it had taken.
+  - **Auditable per deduction.** Every deduction writes a `stock_movements` row carrying the **warehouse**, the batch/step it came from and the quantity — the plant-wide quantity is deliberately *not* moved again, since allocation already booked it.
+  - **Stock cannot silently go negative.** The balance row is **locked before it is read**, so two concurrent bookings cannot both pass the same check; posting a warehouse document now honours the **location's** balance as well as the plant-wide one. Consumption exceeding the location's balance is **refused** when the system-wide **"block negative stock"** setting is on (the same switch warehouse documents respect) — and when it's off, production is not stopped but the movement records the **shortfall** explicitly, so an overdraw stays findable.
+  - **Part of the optional Warehouses module.** With the module off, consumption moves no location balance and refuses nothing — a plant that does not run per-location stock is unaffected. Rollout steps are in [`docs/warehouse-erp-rollout.md`](docs/warehouse-erp-rollout.md).
+  - New `lines.warehouse_id` and `material_allocations.consumption_warehouse_id` / `location_deducted_qty` columns, `App\Services\Material\ConsumptionLocationService`, and a shared `App\Services\Warehouse\WarehouseStockService` that the stock-document posting path now uses too, so both routes into a location balance share one race-safe implementation.
+- **Count production from MQTT machines onto a line/step** *(admin / connectivity)* — a machine/MQTT device can be **assigned to a production line**, and a new **"Count at Station / Step"** topic-mapping action turns each sensor pulse (e.g. a break-beam sensor: one unit leaving a station) into `+1` on the addressed step of the line's **currently running** work order — no per-order configuration. The per-step throughput is tracked in a new `passed_qty` counter; a mapping flagged as the finished-goods counting point also feeds the work order's `produced_qty` (through the shared machine-count path, so `counting_source` and auto start/complete are honoured — no double counting). `update_work_order_qty` can now also target a line directly (the running order) instead of a fixed order number. The device form gains an **Assigned line** picker and the topic-mapping editor a guided **Line + Station/Step** form for the count action (no more hand-written JSON).
+- **Traceability when editing an in-use process template** *(admin)* — editing a template's steps (add / rename / delete / reorder) still mutates the current template in place, and running work orders correctly keep their frozen snapshot — but that used to happen silently. Now the template page shows a **warning banner** when the template backs active (non-finished) work orders, destructive step edits ask for confirmation while it's in use, and **every step change is written to the immutable audit log** (before/after shape) so the previous version is never lost. No change to how orders resolve their steps.
+- **Add maintenance to the planner** *(admin)* — a new **+ Maintenance** button on the schedule planner opens a modal to place a **defined maintenance** (a maintenance schedule, which pre-fills its title / type / line) or an ad-hoc one onto a line at a chosen date, time and duration. It lands as a **distinct yellow tile** in the line's maintenance strip (maintenance tiles are now yellow instead of purple, so they stand out from work orders). Backed by `POST /admin/schedule/maintenance`.
+- **Plant timezone is changeable after installation** *(admin)* — Settings → System → General now carries a timezone picker (region + zone), writing the same `system_settings` row the installer's step does; the wizard already promised this was possible. The chosen zone is re-applied per request and before each queued job, so on Octane a change reaches every worker immediately instead of waiting for a container restart. Saving reloads the page so every displayed time switches over at once.
+- **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
+
+### Changed
+- **BOM page rebuilt on the standard admin list** — the Bill of Materials
+  (Product type → Process template → BOM) now renders through `ResourceTable`, so it
+  matches the work-order list: full-bleed table with the trail in the app header, a
+  toolbar carrying search, column visibility and Add Component, and per-row actions as
+  an Edit button plus a ⋯ menu holding Remove. Adding and editing a line happens in a
+  right-hand drawer instead of a card that pushed the table down.
+  - `ResourceTable` accepts a `rows` prop as an alternative to a synced `shape`, for a
+    list whose records aren't broadcast (a BOM belongs to one process template). Rows
+    come from the page's Inertia props and are pushed into the same TanStack DB
+    collection the live query reads, so such a list gets the full list chrome.
+  - The BOM "item updated" and "material removed" flash messages were never wrapped in
+    `__()`, so they showed in English on a Polish UI.
+- **The two old importers redirect into the unified importer** — Orders → CSV Import
+  (`/admin/csv-import`, `/supervisor/csv-import`) and Materials → Import
+  (`/admin/materials-import`) now land on Admin → Import with the entity preselected; their
+  pages and controllers are gone. The mobile app's `/api/v1/csv-imports/*` flow is
+  unchanged. `csv_imports` gains the entity, per-outcome counters, run options and a tenant;
+  `csv_import_mappings` profiles are per entity. The database queue's `retry_after` is
+  raised (`DB_QUEUE_RETRY_AFTER`, 660 s) so a long import is not handed to a second worker
+  mid-run, and the `queue-worker` compose service now carries the Reverb settings so a
+  job's live-sync broadcasts reach the browser.
+- **Process template page redesigned as a master–detail rail** — header bar with
+  status/version/duration summary, a compact drag-to-reorder step rail (now @dnd-kit —
+  the old SortableJS wiring had been dead since the React migration and posted to a
+  wrong URL), the routing graph as a read-only strip showing the step sequence, the
+  selected step's full editor beside it (selection syncs with the graph), and reference
+  photos + engineering documents side by side underneath. The step forms and per-step
+  media/checklist/output controls use the design-system components.
+  - All three writes now open a right-hand drawer, matching the rest of Admin: Add Step
+    no longer pushes the whole rail down, the template Edit no longer navigates away to
+    `/…/edit`, and a step's own Edit no longer replaces the detail pane with a form —
+    the step stays readable behind the drawer while you change it. The standalone
+    `/…/edit` page still works as before.
+- **36 admin lists create and edit in place** *(most of Admin)* — New… and the row's Edit
+  open a right-hand drawer over the table instead of navigating to a form page, so your
+  search, column filters, page and scroll survive the write and the saved row live-syncs
+  back into the table underneath. Areas, scrap reasons, skills, sites, shifts, tools,
+  materials, material lots, lines, crews, divisions, factories, companies, customers,
+  warehouses, webhooks, product types, maintenance events and schedules, material types,
+  LOT sequences, personnel classes, pallets, and the rest of the config lists.
+  - Resources whose form can't be a field config (the LOT-sequence pattern builder, the
+    personnel-class skills matrix, the pallet's dependent work-order → batch pickers)
+    mount their own form in the same drawer through a new `render` escape hatch on
+    `ResourceFormDrawer`.
+  - Editing reads the record out of the synced row the table already holds, so the drawer
+    opens filled in with no round-trip. Each form's option lists and custom-field config
+    are `Inertia::optional()` — fetched the first time the drawer opens, not on every
+    visit to the list.
+  - Every `/…/create` and `/…/{id}/edit` route still renders the same form standalone; the
+    drawer is a second door onto the same controller actions, not a replacement. Each
+    resource now has one `xInitial(record)` builder shared by all three, so a blank field
+    and a loaded one can't drift apart.
+  - Shared pieces: `ResourceFormDrawer` + `useResourceDrawer()`, a `bare` mode on
+    `ResourceForm` (no card chrome, actions pinned to the bottom of the scroll), and the
+    `StaysOnList` controller concern.
+  - A webhook's secret is still never sent to the browser — the drawer can set a new one,
+    not show the current one.
+- **Fixed: a new area could not be created from `/admin/areas/create`** — the page posted to
+  `POST /admin/areas`, which had no route (areas were only creatable under a site). Added
+  the flat route the page always assumed was there.
+- **New Work Order opens in a right drawer** *(Admin → Orders → All Orders)* — the create
+  form was a centered card whose body scrolled inside the page's own scroll, so on a long
+  order you lost sight of both the list you came from and the form's own actions. It now
+  slides in from the right edge, full height, with the list still readable beside it.
+  - The shared `Modal` grew a `side` prop (`'center'` — unchanged default — `'right'`,
+    `'left'`). Same shell either way: header, scrolling body, optional footer, focus trap,
+    `keepMounted`. Any page that wants the drawer shape opts in with one prop.
+  - The slide honours `prefers-reduced-motion`. The native twin accepts `side` for API
+    parity and ignores it — an edge panel on a phone is `BottomSheet`/`Drawer`, not a
+    variant of the form modal.
+- **Deactivated rows read as deactivated** *(every admin list)* — a switched-off record
+  looked exactly like a live one apart from its status pill, and the two toggles that flip
+  that state were both the same muted grey, so the only cue for which way the switch went
+  was the glyph.
+  - Activate is now green, deactivate red, reusing the running/blocked tokens the
+    Active/Inactive pills already use.
+  - The row itself fades (`is_active` false → 50% on the data cells). The actions cell
+    keeps full contrast: reactivating the record is usually why you went looking for it.
+    `ResourceTable` takes a `rowClassName` prop for lists that want a different rule,
+    on the shared `DataTable`'s new per-row class hook.
+  - The native `DataTable` twin does both, so the mobile lists match.
+- **Line statuses is a normal list now** *(Admin → Production → Line Statuses)* — it was the
+  one admin list that wasn't: a hand-rolled `<table>` of live inputs with a Save button per
+  row, no search, no filters, no sorting, no paging, and an add row whose validation was
+  written separately from the edit row's, so the two could disagree about what a status is.
+  It's now `ResourceTable` over the same synced collection, with create and edit through
+  `ResourceForm` and a single `fields.js` describing a status once.
+  - The colour cell shows the swatch **and** its hex, because the hex is the part you can
+    search for and paste; the Default column marks only the one status that holds it rather
+    than printing "No" on every other row.
+  - Validation moved out of the controller into `LineStatusRequest` and
+    `StoreLineStatusForLineRequest`, per the project's Form Request rule. A line-scoped
+    status still can't claim the global default — "where a new work order starts" is a
+    decision for the global set, and a per-line status taking it would silently override
+    every other line.
+  - **Order is set by dragging**, with a grip handle at the head of each row (`onReorder` on
+    the shared `DataTable`, so any list can opt in). The handle stays visible but goes inert
+    while the table is sorted or filtered, saying why: a drop "above" another row means
+    nothing about the stored order when what you're looking at was arranged by something
+    else, and the row you dropped past may not even be its neighbour.
+  - Dragging runs on **`@dnd-kit/react`** (new dependency, ~1 package + its internals).
+    The first cut used native HTML5 drag-and-drop, which fires **no events at all on touch
+    devices** — this app ships an operator touch shell and tablet layouts, so reordering was
+    simply impossible there. It also drags a browser-generated ghost image rather than the
+    row, never reflows the rows behind it, and offers nothing to the keyboard. dnd-kit moves
+    the real row, slides its neighbours apart as you go, and brings pointer, touch and
+    keyboard sensors. Lists without `onReorder` render a plain row and register nothing, so
+    they pay for none of it.
+    Dropping confirms with a toast rather than the page's flash bar, which would push the
+    table down on every drop. The reorder POST returns 204 instead of redirecting: these
+    rows are a synced collection, so the new order arrives over the websocket by itself —
+    an Inertia visit would re-render a list that is already correct and remount the toast
+    provider mid-confirmation, which is why the first attempt showed no toast at all.
+  - `sort_order` is now a **position, not a label**. Setting it to a number another status
+    already holds moves the status there and slides the rest over; the set is renumbered
+    1..n on every write, so ties and gaps stop being representable — deleting the middle
+    status closes the gap behind it. Previously two statuses could both claim position 2 and
+    the board silently fell back to id order.
+  - Trade-off worth knowing: renaming a status now costs a page load, where the old inline
+    editor did it in place. That's the cost of the list behaving like every other list.
+
+- **Line detail redesigned** *(Admin → Production Lines → a line)* — the last of the admin
+  detail screens on the old look moves to Geist White. A three-up stat strip, then a
+  1.5 / 1 split: the left column is what the line *is* (kanban statuses, its workstations),
+  the right is what operators see when they stand at it. Recent work orders run full width
+  underneath.
+  - **Workstations is now a table with live state and operator**, not a grid of name/code
+    tiles. The state comes from the open `workstation_states` slice — the same "latest slice
+    that hasn't ended" rule the machine monitor uses — in one batched query, so the page says
+    which machine is running without opening the monitor. Rows sort by code.
+  - **The work-order panel is the work-order list**, not a lookalike: it renders
+    `woColumns()` — the same definitions `/admin/work-orders` uses — so an order shows its
+    produced meter, status badge, due countdown, age and batch count here too, with the
+    search box, filter row, column picker, pager and footer totals that come with them.
+    `ResourceTable`'s column builder moved to `components/resourceColumns.jsx` so a list
+    embedded in a card and a list on its own page render from one definition.
+  - Configured workstation-view columns became chips carrying their key and source, with the
+    reorder arrows inside the chip; the whole product-type row is clickable now, where before
+    only the 18px checkbox was.
+  - Icons come from Lucide via `@openmes/ui`'s `Icon` instead of ~20 hand-inlined `<svg>`
+    paths, and every colour is an `om-*` token, so dark mode needs no per-element handling.
+
+- **A list row's name links to its record** — the identity cell is now the way in, the way an
+  order number already opened its order. Every list hands `ResourceTable` a `detailHref` (it
+  powers double-click-to-open), but a plain-text cell gave no sign of it, so the only
+  discoverable route in was the ⋯ menu. A column marks itself with `link: true` and
+  `components/resourceColumns.jsx` renders it through the shared `DetailLink` — one
+  definition of that hover treatment, which the work-order list now uses too. Applied to
+  every list that already knew its detail URL: Production Lines, Sites, Areas, Factories,
+  Materials, Material Lots (lot number), Workers, Personnel Classes and Process Segments.
+
+- **Range presets on the date filter** — the column date filter's calendar now carries the
+  usual period chips under the grid, where a "Date range" caption used to sit: Today,
+  Yesterday, This week, Last week, Last 7 days, This month, Last month, Last 30 days, This
+  quarter, Last quarter, Last 4 quarters, This year, Last year, Last 12 months. Filtering a
+  list to this month took eleven clicks through two month grids; it takes one now.
+  - Every preset resolves to a **whole** period, not a period-to-date — this filter mostly
+    runs over due dates and expiries, which sit in the future, so "This week" meaning
+    Monday→today would hide the rows the reader opened the filter to find. The day-counted
+    ones ("Last 7 days", "Last 30 days") are backward-looking, as their names say.
+  - The chip matching the current selection reads as active, so a range picked by hand that
+    happens to be exactly this month lights that chip too.
+  - `RANGE_PRESETS` lives in `@openmes/ui` with English defaults and the app passes
+    translations through, keeping the package locale-free. Range mode is web-only (the
+    native twin never ported it), so there's no native counterpart to keep in step.
+  - The arithmetic sits in `packages/ui/src/lib/rangePresets.js` — plain JS, no React — and
+    is covered by 33 vitest cases pinning the anchors a manual check never lands on: a
+    Sunday, the 31st of a month whose predecessor has 28 days, a leap February, Q1 reaching
+    back into the previous year, New Year's Eve. Quarter edges and week starts are the parts
+    that fail silently and only in the quarter nobody clicked.
+
+- **The date picker is operable from the keyboard, and reads as a calendar to a screen
+  reader** *(`@openmes/ui` `DatePicker`/`Calendar`, so every date field and date column
+  filter in the app)*. It was neither. The panel is portaled to `document.body`, so Tab
+  from the trigger skipped straight past it into the rest of the page — the calendar could
+  be opened but never reached — and the grid it skipped was a flat run of 31 buttons named
+  after their ISO string, which a screen reader reads out as digits.
+  It now follows the [APG date-picker dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/datepicker-dialog/):
+  - **A real grid.** `role="grid"` → `row` → `gridcell`, seven cells to a row, weekday
+    headers as `columnheader`s carrying the spelled-out day name behind the two-letter
+    abbreviation. The selected day (the whole band, in range mode) is `aria-selected`,
+    today is `aria-current="date"` rather than only a coloured dot, and each day is named
+    by `Intl` — "Saturday, 22 August 2026", not "2026-08-22".
+  - **One tab stop, arrows to move.** Arrows step a day and a week, Home/End reach the ends
+    of the Monday-first week, PageUp/PageDown change month and Shift+PageUp/PageDown change
+    year, each keeping the day number where the target month is long enough. The month and
+    year quick-pick bodies get the same treatment (±1 across, ±3 down).
+  - **Focus is managed.** Opening puts focus on the selected day, Tab cycles inside the
+    dialog instead of escaping into the page behind it, and closing — by Escape or by
+    picking — hands focus back to the trigger. The dialog is `aria-modal`.
+  - Out-of-range days are `aria-disabled` rather than `disabled`, so the arrows can still
+    travel across a gap in `min`/`max` instead of stopping dead at it.
+  - However a `DatePicker` is named — a visible `label` or an `aria-label` from the table's
+    filter row — the name now keeps the value with it: "DUE DATE, 13 Jul 2026" rather than
+    the caption alone (an `aria-label` used to replace the value outright) or the bare date.
+  - The grid's arithmetic (`shiftDays`, `shiftMonths`, `isoWeekStart`/`isoWeekEnd`,
+    `withYearMonth`) lives in `lib/rangePresets.js` with the rest of the date maths and is
+    covered by vitest cases for the edges that break silently — PageUp from 31 March landing
+    on 28 February rather than 3 March, leap days, year rollovers.
+  - **Paging the month is announced.** A polite live region in the panel speaks the new
+    month — 42 cells repaint and, without it, nothing is said at all — and says which
+    half of a range is still wanted. The finished range needs no announcement of its
+    own: closing returns focus to the trigger, whose name now carries it.
+  - The **Today** shortcut renders disabled when `min`/`max` exclude today, instead of
+    looking live and doing nothing.
+- **The date picker speaks the language the rest of the app is in** — it never did.
+  `@openmes/ui` stays locale-free, so every string, the month names and the BCP-47 tag
+  behind the spoken day names arrive as props; the new `components/AppDatePicker.jsx`
+  applies them once, the way `AppDataTable` already does for tables, and all 18 call
+  sites now go through it. Month and weekday names come from `Intl` rather than 31 new
+  lang keys per locale — except in English, where the package's own defaults are kept so
+  nothing shifts (`en` maps to `en-GB`, which abbreviates September as "Sept" where the
+  design says "Sep"). The trigger spells its value with the same month names as the
+  panel, so a translated calendar can't sit under an English date.
+  The native twin gets the platform's equivalents: `Intl`-spoken day names,
+  `accessibilityViewIsModal` on the popover, the month announced on paging, expanded and
+  selected state on the chips, and the same copy props.
+
+- **The rest of the design system now meets the APG patterns it claims.** Auditing the
+  package against [the ARIA patterns](https://www.w3.org/WAI/ARIA/apg/patterns/) turned up
+  the same shape of gap the date picker had — the right roles, none of the keyboard or
+  focus behaviour that makes them mean anything.
+  - **Dialogs** (`Modal`, `ConfirmDialog`) had `role`/`aria-modal` but no accessible name
+    (the heading was a bare div), and never moved, trapped or returned focus. A shared
+    `lib/dialogFocus.web.js` now does all four for every overlay in the package, and
+    `DatePicker` was moved onto it. `ConfirmDialog` also describes itself with the
+    consequence text, and opens focus on **Cancel** — the answer that changes nothing.
+    Escape is answered at the panel, so an overlay inside another no longer closes both.
+  - **`ActionMenu`** put `aria-haspopup`/`aria-expanded` on a wrapper `<span>` rather than
+    the button that takes focus, and its items — portaled to the end of the body — could
+    not be reached by keyboard at all. The trigger is now cloned rather than wrapped, and
+    the menu follows the pattern: Down/Up open onto the first or last item, arrows and
+    Home/End move within one tab stop, Escape closes and hands focus back.
+  - **`Dropdown`** (60 call sites) tracked the arrow-key highlight in React state and told
+    no one: focus stays on the trigger, so without `aria-activedescendant` a screen reader
+    heard nothing while arrowing the list. The trigger is now a `combobox` pointing at the
+    active option.
+  - **`RadioGroup`, `SegmentedControl`, `Tabs`** were each N tab stops with no arrow keys —
+    which is also what told a reader the options were unrelated. A shared
+    `lib/rovingFocus.web.js` gives them one tab stop, arrows, Home/End and wrapping. Tabs
+    additionally link to their panel (`panels`, opt-in so `aria-controls` never names a
+    region that isn't there), and all three take a `label` naming the group.
+  - **`QuantityStepper`** had no ARIA whatsoever: the value was an inert `<span>` between
+    two unlabelled glyph buttons. It is a `spinbutton` now, focusable, with its value and
+    bounds exposed and Arrow/Home/End/PageUp/PageDown wired.
+  - **`TextField`** and the config-driven **`ResourceForm`** captioned their inputs with a
+    `<label>` carrying no `htmlFor` — so every field in every admin create/edit form
+    reached a screen reader as an unlabelled edit box, with its help text and validation
+    error floating unattached beside it. Captions are tied to their control, `help`/`error`
+    arrive through `aria-describedby`, and a rejected field sets `aria-invalid` and
+    announces its error.
+
+- **Every form control in the app now has a name.** The design-system fixes above only
+  reached the components; the pages had reinvented "caption + control" ~40 times over, with
+  a `<label>` carrying no `htmlFor` — an element that, with nothing attached to it, names
+  nothing at all. 220 of them meant most inputs, selects and dropdowns outside `ResourceForm`
+  reached a screen reader as an unlabelled edit box.
+  Fixed by sweep: where the caption sits directly above its control the control is given the
+  name; the ~13 shared `Field`/`Filter`/`MiniField` wrappers hand it to whatever child they
+  wrap; and a caption that names a *group* rather than one control — a `<label>` can never
+  point at a Dropdown, a radio group or a grid of cards — is now plain text instead of a
+  label with nothing on the other end. Two checkboxes whose only name was in a neighbouring
+  `<span>` got it directly. **No unassociated `<label>` is left in the codebase**: all 37
+  remaining either carry `htmlFor` or wrap their own control.
+  Also caught on the way through: `DataTable`'s search box and the sidebar's menu search
+  were named only by their placeholder, which is not a name; the CSV import's file input is
+  hidden behind the drop zone but still announced; and a Dropdown named purely by the word
+  inside it ("Columns") lost that name when the trigger became a `combobox`, since — unlike
+  a button — a combobox does not take its name from its own content.
+
+- **Stock documents are created in a modal now** *(Admin → Warehouse → Stock Documents)* —
+  "New Document" opened a full page, so you came back to a list that had forgotten its
+  filters, sort and scroll. It now opens over the list, the way "New Work Order" does.
+  - The form moved into `StockDocumentForm`, rendered by both the modal and
+    `/admin/stock-documents/create` — the standalone page still works (deep links, and the
+    line grid has more room there), and a field added once shows up in both.
+  - The modal posts `stay`, which the controller answers with `back()` instead of
+    redirecting to the new draft; the row then arrives on its own through the synced
+    collection. A validation failure comes back to the open modal with its errors.
+  - Closing by a stray click on the scrim keeps what you typed (`keepMounted`); a finished
+    create and an explicit Cancel both reset it.
+  - Type, Warehouse and the per-line Material/Product picker were the last native
+    `<select>`s on the page — browser-chrome grey next to the app's own fields. They are
+    `Dropdown` now, like every other select in the system. The menu is portaled, so it
+    escapes the modal rather than being clipped by it.
+  - The list's option props now come from the same `createFormOptions()` the create page
+    uses, so the two can't drift apart. Its warehouse column reads a `warehouseCodes` map
+    (every warehouse, deactivated ones included) rather than the selectable-warehouse list,
+    which only offers what you may still pick.
+
+### Fixed
+- **A fresh install came up missing most of its reference data** — both install paths (the
+  container entrypoint and the web installer) seeded a hand-picked subset of `DatabaseSeeder`
+  rather than running it, so a new install had no scrap reasons, no downtime reasons, no
+  material types and no label templates. The operator's "report scrap" picker was an empty
+  dropdown out of the box. Both paths now run `DatabaseSeeder`; every seeder in it upserts,
+  so it stays safe to repeat on each container start.
+
+- **Demo seeder could resurrect deleted process-template steps** — it wrote steps with a
+  query-builder `updateOrInsert()` keyed on template + step number, which runs without the
+  model's soft-delete scope. On a database where a step had been deleted the match hit the
+  deleted row, so a re-run updated that instead of inserting a live one, leaving the template
+  short a step. The match now requires `deleted_at IS NULL`.
+- **Demo data now includes operator-reported issues** — `AirFilterDemoSeeder` seeds five
+  issues against the demo work orders, one per lifecycle state (open, acknowledged,
+  resolved, closed), reported by the demo operators and assigned to the demo supervisor.
+  The operator's work-order view, the admin Issues list and the history screens all have
+  something to show instead of an empty state. Upsert-safe like the rest of the seeder.
+
+- **New stock document → "Create Draft" did nothing** *(Admin → Stock Documents)* — the
+  form chained `form.transform(...).post(...)`, but Inertia v3's `transform()` returns void,
+  so `.post` was read off `undefined` and the submit threw before any request
+  (`can't access property "post", u.transform(...) is undefined`, #282). Set the transform
+  and post in separate statements, matching every other form in the app.
+- **A drawer no longer forgets what you typed when you close it** — dismissing a create or
+  edit drawer (the ×, Escape, Cancel, or a stray click on the scrim) reset the form, so a
+  half-filled record was gone on the way back in. Only a finished save clears it now.
+  Applies to every drawer: the shared `ResourceFormDrawer` behind the admin lists, New
+  Work Order, the BOM line form, and the process template's Add Step, template Edit and
+  step Edit. Forms keyed per record still reset when you open a different row — that is
+  what stops one record's draft appearing under another.
+- **Materials → Import posted to a URL that did not exist** — the page sent its upload and
+  process forms to `/admin/materials/import/*` while the routes lived at
+  `/admin/materials-import/*`, so every material file import 404'd. Superseded by the
+  unified importer.
+- **New stock document → "Create Draft" did nothing** *(Admin → Stock Documents)* — the
+  form chained `form.transform(...).post(...)`, but Inertia v3's `transform()` returns void,
+  so `.post` was read off `undefined` and the submit threw before any request
+  (`can't access property "post", u.transform(...) is undefined`, #282). Set the transform
+  and post in separate statements, matching every other form in the app.
+- **Doubled plus on three "new" buttons** *(Admin → Warehouses, Stock Documents, Inspection
+  Plans)* — `ResourceTable` already draws a plus icon in the create button, and these three
+  labels carried a literal `+ ` of their own, so they rendered as "+ + New Warehouse". The
+  prefix is gone from the labels (and from `ResourceTable`'s own `'+ New'` default, which
+  had the same problem).
+  - The same `+ ` was swept out of every other add/create control that still spelled its
+    plus as text — Workstations, Stock Document lines, Custom Fields, Modules, Sites →
+    Areas, Process Template parameters, Definition options, `RepeatableRows` (so
+    inspection-plan criteria and view-template columns follow), onboarding steps, the
+    packaging station, operator batches and the planner's "New order". Each now renders the
+    shared plus **icon** beside its label, so one glyph is drawn by one component instead of
+    two conventions disagreeing per page. The three cases inside a `<select>`/Dropdown
+    ("Add lot…", "Add line") can't hold an icon, so they simply lost the character.
+  - Translation keys moved with the labels across all five catalogs (en, pl, vi, de, tr),
+    folding into the already-translated plain key where one existed; 39 orphaned `"+ …"`
+    keys with no call site left were dropped.
+- **Escape inside a date picker closed the surrounding modal too.** Both listened on
+  `document`, so one press dismissed the picker and the form behind it — losing whatever had
+  been typed into it. The picker's key handling is bound to its own panel and stops there.
+- **A column that opted out of filtering could get its filter back.** `normalizeFilter`
+  mapped `false` to `undefined`, which on a second pass is indistinguishable from "never
+  said" — i.e. `'auto'`. Any column config normalised twice (built by `buildColumnDefs`,
+  then passed through `AppDataTable`'s `withFilters`) grew a filter control on a column
+  whose cell shows something other than what the value holds — a date picker under an
+  elapsed-time column, filtering on a timestamp the reader can't see. "Off" is now `false`
+  all the way through, so normalising is idempotent.
+- **Removing an operator from a line 404'd.** The detail page posted to
+  `/admin/lines/{id}/operators/{user}`; the route is `…/unassign-operator/{user}`.
+- Activating or deactivating a line from its detail page no longer bounces you to the line
+  list — it returns to the page the button was pressed on.
+- **Onboarding: the module-preset choice now precedes the setup wizard** *(admin)* — picking Lightweight / Advanced / Custom is an **independent screen shown before** the wizard, not its first step. The wizard's stepper is hidden on that screen and now counts **4 steps** (Line → Product → Process → Work Order) instead of five. You choose the feature set first, then the wizard walks you through the rest. No change to what each preset enables.
+- **Saving system settings crashed on PostgreSQL** *(admin)* — the plant-timezone save wrote the raw identifier (e.g. `Europe/Warsaw`) into the JSON `system_settings.value` column, which PostgreSQL rejects (`invalid input syntax for type json`), 500-ing the whole Settings → System save; SQLite tolerated it, so tests missed it. The value is now JSON-encoded (and decoded on read, tolerating legacy raw values).
+- **Header clock ignored the configured timezone** *(all users)* — the live clock top-right was hardcoded to `Europe/Warsaw`, so on any install with a different timezone it was the one timestamp in the UI that disagreed with all the others. It now goes through the same `formatDate`/`formatTime` helpers as the rest of the app.
+- **Settings language picker showed the wrong language** *(admin)* — the Settings → System language dropdown always showed the stored *system default*, so after switching the UI language with the per-session switcher the picker contradicted the language actually on screen (#271). It now reflects the currently effective locale (the session override if set, else the system default).
+
+- **Saving system settings crashed on PostgreSQL** *(admin)* — the plant-timezone save wrote the raw identifier (e.g. `Europe/Warsaw`) into the JSON `system_settings.value` column, which PostgreSQL rejects (`invalid input syntax for type json`), 500-ing the whole Settings → System save; SQLite tolerated it, so tests missed it. The value is now JSON-encoded (and decoded on read, tolerating legacy raw values).
+- **Header clock ignored the configured timezone** *(all users)* — the live clock top-right was hardcoded to `Europe/Warsaw`, so on any install with a different timezone it was the one timestamp in the UI that disagreed with all the others. It now goes through the same `formatDate`/`formatTime` helpers as the rest of the app.
+
+- **Add maintenance to the planner** *(admin)* — a new **+ Maintenance** button on the schedule planner opens a modal to place a **defined maintenance** (a maintenance schedule, which pre-fills its title / type / line) or an ad-hoc one onto a line at a chosen date, time and duration. It lands as a **distinct yellow tile** in the line's maintenance strip (maintenance tiles are now yellow instead of purple, so they stand out from work orders). Backed by `POST /admin/schedule/maintenance`.
+
+- **Plant timezone is changeable after installation** *(admin)* — Settings → System → General now carries a timezone picker (region + zone), writing the same `system_settings` row the installer's step does; the wizard already promised this was possible. The chosen zone is re-applied per request and before each queued job, so on Octane a change reaches every worker immediately instead of waiting for a container restart. Saving reloads the page so every displayed time switches over at once.
+- **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
+
+### Security
+- **Upgraded `league/commonmark` 2.8.3 → 2.10.1**, clearing ten advisories (several high) on
+  the copy pulled in through `laravel/framework`. OpenMES does not render Markdown itself, so
+  exposure was limited to Laravel's own mail templates — but `composer audit` is a merge gate
+  and it now reports clean.
+
+## [0.21.0] - 2026-08-21
+
+### Added
+- **Typed operator outputs on process-template steps** *(admin / operator / API)* — a step can define what the operator must **record** at execution: a `key`, a label and a **value type** — `text`, `number` (with unit), `boolean`, `select` (with options), `date`, or **`picture`** (e.g. a QC photo, `output_qcpic`). Admins add these in the step editor (beside the checklist). At the workstation the operator fills each one — typing a value, picking an option, or **capturing/uploading a photo** — and the MES records it with who/when. Any output marked **required blocks step completion** until it's recorded (same gate family as checklists and mandatory documents). Photos are decoded + re-encoded through the image sanitiser and stored on the private disk, served only through an authenticated endpoint. Recorded values (and picture URLs) are exposed to external systems over `GET /api/v1/work-orders/{id}/step-outputs`. Additive — existing steps and workflows are unaffected.
+- **Equipment parameters on process-template steps** *(admin / API)* — each step can now carry a free-form `key:value` recipe (temperature, humidity, pressure, sample size…) that an external client reads to drive equipment. Set them in the step editor (a key/value row editor beside the ISA-95 fields). A linked Process Segment supplies defaults; the step's own values override them key by key (`effectiveParameters()`). The values are frozen onto a work order's `process_snapshot` (so `GET /api/v1/work-orders/{id}` exposes the exact recipe each order was built with) **and** readable live from the current template (`GET /api/v1/process-templates/{id}`). Nullable and additive — existing steps and workflows are unaffected.
+
+### Fixed
+- **Assigning product types to a production line 404'd** *(admin)* — the line-detail page posts the assignment to `/admin/lines/{line}/product-types/sync`, but the route was registered at `/admin/lines/{line}/product-types` (no `/sync`), so every save hit a non-existent URL and silently failed. The route path now matches the frontend (and its own `lines.product-types.sync` name); a feature test pins the literal URL so it can't drift again.
+
+## [0.20.0] - 2026-08-16
+
+### Added
+- **Simulated machines, so the shift monitor can be driven without hardware** *(dev / demo)* — three Modbus TCP machines and their pollers, on an opt-in compose profile:
+
+  ```
+  php artisan db:seed --class=MachineSimulatorSeeder
+  docker compose --profile simulator up -d      # add -f docker-compose.dev.yml in dev
+  ```
+
+  This drives the **real** ingest path — `modbus:simulate` → `modbus:poll` → `MachineSignalIngestor` → the state machine and counter events → the Reverb nudge → the live screen — rather than writing rows behind it, so what you watch is what a physical PLC would produce. No new image and no new dependency: the simulator is an artisan command, so the containers run the app image and stay in step with the code they exercise.
+  - `modbus:simulate` gained `--rate` (parts per hour) and `--seed`, and its scripted timeline now includes **running below nameplate** as well as running, idle and faulted. Without that phase nothing ever exercises the monitor's speed-loss detection, which is half the screen. `--seed` decorrelates the stations so they don't all stop on the same second.
+  - `modbus:poll --connection=` now accepts a **name** as well as an id, because a compose service can't know the id a seeder will hand out.
+  - `MachineSimulatorSeeder` wires a connection, a Modbus endpoint and the four register tags per station, and writes each station's nameplate rate onto the workstation so the monitor's targets and speed-loss threshold are measured against what the simulator actually produces. The temperature tag is seeded **inactive**: `handleTelemetry()` writes a machine event and updates the open state slice on every read, which is ~28k rows per station per shift for a signal nothing on the monitor consumes.
+  - **The MES half of the shift, not just the machine half** — `demo:simulate-workflow` (one more container on the same profile) opens and closes **batches** on the simulated stations, signs off **quality checks** on them, and raises an **issue** when one fails, so the batch strip and the event pins move too instead of sitting frozen under a live timeline. Batch counts are read back out of the counter events the poller recorded — never invented — and recomputed each tick rather than accumulated, so a restart mid-batch neither loses nor doubles a shift's counting. Work-order progress needs no special path: these are ordinary machine-counted orders, so `MachineProductionService` drives `produced_qty` exactly as it does for a real PLC.
+  - It works on **its own `SIM-…` work orders** and refuses to touch a batch it did not open, skipping the station with a warning instead. A demo order planned for 25 pieces would be finished and closed inside two minutes at nameplate rate, and overwriting an operator's open batch with simulated counts is indistinguishable from a data-corruption bug. Clearing a leftover batch off a station is the seeder's job, where it happens once, on purpose, and prints what it closed.
+  - The simulator containers now carry the same **broadcast settings** as the backend. They are the processes that write machine data, so they are the ones that push the live nudges — without those variables every push resolved to the null driver and the screen only moved on its 30 s fallback poll.
+  - Batches and quality checks nudge the monitor's channel too. Both are on the screen and both move on their own schedule: a check signed off while the line is stopped produces no counter event to ride along with.
+
+- **Line overview — every machine on a line, side by side** *(new screen)* — **Supervisor → Line Overview** (also `/admin/shift-overview`). The shift monitor explains one machine's shift; this answers the question asked before it, *which machine needs explaining*. A line picker on top, one row per station under it, each row the running shift end to end with its state timeline, output against target, OEE and how many stops are still unexplained. Clicking a row opens that station in the monitor.
+  - **A row is the shift, not the day.** A 24-hour axis squeezed into a screen width leaves a two-minute stop two pixels wide — too small to see and far too small to click — and targets, OEE and the handover balance are all per shift, so a day-long row would carry numbers with no single meaning. Segments here are deliberately not clickable: classifying stays on the detail screen, where a stop is fifty pixels wide.
+  - **Stations that report nothing are shown, not hidden.** Every active workstation on the line appears, and one with no collector reads as hatched "no data recorded" for the whole shift — which is the reading this screen exists to surface. Leaving it out would answer "all good" for a machine nobody is hearing from.
+  - Live over the same sockets as the monitor: each station pushes on its own channel and a burst across the line coalesces into one re-fetch. The fleet is read in **three queries for the whole line** rather than three per station — the counter feed alone is thousands of rows a shift, and this page shows every machine at once.
+  - Reachable under the existing `tab:shift_monitor` access tab: one feature, two views of it, so nothing new to grant.
+
+- **An optional photo on a product type** *(admin → product types)* — the create and edit forms take a JPEG/PNG/WebP up to 5 MB, with a preview, a *Remove image* toggle and no image required at any point; the detail page shows it beside the product name. Operators recognise a part by sight long before they recognise its code, and until now the only way to attach one was to define a custom field for it.
+  - The upload goes through the same security gate as work-instruction photos: every file is **decoded and re-encoded from raw pixels** (`ImageSanitizer`), so payloads smuggled into a valid image, malicious EXIF/ICC chunks and embedded GPS never reach the disk. SVG is refused by design. Files are stored on the **private** disk under a server-generated random name and served only through an authenticated endpoint — nothing is web-reachable.
+  - Replacing a photo deletes the file it replaced, and removing one deletes the file; a soft-deleted product type keeps its image so a restore from Trash comes back whole.
+  - `ProductTypeManagementController` validation moved into `StoreProductTypeRequest` / `UpdateProductTypeRequest` (the convention it was predating), and `ResourceForm` gained a reusable `image` field type, so the next entity that needs a photo is a two-line change.
+
+### Fixed
+- **Shift monitor: ten defects found by review, before any of them reached a plant** *(shift monitor / connectivity)*
+  - **A stop left open never closed could be attached to every later stop.** A collector killed mid-fault leaves a `production_downtime` with no `ended_at`; read literally it is still running, so it overlapped every stop in every subsequent shift and — matched first-wins — handed them all the same id. Classifying today's stop wrote the cause onto one from days ago while today's stayed unexplained. An open stop is now clipped at the first non-down state slice that follows it (the machine was demonstrably no longer stopped by then, whatever the row says), and where several stops still overlap, the one that *started* nearest the slice wins. A stop genuinely still running from before the shift opened is unaffected.
+  - **`MachineSimulatorSeeder` was manufacturing exactly those orphans**: it closed stale open state slices but not the downtimes the state machine had opened alongside them. The next transition then found no current slice, so it never closed the downtime either.
+  - **Two supervisors could silently overwrite each other's cause.** The page stops refreshing while a drawer is open, so both hold a snapshot saying the stop is unexplained; last click won, with nothing recorded that the cause had ever changed. The drawer now echoes back what it saw and the request refuses a decision made against a stale view. A stop with no workstation — a line-level record from elsewhere in the app — is refused outright.
+  - **Escalating twice filed two tickets.** Issues gained `production_downtime_id`, so the stop an escalation came from is a link rather than a sentence in the description, and a second click on a stop with an issue still open returns that issue instead of opening another.
+  - **A date and the current clock time were being mixed.** `?date=` is the day the shift *opened*, but it was combined with now's time-of-day, which made `occurrence()` roll back a day whenever the request arrived before the shift's start time: at 03:00, asking for the 27th's night shift returned the 26th's, and every press of ‹ then skipped a shift. Uses `startingOn()` now, and a new `startingOnDate()` resolves a date with no explicit shift.
+  - **A day with no shift scheduled jumped to today.** The fallback resolved against `now()` and discarded the requested date, so paging back into a weekend on a Mon–Fri line showed the live shift under the weekend's date and left the arrows apparently dead. The fallback window is now anchored to the date asked for.
+  - **"Lost pcs" reported the whole expected output for healthy time.** One formula served every segment kind, so a 60-minute run at nameplate opened a drawer titled *Running interval* reading `LOST PCS 600`, and a slow stretch showed the full expectation rather than the shortfall. A stop now reports what it could have made, a slow run the shortfall, and a run at rate reports what it produced instead. The interval detail gained actual output next to expected.
+  - **Hour rows were labelled by clock hour but cut on shift-relative offsets.** For a shift starting at 06:30, the row labelled `06` covered 06:30–07:30 and the :15/:30/:45 ruler was half an hour out, so a stop read off the timeline was reported to maintenance at the wrong time. Rows are now anchored to real clock hours; a shift that starts mid-hour opens partway into its first row. Shifts starting on the hour are unaffected, which is every shift in the shipped seeds.
+  - **The date stepper round-tripped through UTC**, so east of UTC+12 the ‹ › buttons could land on the day already displayed.
+  - **A running poller ignored its connection being switched off.** Last release's 60-second refresh re-read the tag list but not the connection row, so a machine taken down for maintenance kept ingesting states and counters and went on drawing RUNNING. The refresh now re-reads both and stops when the connection is deactivated; starting against an inactive connection is refused outright.
+- **"No data" and "idle" were the same colour on the shift timeline** *(shift monitor)* — minutes no state slice covered were left as bare track, which is exactly how idle time is drawn. A collector that dies mid-shift therefore read on screen as a quiet machine, and a station with no connection at all showed an empty row all day — the one reading that stops anyone investigating. Unrecorded time is now its own hatched kind with a legend entry, ending at the now-marker so the part of the hour that hasn't happened yet is not mistaken for missing data. It counts towards nothing: those minutes are unknown, not planned and not lost, and folding them into any bucket would put a guess into the OEE arithmetic.
+- **A running poller never noticed a tag being switched off** *(connectivity)* — `modbus:poll` read its tag list once at startup, so deactivating a tag in **Admin → Connectivity** did nothing until somebody restarted the container, with no indication that the setting hadn't taken. The loop now re-reads which tags are active every 60 seconds and logs the change. This is what made the shift-monitor simulator's inactive telemetry tag keep writing ~28k rows a shift despite being off in the database.
+- **The event pins showed two tooltips at once** *(UI)* — hovering a balloon opened its card *and* the browser's own `title` tooltip on top of it, saying the same thing. The native tooltip is gone; the label it carried moved to `aria-label`, so the pin is still reachable without a mouse.
+- **The stop drawer's cause picker was English inside a Polish page** *(i18n)* — the ten shipped downtime reasons are seeded English source strings, and the shift monitor printed them raw, so "Machine Breakdown" sat under a heading reading *WYBIERZ PRZYCZYNĘ*. Reason names now go through the translation catalogs like any other source string, wherever the monitor shows them — the picker, the stop title, the Pareto rows and the classified-stop pins — and the picker is sorted on the **translated** name, since an A–Z that only holds in English reads as no order at all. A reason an admin typed in themselves has no catalog key and comes back unchanged, which is the right answer for it. The raw machine state in the drawer (`FAULT`) and an escalation pin's issue status (`OPEN`) were showing untranslated for the same reason and are now covered. Adds 16 keys to both catalogs — the nine seeded reasons that had none, and the seven `WorkstationState` constants.
+
+### Changed
+- **Alerts is a set of real tables now** *(UI)* — **Admin → Alerts** drew its own cards and mini-tables, so the one screen that regularly holds fifty rows was the one screen you could not sort, filter or search: 48 open issues arrived as 48 stacked cards to scroll past. Every panel is the shared `DataTable` the rest of the app's lists use — sortable headers, a filter row (issue type, line and work-order status as dropdowns built from the rows themselves), search and a pager — laid out as **blocking issues** beside **overdue orders**, with *other open issues* and *blocked orders* appearing underneath only when there are any. Each row states its own status with a dot that pulses until somebody has acknowledged it, and carries **Ack** / **Resolve** where the reader is already looking; "Overdue by" keeps the countdown, and the panel links through to the work-order list **filtered to the overdue orders** (`?overdue=1`) rather than dropping you in the full list.
+  - **The sidebar's alert badge answers itself on hover** — a number tells you something is wrong but not what. Hovering **Alerts** opens a panel with the five newest open issues (time since reported, and the work order they came from while it is still live), the overdue/blocked counts the badge also includes, and a link through to the page. It reads the *same shared collections the badge counts*, so it opens no connection and fetches nothing — the rows are already in the browser — and it mounts only while open. Works in the collapsed rail too, where a nav item has no label to read.
+  - A row's **title opens the full report** — the description is the sentence that says what actually happened, and a table cell can only show its first line. The panel dot and status chip now read the status enum (`OTWARTE` / `POTWIERDZONE`); they had been rendering `__('Open')`, whose Polish value is the verb *Otwórz* — a chip that read as a button sitting inside the title.
+  - **`bodyMaxHeight="fill"` stopped raising a scrollbar on the container it was sizing to fit** *(shared DataTable, affects every list)*. Two causes: the available height was rounded up rather than down, and a table wide enough to scroll sideways draws that scrollbar *inside* the body being measured, so a body sized to the exact space left over ended 15px past the floor. Both accounted for now.
+  - **"Acknowledge all"** acts on the whole list in one request — `POST /admin/issues/bulk` (and the `/supervisor` twin), mirroring the work-order bulk endpoint: a Form Request validates the action and the id set in a single query, issues the action doesn't apply to are skipped and counted rather than failing the request, and rows are updated one at a time so the model events that broadcast them to every open browser still fire. Resolving in bulk unblocks a work order whose last blocking issue just went away, exactly as resolving one does.
+- **The work-order detail page, rebuilt** *(UI)* — **Admin → Work Orders → an order** follows the design: the order's identity, state and next verb in one header row, then two columns — details and its batches on the left, what it adds up to on the right (progress, problems, activity). Fields are labelled in the system's mono caption idiom rather than as sentence-case prose, an overdue order says how overdue in the header as well as beside its date, and the "problems" panel states *"no problems reported"* in a dashed box instead of leaving an empty card.
+  - **A batch's routing can now be driven from here.** Each step in the stepper carries its own **Start** / **Complete**, going through the same endpoint the operator station uses — the rules (order state, sequence, quality gates) stay the service's, and a refused transition surfaces the server's own message. Before this, an admin looking at a stalled order could see which step it was sitting on and do nothing about it without walking to the station.
+  - **An activity panel**, assembled from the timestamps the records already carry — order created, batch started/completed, each step completed and by whom, issues reported, order completed. Deliberately *not* a new event log: nothing here is inferred, so an entry is missing rather than approximate when a timestamp was never recorded.
+  - **`Stepper` grew an `action` slot** and now keeps the step **number** in the indicator in every state, done included. "Step 4 of 6" is how a routing is discussed on the floor, and a column of ticks loses exactly the thing that lets someone say which step they mean — done-ness is carried by the fill and the connector. The step's state moved into the caption line under its name, in the same mono letterspaced idiom as every other status label. Native twin updated to match.
+- **The order number in the work-order lists opens the order** *(UI)* — it is the row's identity, so it is what a reader aims at, but opening a record was only ever double-clicking the row or the `⋯` menu's *Open*, neither of which announces itself. Admin and supervisor both, from the one shared column definition. Double-click still works.
+- **Every deadline says how long is left, not just when** *(UI)* — a date printed as `2026-08-12` makes every reader do the same subtraction on every row to find what needs attention today. Deadlines across the app now carry a countdown: **days + hours** while it is further out, **hours + minutes** once it is inside the last day, and the size of the overrun once it has passed — coloured muted / amber / red, so the rows in trouble are findable without reading a single date. A deadline stored at midnight is a *date*, not an instant (the form only offers a day), so it falls due at the **end** of that day — counting to 00:00 would have branded every order due today as already late. An order that is done, rejected or cancelled keeps its figure muted: its deadline is a fact about the past, not an open problem.
+  - Applied to the **work-order lists** (admin + supervisor, under the date, ticking on the table's existing 30 s clock), the **work-order detail** pages, the **schedule list**, the **planner** (backlog cards, and the reschedule sheet — where it reads the date *being picked*, so you see what a move leaves you), the **capacity drill-down**, the **operator workstation** queue and its order details, the **alerts** page (whose "Overdue" column said "2 days ago" — an event's phrasing, not a deadline's), **issue actions** (which said only *whether* an action was late, never by how much), and **maintenance schedules**' Next Due.
+  - One `countdown()` in `lib/i18n.js` next to `elapsed()` does the arithmetic, one `<DueCountdown>` component does the tone, so the eleven call sites can't drift into three different opinions about what "overdue" looks like. Unit-tested, including the end-of-day rule.
+- **The supervisor work-order list caught up with the admin one** *(UI)* — the two pages render the same table from the same live collection, but the supervisor copy had been left on the older `ResourceTable` feature set: classic paging instead of infinite scroll, and a variable-length row of buttons whose width jumped from row to row instead of the fixed rail. **Supervisor → Orders → Work Orders** now matches: infinite scroll, the one action the row is waiting for as a labelled button, everything else behind the `…` menu, the bulk-transition toolbar over the checkbox selection (`POST /supervisor/work-orders/bulk`), and **"+ New Work Order"** opening the same modal form rather than navigating away. Its create page and modal now also offer the **BOM / product-revision pickers** the admin form has — the supervisor controller had never been passing those options. Deleting stays gated on the `delete work orders` ability, which the shipped **Supervisor** role does not hold: the item appears only for a user who actually has it (an admin browsing this tree), rather than showing a menu entry that always 403s. Behind it, the skip-the-ineligible bulk rules moved into `WorkOrderService::applyBulkTransition()` and the form's picker data into a `BuildsWorkOrderFormOptions` trait, so both sections call one implementation and can't drift apart again.
+- **Supervisors get their own section** *(navigation / access)* — a supervisor's sidebar used to be the admin sidebar with most of it hidden, so the few entries they could see (Orders, Customers, Priority Settings, CSV Import) sent them into `/admin/...`, while a whole `/supervisor` route tree sat there unlinked. The two roles now have genuinely separate trees: **supervisors work entirely under `/supervisor`, and `/admin` is the admin's**.
+  - New supervisor menu covering what the role actually does — Dashboard, Shift Monitor, Orders (all orders, customers, priority settings, CSV import), Production (issues, quality tasks, shift handover) and Reports — every entry resolving to a `/supervisor` route. The admin menu is unchanged.
+  - **Customers, Priority Settings, CSV Import and Reports** are now reachable at `/supervisor/...` too. These are the *same* controller and the same React page mounted under both prefixes rather than a second copy: a new `ServesBothSections` trait resolves which section served the request, so redirects land back in that section and the page builds its links from a `basePath` prop instead of hardcoding `/admin`. One implementation, two URL trees, nothing to drift.
+  - **Supervisors no longer hold `tab:orders` by default**, so `/admin` refuses them. The per-tab access matrix (**Settings → Access**) still governs `/admin` exactly as before, and a plant that wants a supervisor in a specific admin page can still grant that tab. *Existing installs: a migration retires that grant, but only where the Supervisor role still holds exactly it and nothing else — that is the untouched shipped default. An install whose supervisor tabs have been adjusted by hand is deliberately left alone, because the seeder's keep-tabs rule exists precisely so nobody's configuration is overwritten; revoke it in Settings → Access there.*
+  - **Overnight shifts are attributed to the night they began.** A stop at 01:30 belongs to the shift that opened at 22:00 the evening before, but the per-shift OEE queries filtered on the calendar date, so it was charged to the *next* day's record — and a night with several faults could clamp that day's availability to zero while the night it happened read clean. `DowntimeService` now scopes to the shift occurrence's real start and end. This also fixes the same misattribution for hand-reported stops, which predates the shift monitor. *Applies from this release onward: existing `oee_records` are left as they were reported rather than silently restated — re-run `php artisan oee:calculate --date=YYYY-MM-DD` for any past day you want corrected.*
+  - Fixed along the way: saving the **priority band thresholds** never worked — the handler chained `.post()` off Inertia's `transform()`, which returns void in v3, so the button threw instead of saving. And `TabAccessTest` leaked a permission grant between tests, because Spatie caches the permission map outside the database and it does not roll back with the test transaction.
+
+### Added
+- **Live shift monitor** *(new screen)* — the shift as it is running, on one page: **Supervisor → Shift Monitor** (also `/admin/shift-monitor`). One row per clock hour shows what the machine was doing minute by minute, with the hour's output printed against its target beside it, and a pulse strip underneath showing when pieces actually came off.
+  - **Updates are pushed over the existing Reverb socket**, not polled. Each station has a private channel (`shift-monitor.{id}`, Admin/Supervisor only) carrying a nudge whenever its machine state, counters or stops move, and the page re-fetches its snapshot. The nudge is hooked on the three models the monitor derives from rather than called from the services that write them — the state machine, the signal ingestor, the classify endpoint and the seeder all reach the same tables and none of them needs to know a UI channel exists, mirroring how `CollectionBroadcaster` works for synced collections. Nudges carry no data: the payload is a derived aggregate, not a row, so recomputing it per broadcast would do that work for every station whether or not anyone had it open. Bursts are coalesced into one fetch (a busy line emits several nudges a second), every re-subscribe re-fetches so a dropped socket can't lose changes, telemetry is filtered out as the highest-frequency signal that changes nothing on screen, and a slow 30 s interval remains as a safety net for a socket that dies without saying so.
+  - **Every stop has to be explained.** When a machine stops on its own, the placeholder reason it gets keeps the OEE arithmetic honest but says nothing about *why* — so those stops are now flagged and drawn in alarm red with a blinking **?**. Clicking one opens the cause picker (the existing `downtime_reasons`, grouped planned / unplanned / changeover), and choosing a cause records who decided and when. A classified stop turns deep red and wears its reason. The header keeps a running count of what is still unexplained, and **Escalate** raises an issue against the work order the station was running.
+  - **Reduced speed is a state the machine never reports.** A RUNNING stretch producing below its station's nameplate rate is now shown as a speed loss in its own colour, derived by comparing the counter feed against the rate minute by minute and merging the result into runs. This is what turns "the machine was on for eight hours" into an honest performance figure.
+  - **Analysis tab** on the same snapshot — OEE and its three factors, downtime Pareto by cause, a time-loss waterfall from elapsed shift time down to effective run time, and good/scrap/produced. It regroups the numbers the live view is already showing rather than re-querying, so the two can't disagree.
+  - Also on the page: current and previous batches with lot, scrap and progress; a rolling pcs/min (or OEE) chart over the last 56 minutes; and event balloons on the timeline built from real records — batches starting and finishing, issues raised, QC checks, and notes left when a stop was classified.
+  - Reachable by **Supervisor and Admin** through a new `tab:shift_monitor` access tab, so it can be granted or revoked from **Settings → Access** like every other area.
+  - Also corrected during review: overnight shifts resolved against the wrong weekday (a Friday night went unrecognised after midnight, and an unscheduled Sunday night resolved as live); a counter pulse landing exactly on a shift boundary was counted in both shifts and in neither hour row; one stop crossing an hour was reported as several things to classify; Performance was a step function of the speed threshold (a line holding 84% of rate read 0%) and is now output against expected output; escalating a stop could file the issue against an order that finished weeks ago; a rolled-back transaction could permanently silence a station's live push; and overlapping machine-state rows could silently multiply every hourly target.
+  - New: `production_downtimes.needs_reason` / `classified_at` / `classified_by_id`, `workstations.ideal_rate_per_hour` (nameplate pcs/hour — a station without one shows no target and never reports a speed loss, rather than guessing), design tokens `--om-track` / `--om-deep` / `--om-planned`, and `ShiftMonitorDemoSeeder` for a shift's worth of demo machine data.
+- **Partial consumption, returns to stock & material reclassification** *([#99](https://github.com/Mes-Open/OpenMes/issues/99))* — the shop floor rarely uses exactly what was issued, so a work order's pulled materials can now be reconciled against reality, every change booked to the stock-movement ledger. **Declare actual (partial) consumption** per material — recording what was really used leaves the over-issued surplus to be handed back. **Return unused quantity to stock** at any point before completion: the return raises on-hand, releases the reservation and restores the picked lots, and — critically — shrinks the allocation so batch completion never returns the same quantity twice. **Reclassify material** either between **classes** (regrade a quantity from one material to another, booking a correlated pair of movements) or by **lot status** (release / quarantine / reject — a rejected lot's remaining quantity is scrapped out of stock). Available on the admin work-order page (a **Materials reconciliation** panel) and over the API (`/api/v1/material-allocations/{id}/consume` & `/return`, `/api/v1/material-reclassifications/class`, `/api/v1/material-lots/{id}/reclassify-status`); reclassification is gated to Supervisor/Admin. A new append-only `material_reclassifications` audit table correlates the movement legs. All quantities/columns are additive — existing consumption at batch completion is unchanged.
+- **Controlled production stops and work-order change requests** *([#182](https://github.com/Mes-Open/OpenMes/issues/182))* — pause a running order, change what it builds under review, and resume on the new configuration **without ever overwriting what the shop floor already did**.
+  - **A stop is a record, not just a status.** `POST /api/v1/work-orders/{id}/stop` captures a **typed reason** (`OPERATIONAL`, `MATERIAL_SHORTAGE`, `MACHINE_FAILURE`, `QUALITY_HOLD`, `ENGINEERING_CHANGE`, `OTHER`), who stopped production and when, and a **photograph of the state at that moment**: produced quantity, active/completed batches, in-progress steps, allocated and consumed material, and the configuration version in force. Only **one stop is open at a time**, so downtime totals can't double-count. Supplying a downtime reason also opens a **linked `production_downtimes` record** — a stop and a downtime stay separate concepts (why production stopped vs. how long a resource was idle), linked rather than merged, and closed together on resume. Duration is materialised on resume for reporting and reported as a **running total** while the stop is still open.
+  - **A new `CHANGE_HOLD` status.** A stop raised with `requires_change` puts the order on **CHANGE_HOLD** instead of PAUSED — the board distinguishes "back after the break" from "nobody may build this until a change is approved" — and **resume is refused** until an approved change request has actually been **applied**. Plain pause/resume is untouched: an order paused the old way still resumes on an empty request body, with no change request and no stop record.
+  - **Changes go through review, not through the edit form.** `POST /work-orders/{id}/change-requests` raises a **`CR/YYYY/NNNN`** request carrying a title, reason, the **proposed fields** and the **disposition** of partially produced items and material. Only an allowlist may be proposed — **product revision, planned quantity, line, BOM selection, due date, description, production notes** — anything else is refused. The lifecycle is deliberately narrow (**DRAFT → SUBMITTED → APPROVED → APPLIED**, or REJECTED / CANCELLED): only a draft can be edited, only a submitted request approved, only an approved one applied, and rejection needs a written reason. Nothing is ever deleted; a withdrawn request is CANCELLED and stays readable.
+  - **Impact analysis before anyone approves.** Every request carries the picture the approver saw — produced vs. remaining quantity, completed/active/pending batches, completed vs. not-yet-started steps, allocated and consumed material, the **revision change**, the **engineering documents being replaced** — plus **warnings** where the proposal conflicts with completed work. `GET /work-order-change-requests/{id}/impact` recomputes it live for the review screen.
+  - **Applying appends a version; it never rewrites one.** An approved change may only be applied to a **stopped** order. Applying freezes the **before-state** as a diff, rebuilds the configuration and writes it as the **next `work_order_snapshots` version** — version 1 is what the order was released with, and every earlier version stays readable exactly as the shop floor received it. New batches are stamped with the version they were generated from, so **production before and after a change stays distinguishable** and revisions stay traceable per batch. The **remaining material requirements** are recalculated onto the record; existing allocations and consumption are left alone. Quantity cannot be set below what was already produced, and `IMMEDIATE` is **refused once anything has been executed** (use `NEXT_BATCH` or `REMAINING_QUANTITY`) — only batches with no started step are ever regenerated.
+  - **In the admin panel.** The work-order page gains a **Stop production** action (typed reason, affected batch, optional linked downtime, and the "a configuration change is required" tick that commits the order to review), a **Request change** action that proposes only the fields you tick, a **stop history** with durations and the produced quantity at each stop, and a list of the order's change requests. An order on `CHANGE_HOLD` shows a banner and a **disabled Resume** until a change has been applied — then Resume carries it automatically. A dedicated **change-review page** lays out the field-by-field diff, the **live impact analysis** (quantities, batches, steps, material, revision change, replaced documents, conflicts with completed work, recalculated remaining requirements) and the Approve / Reject / Apply controls the current user is actually allowed to use. `CHANGE_HOLD` renders as a real status everywhere it can appear — work-order lists, supervisor screens, the dashboard and the schedule planner — and **every** resume path (API, admin, supervisor) goes through the same service, so no screen can flip the status while leaving a production stop open.
+  - **Approving is a separate right.** A new **`approve work order changes`** permission gates approve/reject/apply, held by Admin and Supervisor, so a plant can let a planner raise a change while only a reviewer signs it off. Ten REST endpoints (stop, stops, change-requests CRUD, submit/approve/reject/cancel/apply/impact) plus the extended `resume`; new `work_order_snapshots`, `work_order_change_requests` and `work_order_stops` tables, `work_orders.snapshot_version` and `batches.snapshot_version` (both backfilled to 1), `App\Services\WorkOrder\{WorkOrderStopService, ChangeRequestService, WorkOrderSnapshotService}`, and `work_order_stops` / `work_order_change_requests` live-sync shapes.
+- **Step workstation types, ISA-95 standard/actual times & pool dispatch** *([#52](https://github.com/Mes-Open/OpenMes/issues/52))* — process steps can now carry an ISA-95 **Equipment Class** (workstation type) and **standard times** (setup + run-per-unit) alongside the existing estimate, so ERP BOM operations map cleanly onto OpenMES. Admins set these on the template step editor. When a work order is created the fields are frozen onto its batch steps, and the work-order view exposes a computed **standard production total** (`Σ setup + run × qty`). A **supervisor** can now **assign a specific workstation** to a pending step that only carries a type (pool dispatch) — validated to the required type; once assigned, the existing workstation-routing guard enforces access. At completion, steps with standard times prompt the **operator** to confirm **actual** setup/run/elapsed times (ISA-95 L3), stored separately from the system-recorded wall-clock value for planned-vs-actual reporting. All columns are nullable — existing workflows are unaffected.
+- **Engineering CAD documents** *([#179](https://github.com/Mes-Open/OpenMes/issues/179))* — attach engineering drawings and CAD files to the parts, products and processes they belong to, so the shop floor always works from the right revision.
+  - **Attach where it matters.** Link files to a **material, product type, product revision, subassembly, or process template/step**. Supported formats: native & neutral CAD (**STEP / IGES**), **eDrawings** (`.eprt` / `.easm` / `.edrw`), **PDF** drawings, **images**, and self-contained **interactive-HTML** packages. Every file is stored on private storage with a **SHA-256 checksum**; the 100 MB size cap and the allowed formats are configurable.
+  - **Revisions with real traceability.** Documents move through a **Draft → Released → Obsolete** lifecycle, and a released document is **immutable**. When a work order is created, the documents released at that moment are **frozen onto it** — publishing a newer revision later never rewrites what a past order was built against.
+  - **Inspect interactive 3D/HTML packages safely in the browser.** Interactive packages open in a **sandboxed viewer** served over short-lived **signed URLs**, isolated from the app (its own strict Content-Security-Policy, no cookies, no outbound network). Uploaded archives are validated and extracted with **zip-slip and file-type protection**, and a bad archive is rejected cleanly.
+  - **Right where you already work.** An **Engineering documents** panel now lives on the **Material, Product type, Product revision, Subassembly and Process template** detail pages, and on each **process step** (behind a per-step toggle). A complete assembly keeps its documents on its product type / product revision. Authorized users get upload, download and lifecycle controls; everyone else sees a read-only list.
+  - **On the shop floor.** Operators see the engineering documents **frozen onto their work order** directly in the operator screen — download the native file, or open an interactive package in the sandboxed viewer — without a CAD application on the terminal.
+  - Access is permission-gated (**view** vs **manage engineering documents**), documents are **soft-deletable** with full audit + Trash, and the feature ships with backend and frontend test coverage.
+- **Create a work order without leaving the list** *(UI)*: **"+ New Work Order"** on **Admin → Work Orders** now opens the create form in a **modal** instead of navigating away, so you keep your filters, page and selection — and the new order simply live-syncs into the table behind it. It renders `WorkOrderForm`, the *same* component the standalone create page and the planner's "+ New order" already use, so the three can't drift apart: a field added to `woFields` appears in all of them. The standalone **`/admin/work-orders/create` route is unchanged** and still works for deep links and bookmarks. `ResourceTable` gained an `onCreate` prop for this (pass it alongside `createHref` and the button opens the modal while the route stays reachable), and the shared `Modal` now caps itself to the viewport and scrolls only its body, so a long form keeps its header and actions in reach. The list controller and the create page share one `createFormOptions()` helper for the picker data.
+- **202 untranslated UI strings filled in** *(i18n)*: an audit of every literal `__()` call across the React pages and PHP backend (2571 keys) found **202 that had no catalog entry at all**, so they rendered English regardless of locale — concentrated in the operator work-order detail (35), the process-template editor (16), the user form (9) and the CSV import wizard (15). All 202 are now in **both** `lang/en.json` and `lang/pl.json` with Polish translations, keeping the two catalogs at parity (5207 keys each); placeholder tokens (`:count`, `:name`, …) were checked to survive translation. The ~38 remaining entries whose Polish equals the English are deliberate — protocol and unit names that don't translate (Modbus, OPC UA, EAN, PIN, PDF, Port, Host, Pareto).
+- **Column filters on the report and detail lists that were missing them** *(UI)*: `ResourceTable` declares "every column is filterable by default", but `DataTable` — which a page can render directly, without that wrapper — defaults the other way, with filters opt-in per column. Nothing but the dev gallery had opted in, so **every directly-rendered table shipped without a filter row**, the OEE report among them. Thirteen tables across eleven full-grid pages (OEE report & detail, custom fields, non-conformance, net requirements, production anomalies, Trash, inspections, MQTT connections, packaging admin & station, shift handover) now filter per column, with the control picked from the column's own data as everywhere else. Short detail tables (dashboards, `…/Show` panels, the operator queue) are deliberately left alone — a filter row over three rows is noise.
+- **Untranslated table chrome** *(i18n)*: 26 label props across 14 pages were **hardcoded English literals** passed straight to `DataTable` (`searchPlaceholder="Search records…"`, `columnsLabel="Columns"`, `emptyLabel="No areas defined yet."`), so they bypassed the translation catalogs entirely and rendered English inside an otherwise Polish page — a class the earlier `__()` audit could not see, because it looks for *keys* and these strings were never wrapped at all. Generic ones are gone in favour of the shared bundle; the page-specific empty states kept their wording and are now wrapped (7 of the 10 already had translations sitting unused in the catalogs). Both conventions now live in one place — `resources/js/components/AppDataTable.jsx`, which applies the translated chrome and the filter defaults for any table fed from `usePage().props`, over shared helpers in `resources/js/lib/tableLabels.js` that `ResourceTable` also consumes. A page imports one component instead of remembering two steps, so a new call site can't ship English chrome or a missing filter row.
+- **Sidebar runs on the shared icon set** *(UI)*: every nav entry now carries a Lucide glyph — 12 group headers, 73 child entries (which previously showed an anonymous dot), plus the chrome (menu, search, help, collapse, theme, logout). A `lucide` field on the nav config takes precedence over the legacy hand-drawn path map, and an `ICON_LUCIDE` lookup covers entries that only had a legacy key, so `AppLayout` no longer renders a single inline `<svg>`.
+- **"New record" buttons use a real plus icon** *(UI/i18n)*: the `+` was a literal character baked into 34 translated labels (`'+ New Work Order'`), so every catalog carried punctuation as part of its copy and a translator could reword it away. The button now renders a Lucide `plus` glyph and the labels lost their `+` across all five catalogs (128 stale keys removed). Three call sites were also passing `createLabel` as a raw unwrapped string — untranslated in any language — and are now wrapped. The header clock's hand-drawn SVG became Lucide `clock` too.
+- **The progress meter reads values between its own steps** *(UI)*: eight bars can only land on eight values, so a work order at **1 / 3** rounded down to two lit bars (25%) and stayed there until 37% — the meter disagreed with the number printed under it. The bar the value falls *inside* is now filled by the remainder, so 1/3 lights two bars and two-thirds of the third. Work that has started but not yet earned a visible sliver still gets a minimum one: an untouched meter means "nobody has begun", which is a different fact from "3 of 5000 produced". Both twins.
+- **Row menu actions carry their icons** *(UI)*: the overflow menu's entries were text-only while the same verbs showed a glyph in the action rail. They now share one mapping, so Pause is the same shape wherever it appears, and the Score column — zero on every row until priority rules are configured — starts hidden rather than spending width on a column of zeros.
+- **Work-order status badges rebuilt on one palette rule** *(UI)*: the eight statuses spent green three times over — emerald for *In progress*, green for *Done*, and a green-ish accepted — so a list of running orders read, at a glance, as a list of finished ones. Green is now spent exactly once, on **Done**; *In progress* takes purple (active, with no success/warning convention to be misread as), *Accepted* blue (approved, not a result), *Paused* amber, *Blocked* red, *Rejected* a deeper red (a decision, not an obstacle), and *Cancelled* an outlined ghost chip — since *Pending* and *Cancelled* are both semantically grey, that one varies the treatment instead of inventing a ninth hue, and a hollow chip reads as "this row is inert". Every status keeps a distinct Lucide glyph (clock, thumbs-up, play, pause, triangle-alert, circle-check, ×, slash), so none of it rests on hue alone. A new shared **`StatusBadge`** in `@openmes/ui` (web + native twins) renders the chip from a generic `tone`, with a `StatusDot` companion for lists where most rows share one status and full chips would bury the exceptions; the work-order mapping lives in `admin/work-orders/fields.js` (`WO_STATUS_META`), replacing the old raw-Tailwind colour map. Adds one design token, `--om-rejected`, and mirrors the existing `--om-maint` purple into the TypeScript tokens so the native twins can reach it.
+- **Work-order list scrolls instead of paging** *(UI)*: the pager sat directly under the new totals row — two footers arguing about which one ends the table. `DataTable` gained an `infinite` mode: rows are already in the browser (the list is a synced collection), so this is a growing render window rather than a fetch — it starts at the page size and adds another slice each time the end of the list scrolls into view, via an IntersectionObserver whose root follows the layout (the capped body in `fill` mode, the page otherwise). The summary row is now the table's bottom edge, and it inherited the row count the pager used to show — it takes the first summary cell without a total of its own. Narrowing the list resets the window, so a filter matching 12 rows doesn't render the 300 you had scrolled to. Opt-in per list (`infinite` on `ResourceTable`) and enabled on **Admin → Work Orders**, the reference list; every other list keeps its pager until it is redone.
+- **One action per row, the rest behind a menu** *(UI)*: the work-order Actions column mixed two visual languages — icon-only Edit and Delete buttons that named themselves only on hover, either side of a black-filled **Complete**. The black read as "the most important thing on this screen" on every in-progress row, competing with the page's own *New Work Order* button, and hover labels say nothing at all on a shop-floor tablet. The column now shows **the one action the row is waiting for**, labelled, as a bordered secondary button — *Accept* when pending, *Complete* when running, *Resume* when paused, *Reopen* when terminal, nothing for accepted (that order starts on the floor) — with everything else, Open/Edit and the remaining transitions, behind a `⋯` menu. **Delete moved into that menu** behind a divider, in red with a word next to it: it had been sitting one misclick from Edit with no label. Both slots keep fixed widths so the controls line up down the column whatever each row allows. `ResourceTable`'s action rail learned to render a menu slot, and `ActionMenu` now portals its card (like `Dropdown` and `DatePicker` already did) — an `absolute` menu opened from a table row was clipped by the scroll container it lived in; `useAnchoredPopover` gained `estWidth` so a narrow trigger with a wide card clamps to the viewport on its first frame instead of hanging off the edge.
+- **Totals row under the list** *(UI)*: `DataTable` gained an opt-in summary footer — a column declares `summary: 'sum' | 'avg' | fn(rows)` and its aggregate appears in a row pinned to the bottom of the scroll body, the way the header is pinned to the top. On work orders it totals **produced / planned** (both, since either alone isn't the shop's progress) and **batches**, with packed qty summing and unit price averaging when those columns are switched on — a sum of per-unit rates would be a meaningless number. Aggregates run over the **filtered** rows, not the page: a total that changed as you paged would be describing the pager rather than the data, while filtering is a question the reader asked and the footer answers it for the whole result set.
+- **"Prio" column reads "Priority"** *(UI/i18n)*: the abbreviation saved a few pixels in a header that had room, and the full word was already in every catalog.
+- **Every work-order field is available as a column** *(UI)*: the list showed 11 of the 36 columns on `work_orders`, and the other 25 had no way to be seen short of opening each order. All 19 display-worthy ones are now in the **Columns** menu — customer order no, description, revision, unit price, counting source, packed qty, planned start/end, end date, completed, updated, shift & end shift, week/month/year, line status, customer-totals-counted, and custom fields rendered as a count with the raw value on hover. **All start switched off**, so the default list is unchanged; `DataTable` gained a `meta.hidden` flag (read once on mount, so a reader's own toggling always wins) and `ResourceTable` passes it through as `hidden`. Twelve of the fields also had to be added to the `work_orders_all` sync shape — a column the collection doesn't send can never be shown, whatever the menu says. Infrastructure columns (`tenant_id`, `deleted_at`, `deleted_by_id`) stay out, and so do the two JSON blobs — the frozen routing averages ~2KB per order and `work_orders_all` also feeds the alerts list, the supervisor list and the planner, so every subscriber would carry it on every delta to render a key count in a hidden column.
+- **Produced quantity shows a progress meter** *(UI)*: the Produced column on the work-order lists now carries an eight-segment bar above the count, filled against the planned quantity. The colour is the *state*, not the position — every filled segment shares one colour, warm early, amber past the midpoint, green at the finish — so the hue means something at a glance instead of reading as a rainbow. The count stays: "0 / 186" is a different thing to know than "not started". New shared **`SegmentedProgress`** in `@openmes/ui` with web and native twins.
+- **Half-filled create forms survive a stray click** *(UI)*: closing the "New work order" or "New customer" modal — including by clicking the scrim — discarded everything typed into it, because the modal unmounted its children. Those two modals now keep their form mounted (hidden) after first open, so reopening returns you to what you were typing; the form is reset only after a successful create, so a saved record never lingers in the next one. Opt-in per modal (`keepMounted`), deliberately: the per-row modals reuse a single instance across rows, where retained state would carry one record's input onto another. The modal's close **×** is also a real Lucide glyph now, in the danger tone.
+
+- **Routing steps render as a stepper** *(UI)*: a batch's steps were six unrelated rows, each with its own numbered pip — nothing said they were a *sequence*. They now draw as a vertical stepper: a connector runs between the indicators, coloured by the step it leaves, so the work behind you is visible at a glance. Ticks replace the ordinal on completed steps and durations align in their own column instead of wrapping under each name. New shared **`Stepper`** in `@openmes/ui` with web and native twins, used by both the admin and supervisor work-order detail pages. Written against our tokens rather than lifted from a component kit — those build on their own primitives and ship a compound API for wizards you click through, and a routing is a read-only record of what happened.
+- **Every page shows its trail in the header** *(UI)*: breadcrumbs had reached the list pages only — the other ~180 screens either printed a heading inside the content area or showed nothing, and the work-order detail page hand-rolled its own `<nav>` under a header bar that was already reserving room for one. The trail is now **derived from the sidebar nav**: the menu already knows where every route lives, so a page can't disagree with the thing that got you there, and moving an entry in the nav moves its breadcrumb with it. Verified across all 64 admin routes plus the packaging, logistics and inspection screens — including create/edit sub-pages, which inherit their parent's trail. A page that knows something the menu can't (which record you opened) still renders `PageTitle` and takes precedence; `ResourceTable` now inherits the nav's ancestors instead of each list restating them. Matching resolves on the prefixes that actually matched — a group lists every child's path, so scoring the whole array let a section outrank the child it matched through — and repeated labels are collapsed, since the nav legitimately nests a landing page inside a section of the same name.
+- **Breadcrumbs in the app header** *(UI)*: list pages show their position as a trail (`Panel / Zlecenia`) instead of a bare heading, rendered by a new shared **`Breadcrumbs`** component in `@openmes/ui` with web and native twins. The last entry is the current page and never a link (`aria-current="page"`), separators are decorative, and the web twin takes a `linkAs` prop so the design system stays router-agnostic while the app hands it Inertia's `Link`. `ResourceTable` takes a `breadcrumbs` prop listing ancestors only — the page title is appended as the current entry. **Admin → Work Orders is the reference implementation**; the remaining pages follow later.
+- **List pages gained a row of vertical space** *(UI)*: the page heading and its "new record" button had a bar of their own above the list. The heading now portals into a slot in the app header — sharing that bar with the clock on desktop, sitting beside the logo below `lg` — and the button moved into the search/columns bar, right-aligned. That bar is boxed in the same hairline card as the table below it, and the column menu leads with a Lucide `columns-3` glyph. New `components/PageTitle.jsx` renders into every `[data-page-title-slot]`, so CSS picks the visible one per breakpoint and a layout without a slot still falls back to an inline heading; `DataTable` gained `toolbarStart`/`toolbarEnd`, and `Dropdown` a `leftIcon` prop.
+- **Cell borders on list tables** *(UI)*: rows were separated horizontally but columns ran together, so on a wide list it was hard to tell which value belonged to which column. Every cell now carries a vertical rule in the same `om-line2` token the row separators use — continuous through the header, the filter row and the body — with the last column left clean so it doesn't double against the card's own border. Free of alignment artefacts because the table already moved to the separated-borders model, where each cell draws its own edges.
+- **Shared icon set (Lucide)** *(UI)*: icons were hand-inlined `<svg>` across ~70 files, with the paths copied out of the legacy Blade tables into a private `ICON_PATH` map — no shared vocabulary between web and native, and no way to restyle a glyph in one place. `@openmes/ui` now exposes an **`Icon`** component in the same web/native twin pattern as `DatePicker`/`Dropdown`: the web twin renders `lucide-react`, the native twin `lucide-react-native` (through the `react-native-svg` the app already had), so `<Icon name="trash-2" />` works on both. Colour comes from `currentColor` so dark mode needs no per-icon branching, and the glyph is `aria-hidden` unless given its own label, keeping icon-only buttons from being announced twice. Lucide's 24px grid and stroke-2 default match the icons it replaces, so nothing rescaled. The work-order/admin list action rail is converted as the first consumer; the remaining inline `<svg>` call sites still work and can move over incrementally.
+- **Create a customer without leaving the list** *(UI)*: **"+ New Customer"** on **Admin → Customers** now opens the create form in a **modal** instead of navigating away, matching the work-order list — filters, paging and scroll survive, and the new row live-syncs into the table behind it. It renders the same `customerFields()` config the standalone page uses (with the blank-customer defaults now shared as `CUSTOMER_INITIAL`, so the two can't drift), and posts the same `stay` flag the planner's new-order modal uses, which the controller answers with `back()`. The **`/admin/customers/create` route is unchanged** and still redirects to the list, so deep links and bookmarks keep working.
+- **Clear-filters control carries an icon** *(UI)*: the toolbar's "Clear filters" link now leads with the same **×** glyph the selection bar clears with, so "drop this state" reads the same wherever it appears, and picks up a hover surface and an `aria-label`/`title` to match.
+- **List tables fill the screen** *(UI)*: a list's scroll body now grows into whatever vertical space is left below it, so the table ends at the bottom of the viewport instead of stopping short and leaving a dead band under the pager — several more rows per screen at no cost. The height is **measured** (`DataTable`'s `bodyMaxHeight="fill"`, the new `ResourceTable` default) rather than guessed with a `calc(100vh - Xpx)` constant, because what sits above the body differs per page (subtitle, filter row, selection toolbar) and one constant is wrong on most of them; it re-measures on window resize and on layout changes via a `ResizeObserver`. It stops at the scroll container's **content** edge rather than its border box — sizing into the container's bottom padding pushed the page past its own scroll height and raised a second scrollbar beside the table's own — and backs off entirely when there isn't room worth capping (a report page with charts stacked above the table), so a nested scrollbar never appears inside a page that has to scroll anyway. A page can still pass an explicit CSS length to cap the body at something fixed.
+- **Bulk status changes on the work-order list** *(UI)*: the **Admin → Work Orders** list gains **row-selection checkboxes** and a selection toolbar that can **accept or cancel every selected order in one request** (`POST /admin/work-orders/bulk`), instead of clicking through them one at a time. A selection spanning **mixed statuses is expected, not an error**: orders the action is illegal for (accepting something already DONE) are **skipped rather than failing the batch**, and the result reports how many were skipped. The whole batch runs in **one transaction**, and orders are updated individually rather than by a mass `UPDATE` so model events still fire — priority re-scoring and the live sync that pushes each changed row to the browser both hang off them. The endpoint accepts all six transitions (accept / reject / pause / resume / cancel / reopen) and is validated by a Form Request (known action, 1–500 existing, non-deleted ids); the list currently surfaces accept and cancel. The status-transition rules that used to be copy-pasted across the six single-order controller methods now live in **one table** that bulk and single actions share, so the two cannot drift.
+
+### Fixed
+- **The web and mobile planners shared one copy of their scheduling maths** *(refactor)*: the mobile planner shipped a 539-line TypeScript port of the web planner's `helpers.js` — 17 functions with the same names, signatures and bodies, plus the row shapes they work on. Its own header warned that letting the two drift would put "the same order in different cells on tablet and desktop", which is exactly what a copy guarantees eventually. Both now import `@openmes/ui/planner`: one implementation of the day/shift placement, staircase chaining, lane packing and line-load rules, with `PlannerOrder`/`PlannerPlacement` living beside the code that consumes them. The web helpers drop 289 → 82 lines and the mobile ones 539 → 186, each keeping only what is genuinely platform-specific (CSS-variable tokens on web; connector geometry and column snapping on mobile). Verified by fingerprinting every rendered block's position across the weekly and daily boards before and after — byte-identical.
+- **Eleven synced collections never broadcast their changes** *(live sync)*: `customers`, `product_revisions`, `priority_rules`, `scrap_reasons`, `quality_control_triggers`, `quality_control_tasks_due`, `issue_actions`, `webhooks`, `webhook_deliveries` and `workstation_devices` were declared in `ShapeRegistry` — so their lists loaded an initial snapshot — but were missing from `CollectionBroadcaster`'s model map, which is what registers the create/update/delete listeners. Their rows therefore only ever changed on a page reload: creating a customer left the list looking empty until you refreshed. All are now mapped (the task collection with the membership test its `where` clause implies, so a row leaving `due`/`in_progress` broadcasts as a delete). Caught while adding the customer modal — the new row not appearing was the symptom.
+- **`WorkOrderScheduled` only fired from the planner** *(module hooks)*: the hook was dispatched from `SchedulePlannerService`, so a placement written anywhere else — the admin work-order edit form, the ERP import — never fired it, and a module listening for "this order moved" silently missed those. It now dispatches from `WorkOrderEventObserver` when a write touches any of the new `WorkOrder::PLACEMENT_FIELDS`, matching how every other work-order domain event is raised ("from the model lifecycle so they fire on EVERY save path without each caller remembering to"). Two things come free: the observer's guarded `fire()` means a throwing module listener can no longer break a planner drag — previously the one write path without that protection — and the placement field list is now shared with the planner's undo snapshot instead of being spelled out twice.
+- **Planner board queried the same rows twice** *(performance)*: `board()` loaded the active lines once for the line filter and again for the full list — identical result sets on the default unfiltered board. It loads once and filters in PHP. The undo-log snapshot also re-queried a work order's extra placements on every call and after every `fresh()`; it now reuses the loaded relation, taking a few queries out of each planner drag.
+- **Scrolled rows tore through the sticky table header** *(UI)*: on any list, scrolling the table intermittently showed row content through the header and filter rows. Two causes, both from painting the table at the *row* level under `border-collapse: collapse`. The backgrounds sat on the `<tr>` while the `<th>`/`<td>` cells were transparent, so the sticky header had nothing opaque of its own to paint; and collapsed borders force the whole table onto the main-thread paint path, so the sticky `<thead>` lagged compositor-driven scrolling and the rows underneath tore through it mid-scroll. The table now uses the **separated** borders model (`border-separate`, zero spacing) with backgrounds and separators on the **cells** — `tr` borders are ignored in that model, so the row separator moved to the cells via `[&>td]:border-b`, keeping the last row flush. Verified by capturing the header band across ten mid-scroll frames: byte size went from a 1400-byte spread (bleed frames) to a 12-byte one.
+- **Warehouse management + ERP master-data and stock sync** *([#212](https://github.com/orgs/Mes-Open/discussions/212))* — the two halves of "stop retyping what the ERP already knows": warehousing inside OpenMES, and an ERP-agnostic API to keep it in step with the ERP.
+  - **Warehouses and stock on hand.** A new **Warehouses** area (optional module — **Settings → Modules → "Warehouses"**) manages named stock locations, each typed as **raw materials**, **finished goods** or **mixed**, with an optional **ERP code** so both sides can match documents up, and a **default per kind** used whenever an import or a generated document names no warehouse. A **Stock On Hand** page shows live balances per (warehouse, item), where a material's warehouse **total** and its **per-lot breakdown** are separate rows — so a lot-tracked material reads correctly without summing anything twice.
+  - **Material releases and product receipts.** Warehouse documents (`material_issue`, `material_receipt`, `product_receipt`, `product_issue`) carry positive line quantities and take their sign from the type. **Completing a work order generates the paperwork it implies** — a release for what it consumed (from the **actual recorded lot consumption** when the shop floor booked it, otherwise from the order's **BOM × produced quantity**, scrap included) and a receipt for what it produced. Generation is **idempotent** and always produces **drafts**: nothing moves stock until someone posts it. **Posting** is the single path that moves stock — it updates the per-warehouse balance, the global `materials.stock_quantity` and the **`stock_movements` ledger** (now carrying `warehouse_id`), and follows the lot's remaining quantity and status. **Cancelling a posted document reverses all of it** as a second booked movement, so a mis-posted release is undone without hand-editing balances, and the system-wide **"block negative stock"** setting is honoured. Documents are soft-deletable with audit + Trash; a posted document must be cancelled before it can be deleted. Automatic generation can be switched off (`WAREHOUSE_AUTO_DOCUMENTS=false`) and does nothing at all when the module is off or no warehouse exists — existing installs are unaffected either way.
+  - **ERP master data — products, materials, lots, recipes.** New endpoints under the existing `/api/v1/erp/*` tree (scope **`erp:masterdata:write`**): `POST /erp/products/import`, `/erp/materials/import`, `/erp/material-lots/import`, `/erp/boms/import`. Because ERPs keep finished products **and** raw materials in one item table told apart by a classification code (Pantheon's `acClassif`), the product and material imports accept an **`only_categories` allowlist** — send the whole item dump and let OpenMES filter it (case-insensitive; filtered rows report as `skipped`, not as errors). Product types gain **`category`**, **`external_code`** and **`external_system`** columns. Lot import carries **available quantities** and **replaces** them rather than adding, so a nightly re-sync converges instead of inflating stock. Recipe import takes component quantities **per one unit** of finished product (exactly how ERPs store them, and what `bom_items.quantity_per_unit` means) and in the default `replace` mode makes the payload the template's complete component list, so components the ERP dropped are removed; a recipe with one unknown material is reported as a single failed row and applied **not at all**.
+  - **ERP stock sync, both directions.** `POST /erp/stock/import` (**`erp:stock:write`**) takes a balance snapshot per (warehouse, item) — warehouses resolve by `code` **or** `erp_code` — and `GET /erp/stock` (**`erp:stock:read`**) hands OpenMES's own view back for reconciliation. Anything that sets balances from outside **re-derives the global per-material quantity** and books the difference as an audited `adjustment`, so allocation, MRP and the shortage reports never see an unexplained jump — and the two views of the same stock cannot drift apart. `GET /erp/stock-documents?unsynced_only=1` (**`erp:stock:read`**) is the backlog of posted documents the ERP has not booked yet; `POST /erp/stock-documents/{id}/ack` (**`erp:stock:write`**) records the ERP's own document number and takes it off that backlog. Both are cursor-paginated with `since` for incremental polling, and every row stays tenant-isolated through the API key.
+  - Every import answers with the same **per-row report** the work-order importer established (`imported` / `updated` / `skipped` / `errors[{row, field, message}]`, `207` when some rows failed, `422` only for a malformed payload) — one stale code never fails a batch. New `warehouses`, `warehouse_stocks`, `stock_documents` and `stock_document_lines` tables, `App\Services\Warehouse\*` (`StockDocumentService`, `WorkOrderStockDocumentService`, `MaterialStockReconciler`), `App\Services\Erp\*` importers, three new `ApiScope` cases, and `warehouses` / `warehouse_stocks` / `stock_documents` live-sync shapes. **The vendor-specific connector (Pantheon/PAWS, SAP, …) that maps an ERP's own tables onto this contract stays a per-client integration** — what ships here are the open building blocks it targets. Full API reference in [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md#erp-integration-api); the deployment runbook (rollout order, opening-stock load, acceptance test, rollback) is [`docs/warehouse-erp-rollout.md`](docs/warehouse-erp-rollout.md).
+
+### Added
+- **The plant timezone is chosen in the install wizard** — step 1 (*Basic Configuration*) now asks for it alongside the site name and URL, preselecting whatever the deployment already resolves to. The answer is stored in `system_settings` and **takes precedence over `APP_TIMEZONE`**, which is what makes it settable at all on Docker: compose sets that variable in every container, and a real environment variable overrides `.env`, so the value a user typed there was read and then silently ignored. Installs that never ran the wizard, and bare-metal deployments, keep using `APP_TIMEZONE` exactly as before. Changing it needs no compose edit and no restart.
+
+### Fixed
+- **A Docker install could not be set to the plant's timezone** — every rendered timestamp, report boundary and scheduled job stayed on **UTC**. `config/app.php` reads `APP_TIMEZONE`, but `docker-compose.yml` never passed it into the containers, so setting it in `.env` did nothing and the only workaround was editing an in-image env file. It is now passed to the app, the WebSocket server, the connectivity daemons and the queue worker (defaulting to `UTC`, so nothing changes for installs that never set it), and `.env.example` documents it. A plant in UTC+2 was reading shop-floor timestamps two hours behind reality.
+
+- **Datalab Pantheon connector** *([#212](https://github.com/orgs/Mes-Open/discussions/212))* — connects OpenMES to **Datalab Pantheon** over its **PAWS** REST API, reading master data out of Pantheon's own views through the canonical ERP contract and pushing posted warehouse documents back as Pantheon **Move** documents. **Ships as a separate, optional install** from [`Mes-Open/openmes-pantheon`](https://github.com/Mes-Open/openmes-pantheon) — clone it into `backend/modules/Pantheon` and enable it under **Admin → Modules**. It is not part of core: an install without Pantheon carries no connector code, no migration, no schedule entry and no menu item, and core keeps no Pantheon vocabulary (view names, `acClassif` codes, document types, column mapping) of its own. What core provides are the **ERP-agnostic building blocks** the connector targets: the `/api/v1/erp/*` import services, the warehouse/stock-document model and the `integration_configs` row (`system_type = 'pantheon'`) whose `api_config` is an encrypted array.
+
+## [0.19.0] - 2026-08-01
+
+### Fixed
+- **Module event hooks never fired (and new CRUD / scheduling hooks added)**: the module extension system defined nine domain events, but **seven were never dispatched** — a module listening for `WorkOrderCreated`, `WorkOrderUpdated`, `WorkOrderCompleted`, `BatchCreated`, `StepStarted`, `StepCompleted` or `UserAssignedToLine` would silently never run (only `WorkstationStateChanged` and `MachineMessageReceived` actually fired; outbound webhooks use a separate `WebhookDispatcher` path). These are now wired to the model lifecycle so they fire on **every** save path (admin UI, CSV import, ERP API, services): `WorkOrder` gets a `WorkOrderEventObserver` (created/updated, plus `WorkOrderCompleted` on the first transition into `DONE`), `Batch` dispatches `BatchCreated` via `$dispatchesEvents`, and `BatchStep` gets a `BatchStepEventObserver` (`StepStarted`/`StepCompleted` on status transitions). Two new hooks broaden coverage: a **generic CRUD hook** `Resource\ResourceChanged($model, $action)` — one wildcard Eloquent listener re-dispatches it for every curated resource (`SoftDeleteRegistry::MODELS`: work orders, customers, materials, lines, … on `created`/`updated`/`deleted`), so a module can react to any resource save without wiring each model; and `Schedule\WorkOrderScheduled($workOrder, $changes)` fired from the planner when a work order is assigned, moved, resized or unassigned. The typed events remain for a specific entity; `ResourceChanged` is the "any resource" catch-all. `ExampleShowcase` demonstrates both new hooks.
+- **Module menu hooks stopped appearing after the React migration**: modules extend the navigation by calling `MenuRegistry::addItem()` / `addGroup()` / `addGroupItem()` in their service provider (the PrestaShop-style "hook a tab into the menu" mechanism). The old Blade sidebar read that registry directly via `View::share('menuRegistry')`, but when the sidebar moved to React/Inertia (`resources/js/layouts/adminNav.js`) nothing consumed it anymore — so an enabled module could register a menu item or a whole dropdown and **it silently rendered nowhere** in the SPA. `MenuRegistry` is now bridged to the frontend as the **`moduleNav`** Inertia prop (`HandleInertiaRequests`), and `AppLayout` merges those entries into the sidebar: items inject into the matching built-in dropdown (`orders` / `production` / `structure` / `hr` / `maintenance` / `admin`, the last aliased to the React `adminGroup`), and custom groups render as their own top-level dropdowns. Module pages are legacy server-rendered, so their links do a **full navigation** (not an Inertia visit, which would fetch JSON and fail) and also surface in the menu search. Only **enabled** modules populate the registry (their providers boot via `ModuleManager::loadEnabled`), so the bridge is self-gating. **`WidgetRegistry` (dashboard widget hooks) is bridged the same way**: its Blade-view contract — dead since the Blade dashboard was deleted — is replaced with **structured widget data** (`title` / `metric` / `body` / `href`, no raw HTML), surfaced as the **`moduleWidgets`** Inertia prop (`DashboardController`) and rendered by the React dashboard as standard cards across the `kpi` / `main` / `sidebar` zones (React escapes every field — consistent with the no-`dangerouslySetInnerHTML` rule). Shipped alongside a new reference module **`modules/ExampleShowcase`** (disabled by default) that exercises **every** extension point — all nine domain events (one handler method per hook), all three `MenuRegistry` APIs and all three `WidgetRegistry` zones — purely additively, as a copy-me starting point for real modules.
+- **Deleting an already-removed record dumped a bare 404 instead of a message**: deleting an admin CRUD record that was already gone — soft-deleted in another tab, a stale list, or a double submit — hit route-model binding, which excludes soft-deleted rows, and returned a raw 404 with no feedback. A `DELETE` to `/admin/*` whose record no longer exists now bounces back to the list with an informational flash ("That item was already removed.") instead — the delete's intent is already satisfied. Handled centrally in `bootstrap/app.php` for **every** admin resource in one place; a normal single delete still shows "deleted successfully".
+
+## [0.18.0] - 2026-07-25
+
+### Added
+- **ERP integration REST API — import work orders, export production & quality** *([#ERP](https://github.com/Mes-Open/OpenMes/issues))*: a standardized, ERP-agnostic REST surface under **`/api/v1/erp/*`** for synchronizing with external ERPs (SAP, Comarch, enova365, Microsoft Dynamics / Business Central). Ships as an **optional feature module** (**Settings → Modules → "ERP integration"**): switching it off **404s the whole ERP API and its key management**, exactly like the other optional modules — so an installation that doesn't integrate with an ERP carries no extra attack surface. (Installations that have already customized their enabled-modules set get it **off by default** until an admin enables it; fresh installs have it on.) **Import** (`POST /erp/work-orders/import`) bulk-creates/updates work orders from a canonical JSON payload — orders resolve their line and product type by code, a malformed payload is rejected wholesale (`422`) while a bad reference in one order does **not** fail the batch (a well-formed batch always returns a per-order report; `207` when some rows errored, each carrying `{row, field, message}`). It reuses the existing `WorkOrderImportService` (one create/validate path for CSV and ERP). **Export** (`GET /erp/production/completions`, `GET /erp/quality/issues`, `GET /erp/work-orders/{id}`) streams produced quantities + completion timestamps and non-conformance / issue reports back, **cursor-paginated** with a `since` filter for incremental polling. Authentication is by a new, **user-independent API key** (`X-Api-Key` or `Authorization: Bearer`) with **configurable per-endpoint scopes** (`erp:orders:import`, `erp:production:read`, `erp:quality:read`), an optional **IP allowlist** and **expiry**; only the SHA-256 hash of the secret is stored and the plaintext is shown **once** at creation. Keys are managed under **Admin → API keys** (`role:Admin`), rate limits are per-key (import throttled tighter than reads), and per-ERP field-mapping connectors are a documented follow-up. Because these requests are headless (no logged-in user), a new request-scoped **`TenantContext`** feeds the existing `TenantScope` / `HasTenant` so every ERP query stays correctly tenant-isolated (issues, which have no `tenant_id`, are isolated through their work order). New `api_keys` table (soft-deletable, partial-unique hash), `App\Models\ApiKey`, `App\Enums\ApiScope`, `App\Support\TenantContext`, `AuthenticateApiKey` + `EnsureApiScope` middleware, `ApiKeyController` and the `Api\V1\Erp\*` controllers/requests.
+- **Pallet status, location & destination for logistics tracking** *([#101](https://github.com/Mes-Open/OpenMes/issues/101))*: a pallet now carries not just **where it is** but **where it should go**. Alongside the existing status (open / closed / shipped) and current **location**, pallets gain a **destination** and an **arrival stamp**, so logistics can tell an idle pallet from one that is **in transit** and one that has **reached its target**. The destination is **cleared on arrival**: moving a pallet onto its destination completes the run and stamps `arrived_at`, and moving on afterwards (or re-routing it) voids the stale arrival — so transit state is a property of the row, not a string comparison the UI has to redo. A new tablet-friendly **Pallet Logistics** view (Packaging → Pallet Logistics, `Operator`/`Supervisor`/`Admin`) lists every pallet live with **status, location, destination, transit state and arrival**, filterable by status and searchable by location/destination, plus a **"Set destination"** card that re-routes a pallet **without moving it** (or clears its target). The **Move Pallet** terminal gains an optional **new destination** field so a re-route can be booked with the move, and flags when the entered location will complete the pallet's assigned destination. **Destination changes share the existing append-only `pallet_movements` ledger** (new `from_destination` / `to_destination` columns), so one timeline answers who moved a pallet *and* who redirected it — a row whose from/to locations match reads as a re-route or an unassignment rather than a physical move, and a move landing on the pending destination reads as an arrival (an emptied destination on its own doesn't prove one — `pallets.arrived_at` is authoritative); the admin **Pallet Movements** history surfaces both. Every mutation goes through `PalletMovementService` under a row lock, so concurrent terminals can't interleave a stale "from" snapshot. Existing pallets are unaffected (both new columns are nullable, destination defaults to unset). New `pallets.destination` + `pallets.arrived_at` and `pallet_movements.from_destination` + `to_destination` columns, `PalletMovementService::assignDestination()`, `AssignPalletDestinationRequest`, `Pallet::isInTransit()`; `destination`/`arrived_at` added to the `pallets` Electric shape and the destination pair to `PalletMovementsRecentShape`.
+- **Multi-level (hierarchical) BOMs** *([#178](https://github.com/Mes-Open/OpenMes/issues/178))*: a bill of materials can now contain **internally manufactured subassemblies**, not just purchased components, and requirement calculations **explode recursively through every level**. A material gains a **make-or-buy flag** (`materials.is_manufactured`) and a **producing process template** (`producing_process_template_id`); a BOM line pointing at such a material expands into that material's own BOM, to any depth. Quantities and scrap **compound down the tree** — `quantity_per_unit x parent requirement x (1 + scrap%)` at each level — so scrap on a subassembly correctly inflates demand for everything beneath it, and a component reached by several paths is summed into one line. **MRP** (`NetRequirementsService`) now plans against the exploded leaf materials instead of stopping at level one. **Circular references are rejected** at both entry points: adding/switching a BOM line that would make a template a component of itself (directly or through intermediates), and pointing a material's producing template at a template that already consumes it — each answered as a 422 with a translated message, plus a depth backstop so pre-existing bad data can't hang a request. **Fully backward compatible**: `bom_items` is unchanged, so existing single-level BOMs and API clients carry on working, and a BOM without manufactured components explodes to exactly the numbers the flat calculation produced (asserted in tests). New `App\Services\Material\BomExplosionService` (`tree()` for the nested structure, `leafRequirements()` for accumulated leaves); `Material::isExplodable()` plus `manufactured()`/`purchased()` scopes. UI tree view, REST endpoints for the hierarchy, work-order snapshotting of the structure and cross-level genealogy are follow-ups; this lands the model, the recursion and the safety rails.
+- **Module selection at first-login onboarding (Lightweight / Advanced / Custom)**: the setup wizard now opens with a **"Choose your modules"** step so a new admin turns on only the feature areas they need instead of getting the full menu. Three one-click choices over the existing module system: **Lightweight** (core production tracking + the **Work-Order History** report only — recommended for small shops), **Advanced** (adds reporting, materials & tracing, product engineering, companies, quality, maintenance, connectivity and packaging — the shop-floor operations set), or **Custom** (tick exactly which optional modules to enable). Core areas (Dashboard, Orders, Production essentials, Admin) are always on. The choice writes to the existing `system_settings.enabled_modules` via `ModuleRegistry`, so disabled areas are hidden from the nav and their routes 404 — and it's **changeable anytime** in Settings → System → Modules. New onboarding **Modules** step (now step 1 of 5) with `ModuleRegistry::PRESETS` + `modulesForPreset()`; reuses `TabRegistry`/`TabAccessMiddleware`.
+  The optional-module catalog is now **fine-grained** so an install can keep, say, **Materials** without **Companies**, or the **Work-Order History** report without the **cost/scrap/non-conformance analytics**. Twelve independent toggles — **Reports**, **Advanced reports**, **Materials & tracing**, **Product engineering**, **Companies**, **Issues & reasons**, **Company structure**, **HR** (incl. employee scheduling), **Maintenance & QC**, **Connectivity**, **Packaging**, **Webhooks** — each maps to its own `TabRegistry` tab and role-access-matrix row, even when its pages render under the (core) Production or Reports nav groups. Existing installs that had explicitly customised their module set are backfilled on upgrade so previously-core areas stay visible (`2026_07_23_120000_expand_enabled_modules_for_granular_split`); installs that never customised default to all-on and are unaffected.
+- **Machine counter signals drive work-order progress** *([#46](https://github.com/Mes-Open/OpenMes/issues/46))*: a work order now carries a **counting source** — **Operator (manual)**, **Machine (automatic)** or **Both** — chosen on the admin/supervisor create & edit form (default **Operator**, so existing orders are unchanged). On a **machine-counted** order, good-count deltas from the Modbus / OPC UA / MQTT **signal pipeline** now flow through to `work_orders.produced_qty`: the count is attributed to the order via the **batch step currently in progress at the reporting workstation** (`MachineTag → workstation → in-progress `BatchStep` → batch → work order`), and the same **auto-start / auto-complete** side effects fire as for operator entry. The legacy MQTT topic-mapping path (`ActionExecutor::updateWorkOrderQty`) and the new pipeline now funnel through one shared `MachineProductionService`, which **honours the counting source** — so a machine mapping and operator entry can no longer both add to the same order (the **double-count** #46 described). On a machine-counted order the operator's manual **complete / shift-entry** is blocked (the machine is the single source of truth), and the operator queue shows a **"Machine" badge**; reject counts stay in the event log for now (scrap wiring is a follow-up). New `work_orders.counting_source` column (nullable, defaults to `operator`); `App\Services\WorkOrder\MachineProductionService`; `counting_source` added to the work-order Electric shapes.
+- **Product revision management** *([#180](https://github.com/Mes-Open/OpenMes/issues/180))*: product types now carry formal, versioned **revisions** (e.g. `PART-1000` rev A/B/C) under **Admin → Production → Product Revisions**. Each revision has a **lifecycle** — **Draft** (editable, not for production) → **Released** (immutable, selectable) → **Obsolete** (kept for history) — and points at the released **process template** (its BOM + steps). The `(product type, revision code)` pair is unique among live rows (partial index, so a code frees up after a soft delete). Work orders can reference a **released** revision on the admin/supervisor create & edit form (scoped to the order's product type); the chosen revision is **snapshotted immutably** into `process_snapshot.revision` at creation, so releasing or obsoleting a revision later never rewrites historical orders. A revision may be re-selected **before** production, but is **locked once batches exist** (that path is the controlled change workflow, [#182](https://github.com/Mes-Open/OpenMes/issues/182)). Everything is optional and backward-compatible — existing/revision-less orders are unchanged (`product_revision_id` is nullable). New `product_revisions` table + `work_orders.product_revision_id`, `App\Models\ProductRevision`, `App\Enums\RevisionLifecycle`, `ProductRevisionController`; soft-deletable (Trash + audit) and live-synced via a new `product_revisions` Electric shape. `ResourceForm` selects now support `filterByField` for dependent dropdowns.
+- **Identification of logistics operators on physical movements** *([#103](https://github.com/Mes-Open/OpenMes/issues/103))*: every **physical pallet movement** is now **attributable to the logistics operator / forklift driver** who performed it. Workers gain an **"Logistics operator"** flag (worker form); flagged, active workers appear on a new tablet-friendly **Move Pallet** terminal (Packaging → Move Pallet, `Operator`/`Supervisor`/`Admin`) where an operator **identifies themselves with a badge-style tap**, picks a movable (not-shipped) pallet, enters its new location and confirms. The move is written to an **append-only `pallet_movements` ledger** capturing **who moved it, from → to, when, and optional notes** (plus the terminal account that recorded it, distinct from the credited operator); the pallet's live location follows the move, snapshotted atomically under a row lock so concurrent moves stay consistent. An admin **Pallet Movements** history (Packaging → Pallet Movements) surfaces the trail live via a new Electric shape. To keep the append-only ledger from growing the synced payload without bound, the live history and its label lookups are bounded to a **rolling 90-day window** (older movements are historical). New `pallet_movements` table, `workers.is_logistics` column, `App\Services\Logistics\PalletMovementService`, `App\Sync\Shapes\PalletMovementsRecentShape`.
+- **Multiple BOMs per work order** *([#104](https://github.com/Mes-Open/OpenMes/issues/104))*: a work order can now reference **more than one bill of materials** (variant / alternative BOMs) instead of a single fixed one. On the admin create/edit form a new **"Bills of Materials"** picker lets you select **one or more process templates (BOMs)** for the order; the order's requirements and consumption then follow the **union of the selected BOMs**. Overlapping materials are **summed** (a material listed in several BOMs contributes its combined requirement exactly once - so the allocation engine, which keys consumption per material, never silently drops a line); process structure (steps) comes from the first selected BOM. The selection is recorded on a new `work_order_boms` pivot (`is_active` per link) and can be **switched later** from the edit form - but is **locked once production starts** (batches exist), keeping the frozen snapshot consistent with what was already allocated. **Leaving the picker empty is unchanged single-BOM behaviour**: the order auto-uses the single active template for its product type. New `work_order_boms` table, `WorkOrder::bomTemplates()`, `WorkOrderService::buildProcessSnapshot()` + `updateBomSelection()`; no change to the downstream requirements/consumption engines (they read the same flat, now-merged snapshot `bom`).
+- **Elapsed-time ("Age") column on the work-order list** *([#100](https://github.com/Mes-Open/OpenMes/issues/100))*: the admin and supervisor **Work Orders** lists gain an **"Age"** column showing how long each order has been open (now - created_at) as a compact human-readable duration (**"just now", "5m", "3h", "2d", "1y"**), with the exact creation timestamp on hover. It is **sortable** (sorts by `created_at`, which is monotonic with age) and **ticks live** - a shared 30s clock refreshes the value without needing a data change. Implemented as a reusable `elapsed()` formatter in `resources/js/lib/i18n.js` and an opt-in **`live: true`** column flag on the shared `ResourceTable` (a single per-table interval feeds the cells via context, so other tables schedule no timer). `created_at` was already synced on the work-order Electric shapes, so no schema/shape change. Adds a minimal **Vitest** setup (`npm test`) covering the duration formatting.
+- **Read-confirmation on critical instructions** *([#95](https://github.com/Mes-Open/OpenMes/issues/95))*: a process step can now be flagged as carrying **critical instructions the operator must explicitly acknowledge having read** before the step can be completed. The flag is set once on the **template step** (Admin → Process Templates editor — "Require operator to confirm they read the instructions"), snapshotted onto the work order and **mirrored onto the runtime batch step**, so it only applies **where configured**. At the operator station a flagged step shows a blocked banner and an **"I have read the instructions"** action under its instructions; **Complete stays disabled until acknowledged**, and the acknowledgement **records who confirmed and when** (idempotent and race-safe — the first acknowledger is kept). The gate lives in `BatchService::completeStep` alongside the existing document/checklist gates, so it applies on every surface. Steps not flagged are unaffected. Reuses the existing `template_steps.requires_confirmation` + `batch_steps.confirmed_at`/`confirmed_by` columns; one additive `batch_steps.requires_confirmation` column, no breaking change. Acknowledge from the operator panel (`POST /operator/batch-step/{step}/confirm-instructions`) or the API (`POST /api/v1/batch-steps/{step}/confirm-instructions`), so API-driven clients can clear the gate the shared service enforces.
+- **Planner integration for customers & priority** *(phase 4)*: the production planner is now customer- and priority-aware. The **backlog is ranked by the computed priority score** (not just the coarse 1–5 priority), each **backlog card shows its customer and tier badge**, and the backlog can be **filtered by tier** (and searched by customer name). In the weekly Gantt, scheduled orders carry a small **tier dot** (customer name/tier in the tooltip). A red **banner warns when high-tier (Gold/VIP) customer orders are overdue**, linking straight to them. Backlog ordering, the overdue-banner data and the tier metadata are computed in `SchedulePlannerController`; no schema change.
+- **Customer auto-scoring — order counts, revenue & tier promotion** *(phase 3)*: completing a work order now rolls its value into the customer's aggregate metrics. Work orders gain an optional **unit price**; when an order first reaches **DONE**, its **produced qty × unit price** is added to the customer's **total revenue** and its **completed-order count** ticks up (idempotently — a reopen/re-complete never double-counts). Customers are then **auto-promoted** by completed-order count (**≥5 → Silver, ≥20 → Gold, ≥50 → VIP**, upgrade-only; thresholds stored in settings), and because a tier change feeds the phase-2 scoring, the customer's other active orders are re-prioritised automatically. A new **Top Customers** admin-dashboard widget shows the highest-revenue customers (with tier badges) and total revenue. `payment_score` remains a manual 0–100 rating for now (no invoicing module yet). New `work_orders.unit_price` + `customer_totals_counted` columns, `App\Services\Customer\CustomerMetricsService`, `App\Support\TierPromotionRegistry`, and the `top_customers` dashboard widget.
+- **Automatic work-order priority scoring** *(phase 2)*: a new **Admin → Orders → Priority Settings** page lets you build **scoring rules** that add (or subtract) points based on the customer or the order — sources are **customer tier**, **payment score**, **total orders**, **planned quantity** and **hours until due**, compared with *equals / greater-than / less-than / between / is-true*. Each order's points are summed into a **priority score** and mapped to a **1–5 priority** via a configurable **score→priority band** table (defaults ≤20→P1 … >80→P5). Scoring is **opt-in and non-destructive**: with no active rule, manual priorities are left untouched; once rules exist the score is recomputed on every work-order **create/update**, when a **customer's tier/payment/order-count changes** (re-scores that customer's active orders), and **hourly** via a scheduled `priority:recalculate` command (so "hours until due" rules stay current). The score shows on the work-order list and detail, and the planner/backlog ranks by it. New `priority_rules` table (soft-deletable), `work_orders.priority_score` column, `App\Services\WorkOrder\PriorityScoringService`, `App\Support\PriorityBandRegistry` (bands stored in `system_settings.priority_bands`), `PriorityRuleController` and the `PriorityRuleSource` / `PriorityCondition` enums. Builds on the phase-1 customer entity.
+- **Customers — master data for work orders** *(phase 1)*: work orders can now be attached to a **customer**. A new **Admin → Orders → Customers** section provides full CRUD (list, create, edit, soft-delete, activate/deactivate) for customers carrying a **name**, optional **code**, a loyalty **tier** (bronze / silver / gold / VIP), a manual **payment score** (0–100), and app-maintained **total orders** / **total revenue** aggregates plus free-text notes. Work orders gain a nullable **customer** selector on the admin and supervisor create/edit forms; the customer name shows on the work-order list and detail (with a tier badge) and in the production **planner tooltip**. Deleting a customer never removes its work orders. Customers are soft-deletable (Trash + audit) and live-synced via a new `customers` collection. New `customers` table, `work_orders.customer_id` FK (null-on-delete), `App\Models\Customer`, `App\Enums\Tier`, `CustomerController`. This is the foundation for automatic priority scoring (phase 2).
+### Fixed
+- **Icon-only buttons now have styled hover labels** *(UI)*: icon controls across the app (row actions on every list, the collapsed sidebar, the planner, operator screens) relied on the **native browser `title=` tooltip** — a slow, unstyled OS box that ignored the app's design language — and in the collapsed sidebar the hover label was rendered *inside* the scrolling nav (`overflow-x: hidden`), so it was clipped away and **never appeared at all**. Hover labels now come from a **reusable `Tooltip` component** (`resources/js/components/Tooltip.jsx`) that renders into a portal with fixed positioning: it escapes any `overflow: hidden` ancestor, clamps itself to the viewport, supports `top`/`right`/`bottom`/`left` placement, appears on **keyboard focus** as well as hover, and dismisses on Escape, scroll or resize. Applied centrally in `ResourceTable`'s row actions (so every config-driven list page is covered at once) and to the ~30 pages that hand-roll their own icon buttons. Because a tooltip is *not* an accessible name, every converted control keeps or gains an `aria-label` — several icon buttons that previously had neither are now named for screen readers.
+- **Sidebar groups with a landing page couldn't be collapsed** *(UI)*: clicking **Harmonogram** (Schedule) or **Zlecenia** (Orders) in the admin sidebar always re-navigated and forced the group back open, so unlike Production/Reports they could never be closed. The group header now only collapses an already-open group (no re-navigation) and keeps navigating to its landing page when opening it.
+
+### Changed
+- **Double-click a row to open its record** *(UI)*: on every list whose records have a detail page — work orders (admin + supervisor), materials, material lots, lines, areas, sites, factories, workers, personnel classes and process segments — **double-clicking a row opens that record**, the shortcut people expect from a data grid. Single click is untouched, so selecting text and ticking checkboxes still behave; double-clicks landing on a checkbox, link or row action are ignored, and the double-clicked word is deselected so it isn't left highlighted behind the page that opens. Lists whose records have no detail page simply don't opt in (`detailHref` on `ResourceTable`).
+- **Value prompts use a real form modal instead of the browser's prompt box** *(UI)*: completing a work order asked for the produced quantity through **`window.prompt()`** — an OS text box with no label, no number input, no validation and no styling. Those now open the design's **form modal** (§09) with a proper labelled field (§04): the quantity gets a numeric input with a `min`, the issue-resolution and action-completion prompts get a multiline notes field. The prefilled value arrives **focused and selected**, and Enter submits, so it stays as fast to use as the native box; the confirm button is disabled while a required field is empty, and cancelling or closing runs nothing. Available anywhere via the new `usePrompt()` hook.
+- **Error messages use the design's toast instead of the browser's alert** *(UI)*: the remaining `window.alert()` calls — delete failures on two lists and eight backup/restore/reset paths in **System settings** — froze the tab behind an OS dialog showing the raw origin. They now raise the design's **toast** (§09): severity-coloured left border, title, mono detail line, auto-dismissing top-right, several stackable. `ToastProvider` is mounted app-wide in `AppLayout`, so `useToast()` works from any admin page.
+- **Destructive actions confirm in-app instead of via the browser's alert** *(UI)*: cancelling, deleting or resetting something popped the **native `window.confirm()`** — an OS dialog that renders in the browser's own language regardless of the app locale, ignores the design system entirely, shows the raw `localhost:8080 says` origin, and blocks the whole tab while open. Those now use the design's **confirm modal** (§09 Overlays): danger icon square, title, a sentence of consequence, and a right-aligned Cancel + destructive action, dismissable with Escape or a click outside. A row action declares it declaratively — `confirm: { title, body, confirmLabel }` alongside its `onClick` — and `ResourceTable` renders **one shared dialog per table** rather than one per row; `bulkActions` receives the same `confirm` as a third argument. Pages outside the config-driven lists use the new `useConfirm()` hook directly.
+- **Numeric columns centre themselves** *(UI)*: counts, quantities, scores and priorities were flush left, so ragged-width numbers (`0`, `14`, `1231`) never lined up and read as noise beside the text columns. A column whose values are numbers is now **centred — header, cells and its filter box** — using the same signal that already picks the filter control, so it needs no per-page configuration. Text stays left, `align: 'right'` still wins where a page asks for it, and `align` gained `'center'` for columns whose display is numeric but whose underlying value isn't (the "Age" column rendering `14d` from a timestamp). This also fixes the reason it *couldn't* have worked before: `ResourceTable` normalised every column to `'left'`/`'right'`, so `align` was never unset and an explicit `'center'` was silently downgraded to `'left'`.
+- **List tables use the full window and stop hiding their scrollbar** *(UI)*: admin lists were capped at `max-w-7xl` (1280px), so on a 1900px screen a wide table scrolled sideways inside a box while ~600px of the window sat empty — and because the table's only horizontal scrollbar sat *below the last row*, moving left/right meant scrolling to the bottom of the page first. List pages are now **full width** (form pages keep their reading-width cap), which on a 1920px screen lets the work-order table render all 13 columns at 1775px with **no horizontal scrolling at all**. The row area is also capped to the height left in the viewport, so the column headers and filter row stay pinned while rows scroll, and the pager — plus the horizontal scrollbar, when a narrow window still needs one — stay on screen instead of below the fold. It is a *max* height, so short lists are unaffected.
+- **Date picker gains a month/year selector** *(UI, design sync)*: the shared `DatePicker`/`Calendar` header no longer shows the month as static text between ‹ › arrows — **month and year are now chips that swap the panel body** for a 3-column month grid or a year grid spanning `year-6 … year+5` (clicking the chip of the view you are already in returns to the days grid). Jumping to next March is one click instead of ten taps on ›. Picking either returns to the day grid on the newly selected month. This lands everywhere the picker is already used: every `ResourceForm` date field, custom fields, and the report/log/OEE date pickers. `Calendar` also gains a **`range` mode** — first click sets the start, second the end (clicking before the start re-anchors it), the days between are washed in accent-bg and the endpoints keep only their outer corners so the selection reads as one continuous band — plus a compact **`size="sm"`** trigger. Footer copy is now translatable via props instead of hardcoded English. Ported from the updated `OpenMES Components.dc.html` §13 (the design's date pickers were added after the copy checked into `design/` was taken).
+- **Date columns are filterable by range** *(UI)*: list tables gain a **`filter: 'date'`** control — the shared `DatePicker` in range mode, so filtering a due date means picking from→to on a real calendar rather than typing a string. Applied to **Termin/Due** on both work-order lists and to every other date column across the lists (expiry, next service, scheduled, next due, last login, last seen, last triggered, reported, fired, delivery created). Rows whose date is empty fall outside every range. `filter: true` auto-detects date columns too, alongside numeric ones.
+- **Reusable column filters & row selection on list tables** *(UI)*: the design system's data table (§12) has always specified a **per-column filter row** and **row-selection checkboxes**, but every admin list shipped without them — only the component gallery ever opted in, because each column had to hand-declare its filter control *and* a matching option list. Both are now first-class on the shared `ResourceTable`: **every column is filterable by default** — no per-column opt-in, so a list never has arbitrary gaps in its filter row — and the table decides *what kind* of control to show from the data itself: a **numeric column gets a comparison box** accepting `12`, `>10`, `<=5` or the range `3-8`; a small closed value set gets a **dropdown whose choices are derived from the rows currently loaded** (so options can't drift from reality on a live-synced list); anything wider gets a search box. A column with nothing to enumerate yet — or one holding free text like a description, where a dropdown of sentences would be unreadable — falls back to a search box rather than a dropdown. Pass a kind string to pin the control, `options` + `optionLabel` to pin an enum's order and labels, or `filter: false` to opt a column out — needed only where the cell shows something other than its value, e.g. the "Age" column that renders elapsed time from a timestamp. The dropdown is the app's shared **`Dropdown`** component — not a native `<select>` — in a new compact `size="sm"`, so the filter row gets the same portaled menu, hover/keyboard behaviour and styling as every other picker in the app. The **"Columns" menu** is now that same component too (in multi-select mode), replacing its hand-rolled panel, static `▾` and private outside-click handler: it gains the rotating accent chevron, focus ring, fade/scale-in and ↑/↓ keyboard navigation the app's other dropdowns already had, and its menu is portaled so it can't be clipped by the table's scroll container. `Dropdown` grew a `header` prop for the menu's mono caption (the design's §13 "menu anatomy" specimen). Likewise the row checkboxes now use the shared **`Checkbox`**, which gained an **`indeterminate`** state (and a `size`) rather than the table keeping its own copy. Rows are also **zebra-striped** (phpMyAdmin style) so the eye tracks one record across a wide table, with **hover** and **selection** layered above the stripe: the two stripes alternate white/`bg`, hover steps one shade past both, and selection stays a warm wash rather than another grey — so all four states remain distinguishable whichever stripe a row sits on. Turn it off per table with `striped={false}`. **Row-selection checkboxes are on for every list**, not just ones that happen to define bulk actions — picking rows is useful on its own (counting a subset, holding your place while scanning), so the toolbar shows the live "N of M selected" count with a Clear action whether or not there is anything to run against the selection; pages add `bulkActions` when they have one, and `enableSelection={false}` opts a list out. A **"Filters: N · Clear filters"** control appears in the toolbar while any column filter is active, since the filter row itself scrolls out of sight on a long table. Rolled out across **all 42 config-driven list pages** (work orders, materials, material lots, workers, lines, areas, sites, users, tools, issues, maintenance, webhooks, …) — every column on every one of them is filterable, with the control picked per column from its data. Three latent bugs fixed along the way: columns rendered from a lookup (Line, Product, Customer) had **no value behind them**, so they were invisible to global search and could not be sorted or filtered — they now declare a **`value`** accessor; row selection was keyed by **row index**, so a live update handed a ticked checkbox to whichever row slid into that slot (now keyed by row id); and every incoming Reverb delta **reset the pager back to page 1** (paging now resets on filter change, as designed, not on data change).
+- **More interactive dropdowns** *(UI)*: the shared `Dropdown` (line filter on the schedule planner, and every other call site) replaces the static `▾` glyph with a **chevron that rotates 180° as the menu opens and closes**, highlights the trigger with an accent border + ring while open, fades/scales the menu in (skipped under `prefers-reduced-motion`), and adds **keyboard navigation** — ↑/↓/Home/End move the highlight, Enter/Space picks, Escape closes and returns focus to the trigger. Hover and keyboard now share one highlight state.
+
+## [0.17.2] - 2026-07-24
+
+### Fixed
+- **Data saved but admin lists show nothing** *([#193](https://github.com/orgs/Mes-Open/discussions/193))*: on some deployments the admin list pages (work orders, lines, product types, …) rendered **empty even though the data existed** — you could pick a line in the work-order form and save, the planner showed sample data, but the lists stayed blank. The lists are fed by a live-sync snapshot (`GET /api/collections/{name}`) that lived in the **api route group** and authenticated via Sanctum **stateful-domain matching** (Origin/Referer vs the app host). Behind a reverse proxy, or when `APP_URL` didn't cover the host the app was actually served on, that check failed → the snapshot returned **401** → the frontend **silently swallowed the error into an empty list** while the rest of the SPA (which uses the session cookie directly) kept working. The snapshot now lives in the **web route group**, so it authenticates with the **plain session cookie** exactly like every Inertia page — host-independent, no `SANCTUM_STATEFUL_DOMAINS` tuning required. The client also now **logs a console warning** when a snapshot fails instead of failing silently. No API contract or URL change (`GET /api/collections/{name}` is unchanged); mobile/token clients are unaffected (they use `/api/v1/*`).
+- **Desktop (Windows) and Android release builds** *(CI)*: the v0.17.1 release shipped without the Windows `.exe`/`.msi` and the Android `.apk`. The desktop bundle step used `rsync`, which is not installed on the Windows git-bash runner (`rsync: command not found`), and the Android job's `npm ci` failed on an out-of-sync `mobile/package-lock.json` (missing `@emnapi/*`). The bundle script now uses a **portable `cp`-based copy** (works on Linux, macOS and Windows git-bash), and the mobile lock file is **regenerated in sync** — so v0.17.2 produces the full artifact set (web ZIP + desktop win/mac/linux + apk). Both fixes verified locally.
+
+### Changed
+- **Sample data now fills the production planner** *(demo)*: the "Load sample data" seeder used to scatter ~46 work orders one-every-two-days across a 3-month horizon, so any single week of the planner looked nearly empty (~9 orders spread over 5 lines × 7 days × 3 shifts). It now **densely packs the current week** — an order in most (line, day, shift) slots, anchored to `now()->startOfWeek()` so the visible week is always the busy one — with a lighter taper over the neighbouring weeks and last week's work marked DONE. The current week stays **active end-to-end** (in-progress / accepted / pending) so every day renders blocks, including days already behind "today". A freshly seeded demo now opens on a realistic, almost-full weekly board instead of a sparse one. `PrintShopDemoSeeder` only; no schema or app-logic change.
+
+## [0.17.1] - 2026-07-23
+
+### Fixed
+- **Login, 2FA and registration errors were never translated**: messages such as "The provided credentials are incorrect.", "Invalid username or PIN." and the registration validation errors stayed English on a Polish (or any non-English) UI. They were **hardcoded English literals** in the auth controllers rather than translation calls, so no `lang/*.json` entry could ever match them — adding a translation had no effect. All 29 user-facing strings across `AuthController`, `AuthService`, `TwoFactorController`, `TwoFactorChallengeController`, `RegisterController` and `RegisterRequest` now go through `__()`, with 24 new keys added to `lang/en.json` and `lang/pl.json`. The login screen is covered because `SetLocale` runs in the `web` group, so a guest request already resolves the configured locale.
+- **Planner poll hammered the server with 401s after a session expired** *(telemetry: `http_error` was ~57% one endpoint)*: the production planner short-polls `/admin/schedule/check-updates` every 5-10s to sync across tabs. When the session expired on a left-open planner tab, each poll returned **401** and the client silently retried forever, quietly generating hundreds of error events per stale tab. Both pollers (`LiveRefresh` and the planner's tracking poll) now **stop on a 401/419** (session gone) instead of retrying indefinitely — a real navigation still bounces the user to login.
+- **Customers and Priority Settings links 403'd for non-admin roles** *(telemetry)*: `/admin/customers` and `/admin/priority-rules` sat outside every `TabRegistry` tab, so `TabAccessMiddleware` treated them as **Admin-only (403)** — yet the sidebar showed them under the **Orders** group to anyone holding the `orders` tab, so a Supervisor/Operator with Orders access saw the links and got a 403 on click. They now resolve to the **Orders tab**, matching where the nav places them, so access and visibility agree.
+- **New MQTT connections weren't picked up until a manual listener restart** *([#174](https://github.com/Mes-Open/OpenMes/issues/174))*: `mqtt:listen` was a single-connection process pinned to one `--connection=<id>` at startup, so creating a connection in **Admin → Connectivity → MQTT** left it stuck at `disconnected` — the DB row existed but nothing was subscribed against it until you restarted the listener with that ID. It is now a **supervisor**: one process services **all** active MQTT connections at once (non-blocking `loopOnce()` per client) and **reconciles against the database every few seconds** — a newly created/activated connection is connected + subscribed automatically, a deactivated/deleted one is disconnected, and a connection whose broker settings or topics changed is reconnected with the new config. The `mqtt-listener` container now runs `mqtt:listen` with no pinned ID by default (pass `--connection=<id>` to supervise just one).
+- **MQTT connection detail — Live Message Log went blank after the first message** *([#174](https://github.com/Mes-Open/OpenMes/issues/174))*: the message log's time formatter was a local `formatTime` that shadowed the imported i18n helper and **recursed into itself**, so the panel rendered fine while empty ("Waiting for messages…") but blew the call stack the moment a message arrived — blanking the log. Renamed the local helper so it calls the imported formatter instead of itself.
+
+## [0.17.0] - 2026-07-19
+
+### Added
+- **OpenMES Desktop app — Windows, macOS & Linux**: a **Tauri** (Rust + system webview) shell that bundles PHP + the backend and runs OpenMES as a **local desktop app / LAN MES server** — no separate PHP/Postgres install. First launch runs an **unattended install** (a new backend `INSTALLER_PRESET` mode drives the wizard straight to admin creation), the window minimises to the tray, and shop-floor clients on the LAN reach it by IP. Includes an **in-app self-updater** (staged atomic swap of the managed backend copy against a self-contained release ZIP — no composer/npm on the client — with SHA-256 verify, DB snapshot + rollback). New `desktop/` Tauri project with build scripts producing self-contained installers per OS.
+- **Shop-floor workstation device registration + live admin roster** *([#175](https://github.com/Mes-Open/OpenMes/issues/175))*: shop-floor PCs self-register against the app by IP and heartbeat; **Admin → Structure → Workstation Devices** shows them live (online/offline from `last_seen_at`) via an Electric shape. Public, rate-limited `POST /api/workstations/register` + `/heartbeat`; new soft-deletable `workstation_devices` table + a "forget" action.
+- **OpenMES mobile app (Android)**: a new **Expo / React Native** client (`mobile/`, `com.openmes.mobile`) that talks to an OpenMES server's API — shop-floor operations on a phone/tablet.
+- **Multi-platform release pipeline** *(CI)*: the release workflow now builds and attaches, to each tagged GitHub Release, the self-contained web ZIP **plus desktop installers** (Windows `.exe`, macOS `.dmg`, Linux `.deb`/`.rpm`) and the **Android `.apk`** — desktop jobs fan out across a win/mac/linux matrix, mobile via Expo prebuild + Gradle.
+
+## [0.16.2] - 2026-07-13
+
+### Fixed
+- **Maintenance schedule install/upgrade could fail on a database with duplicate generated events** *(migrations)*: the migration that adds the unique `(schedule_id, scheduled_at)` guard to `maintenance_events` de-duplicated existing rows with `pluck(DB::raw('MIN(id)'))`. That looks up a row property literally named `MIN(id)`, which only SQLite produces - PostgreSQL names the aggregate column `min`, so the lookup returned `null`, the de-dup deleted nothing, and creating the unique index then aborted with a duplicate-key error on any database that already held duplicate auto-generated maintenance events. The de-dup now selects the aggregate under an explicit `id` alias (`selectRaw('MIN(id) AS id')`), so it works the same on PostgreSQL and SQLite.
+
+## [0.16.1] - 2026-06-30
+
+### Fixed
+- **Release workflow couldn't build the distributable ZIP** *(CI)*: the GitHub release workflow inlined the commit log into a shell assignment (`LOG="${{ … }}"`), so a commit message containing double quotes broke out of the string and bash ran part of it as a command (`serials: command not found`, exit 127) — failing the release before any `openmmes-*.zip` was attached. The release-notes variables (`VERSION`, `CUSTOM`, `LOG`) now pass through `env:` instead of `${{ }}` interpolation, so commit text is read verbatim.
+
+## [0.16.0] - 2026-06-30
+
+### Added
+- **Keep a long-running demo's OEE report fresh** *(demo-only)*: the OEE report recomputes today/yesterday from real DONE production, so once a demo's seeded "today" ages, OEE decays into **N/A**. A new scheduled `demo:refresh-oee` command rolls the (fully idempotent) demo production/OEE data forward to the current day. It is **off by default** and **no-ops on real installs** — gated behind a new `DEMO_MODE` flag (`config('openmmes.demo_mode')`); pass `--force` to run regardless. Wired into the scheduler at 00:30 (just before `oee:calculate`). New `App\Console\Commands\RefreshDemoOeeCommand`; no schema change (reuses `OeeAndDowntimeDemoSeeder`).
+- **Backup, restore & system reset** *(Settings → System → Data, admin-only)*: create a **full backup** (database + uploaded files) or a **data-only backup**, both streamed to a `.zip` to keep memory low; **download**, **delete**, **upload** and **restore** from a backup; and a destructive **Reset System** (wipe → re-migrate → re-seed → recreate the admin) gated behind a typed `RESET` confirmation. The reset recreates the administrator from `config('openmmes.admin.*')` (read via config so it survives `config:cache`) and refuses to run unless those are configured — no predictable default account. Backups/restore use pure PHP (no shell-out); download/delete paths are realpath-guarded; backup/reset/upload endpoints are admin-only at both the route and Form-Request layers. New `BackupController`, `ResetSystemRequest`, `UploadBackupRequest`. (The DB restore/backup SQL is PostgreSQL-specific.)
+- **Vietnamese (vi) UI localization**: the interface can be switched to **Vietnamese** — a full `lang/vi.json` translation plus i18n wrapping (`__()`) of previously-hardcoded strings across the admin, onboarding, packaging, work-order and inspection pages. English/Polish are unaffected.
+- **Rich work instructions on a process step - media & checklists**: a process step can now carry **images, PDFs, videos and checklist items** beyond the plain-text instruction. They are defined once on the **template step** (Admin -> Process Templates editor, per step) and resolved **live** at the operator workstation - like reference photos - so updates reach in-flight work orders without re-snapshotting. At the operator station (tablet-friendly) each step shows its media inline: images tap-to-zoom, PDFs embedded with an "Open" link, videos with native controls; files stream through an **authenticated, Range-enabled** endpoint (videos seek, large PDFs load progressively) with `X-Content-Type-Options: nosniff` and a private cache - never a public URL, and images are re-encoded by the existing sanitizer. **Checklists** render as large tap targets the operator ticks off; each tick **records who and when** and can be un-ticked. **Plain-text instructions keep working** unchanged, and steps without rich content are untouched. New `template_step_media`, `template_step_checklist_items` and `batch_step_checklist_completions` tables; `TemplateStepMediaController` (upload/stream/delete) + `TemplateStepChecklistController`; operator toggle endpoint. Strict per-type upload validation (image/pdf/video), IDOR-scoped routes.
+- **Milestone backflush - declare consumption on pallet creation**: a configurable milestone that books component consumption **when a packing pallet is created** instead of continuously through the step flow. When the **"Backflush on pallet creation"** toggle (Settings -> System) is on, creating a pallet computes the BOM consumption implied by the **produced quantity** (`quantity_per_unit x qty x (1 + scrap%)` per component, from the work order's BOM snapshot) and **deducts it from stock** in one shot. Each deduction is a plain `StockMovement` (type `consume`) **linked to the pallet** (`source_type=pallet`), so it stays auditable and traceable - reachable via `Pallet::stockMovements()`. The produced quantity can be passed explicitly at pallet creation (`produced_qty`); without one the batch's BOM is booked **once, at its first pallet** (so splitting a batch across several pallets doesn't double-deduct). A pallet whose work order has no BOM consumes nothing. **Off by default** and independent of the allocation engine, so existing continuous-consumption behaviour is unchanged unless enabled. New `App\Services\Production\PalletBackflushService`; no schema change (reuses `stock_movements` + the settings table).
+- **Mandatory document control on the shop floor**: a production step can now carry **documents** (SOP, drawing, work instruction, certificate) marked **mandatory** and **validatable**, and the step **cannot be completed until the operator validates them**. The completion gate lives in `BatchService::completeStep` (alongside the existing quality and routing gates), so the block applies to every surface - the operator panel, the web route and the API all refuse with a clear message naming the outstanding document(s). On the operator step view each document is listed with its status and a **Validate** button; an unvalidated mandatory document **disables Complete** and shows a blocked banner explaining why. Validating **records who validated it and when**. Documents are attached and flagged by Supervisor/Admin via `POST /api/v1/batch-steps/{step}/documents`; validation via `POST /api/v1/batch-step-documents/{doc}/validate` (API) or the operator route. New `batch_step_documents` table (soft-deletable, cascades from its step). No change to steps without documents.
+- **Operator production rate per machine**: the system now tracks how fast each worker performs on each workstation, in **units/hour**, to feed proficiency context and scheduling. It is derived **live** from existing production events (no new table): every completed batch step records who ran it, on which machine and for how long, so the rate for a worker x machine pair is the units that flowed through their steps divided by the time spent - and it reflects new production the moment a step completes. A new **"Operator production rate (units/h)"** panel on the **Supervisor dashboard** lists the fastest operator x machine pairs (line-filterable), and the metric is queryable via `GET /api/v1/analytics/operator-rates` (Supervisor/Admin) - the list of all pairs with history, or a single `operator_id` + `workstation_id` lookup that returns an explicit **no-data state** for a machine the worker has never run. Optional time window (`days`, or `date_from`/`date_to`; omitted = all history). New `App\Services\Production\OperatorProductionRateService`. No schema change.
+- **Outgoing webhooks — HTTP notifications on events** *([#20](https://github.com/Mes-Open/OpenMes/issues/20))*: OpenMES can now POST to external systems (Slack, an ERP, a monitor) when key events occur. Configure endpoints under **Admin → Webhooks** (an optional module, toggleable in Settings → System → Modules): each endpoint has a **URL**, a **signing secret** and a set of **subscribed events** — currently **work-order status changed**, **issue created** and **batch completed** (the catalog is an extensible registry, so more events are a one-line addition). Every delivery is an HTTP POST carrying `{event, data, timestamp}` and an **`X-OpenMES-Signature: sha256=…` HMAC** header (the secret is stored encrypted and never leaves the server — excluded from the live-sync read-path). Failed deliveries are **retried with exponential backoff** (5 attempts: 10s/30s/1m/5m/15m) by a queued job, and every attempt is recorded in a per-endpoint **delivery log** (status, HTTP code, error) viewable in the UI; a **"Send test"** button verifies an endpoint. Outbound URLs are **SSRF-guarded** (loopback/private/reserved/cloud-metadata addresses are rejected at save time and re-checked at delivery). The Docker entrypoint now runs a background **queue worker** on the primary so deliveries work out of the box. New `webhooks` + `webhook_deliveries` tables (the former soft-deletable); `App\Support\WebhookEventRegistry`, `WebhookDispatcher`, `DeliverWebhookJob` and model observers on WorkOrder/Issue/Batch.
+- **Select required modules at installation** *([#144](https://github.com/Mes-Open/OpenMes/issues/144))*: installations can now switch off whole feature areas they don't need, to stay lean. A new **"Select modules"** step in the installer (between Database and Admin) lets you enable/disable **Reports, Company structure, HR, Maintenance & Quality, Connectivity and Packaging** (core areas — Dashboard, Orders, Production, Admin — are always on); the choice is editable later in **Settings → System → Modules**. A disabled module is **hidden from the sidebar** for everyone *and* its routes **return 404** (a deep link behaves as if the area doesn't exist). Persisted system-wide in `system_settings.enabled_modules`; when unset every module is enabled, so existing installs are unaffected. As a bonus, the admin sidebar now also respects the per-role tab-access matrix (previously tabs a role couldn't open still showed in the menu). New `App\Support\ModuleRegistry`; enforced in `TabAccessMiddleware` + `HandleInertiaRequests`. No schema change (reuses the settings table).
+- **Trace by pallet number or customer order**: work orders now carry a **customer order number** (the customer's own PO/order reference - editable on the admin/supervisor work-order forms, searchable, synced live), and each **pallet is linked to the batch it holds** (set at the packaging station - auto when the work order has a single batch, otherwise picked - and editable in the admin pallet form). The Admin → Traceability console can now resolve a **pallet number** into the full chain **pallet → batch → consumed lots → machine/line → operator → quality controls**, and a **customer order number** into every matching work order with its pallets and batches (each linking into the deeper trace). Pallet labels can now also print the linked batch's LOT. Built on the existing genealogy (`batch_step_lot_consumption`); two additive columns (`work_orders.customer_order_no`, `pallets.batch_id`), no breaking change. Lots/batches only - serialized-component picking is unchanged.
+- **Genealogy extended to the output pallet and customer order**: the traceability chain no longer dead-ends at the finished-goods LOT. Searching a **finished-goods lot** in Admin -> Traceability now shows a **"Forward trace - packed & shipped"** panel with the **output pallet(s)** it was packed onto and the **customer order(s)** it fulfils (each linking into the deeper trace); a finished lot not yet packed onto a pallet is handled gracefully. Tracing a **customer order** now reaches all the way down - every matching work order's batches list both their **output lots** (the finished LOTs produced) and the **components used** (the consumed ingredient lots). The link is derived through the existing pallet/batch genealogy (a pallet pins to one batch, a finished lot to the same batch) - **no schema change**. Read-only, admin-only.
+- **WO-time lot picking (ERP-aligned "suggest + override")**: when lot tracking is enabled and an operator starts a batch step that consumes lot-tracked materials, OpenMES now proposes which lots to consume (by the configured FEFO/FIFO/LIFO strategy) and lets the operator **override the selection - split or reassign quantities across the available lots** - before the step starts. Tapping **Start** opens a picking modal seeded with the system's proposal (skipped automatically when there's nothing to pick, so the existing flow is unchanged); the chosen lots are validated server-side (belong to the material, released/available, sum to the required quantity) under row locks, so a bad pick rolls back the whole start. The picked lots are bridged into the `batch_step_lot_consumption` genealogy at batch completion, so forward/backward traceability and recall now reflect **what was actually consumed**, not just an automatic guess. No schema change - built on the existing allocation, lot-pick and genealogy tables; auto FEFO/FIFO/LIFO picking is unchanged when the operator supplies no override. Serial-tracked components are out of scope (phase 2).
+- **Reverse traceability for recall — "Recall impact" in the traceability console**: Admin → Traceability now answers the recall question directly. Searching a **material lot, supplier LOT or source container** (a component "version") - or a **serial number** - shows a **Recall impact** panel listing every affected work order, its product, the quantity consumed, the batches involved and the **finished serialized units to pull** (each linking back into the console). The walk is **transitive**: a consuming batch's own output lots are followed downstream, so multi-stage builds surface every affected level (bounded by max depth). A typed serial is resolved through the output lots its batch produced - i.e. where that component ended up. Read-only, admin-only; built on the existing `batch_step_lot_consumption` genealogy, no schema change.
+- **Reverse traceability for recall - component line journeys on a finished unit**: searching a **serial number** in Admin → Traceability now shows a **Components & production lines** panel - for every component (material lot) consumed to build that finished piece, the **lines and workstations the component itself passed through** during its own production (the steps of the batch that produced it), with the step, operator and completion time. Raw supplied lots are flagged as having no internal line. The per-unit **process history** now also labels each step with its production line. This answers the diagnostic recall question: a finished piece is defective - which component, and on which line, was at fault? Read-only, admin-only; no schema change.
+- **Product overview - "Components & serials used"**: the Admin → Product Types detail page now shows, below the process templates and work orders, what actually went into making this product. **Components consumed** aggregates every material lot consumed across all of the product's (non-deleted) work orders → batches → steps, grouped by material with the total quantity and the number of lots (real genealogy from `batch_step_lot_consumption`, not the planned BOM); each row links to the material. **Serialized units** lists the serial numbers produced under the product's work orders with a status breakdown (in production / completed / scrapped / shipped), each linking into the traceability console. Read-only, admin-only.
+- **MRP — net requirements & shortage report** *([#90](https://github.com/Mes-Open/OpenMes/issues/90))*: a basic MRP (Admin → Reports → Net requirements) explodes **planned work orders** (PENDING/ACCEPTED) against their BOMs to gross component requirements, nets them against **on-hand stock** (`Material.stock_quantity`) and produces a **shortage list** — component, required, available, shortfall and the **work orders driving the demand** — filterable by period (work-order due date, default next 30 days) and line. Started orders are excluded from demand (their materials are already pulled from stock, so they're reflected in the lower on-hand — no double-counting). Requirement math reuses the allocation engine's formula (`qty_per_unit × planned_qty × (1 + scrap%)`); single-level BOM. New `NetRequirementsService`, web page, and API `GET /api/v1/reports/net-requirements`. Read-only — no schema changes.
+- **Additional machine states — waiting, cleaning, maintenance** *([#87](https://github.com/Mes-Open/OpenMes/issues/87))*: machine state tracking gains three states beyond running/idle/stopped/fault/setup so downtime is categorised more accurately. Operators set a workstation's state from the operator panel and supervisors/admins from the Machine Monitor (recorded with `source=manual` in the state history). Each state is treated correctly in OEE/availability: **maintenance** and **cleaning** open a **planned** downtime (scheduled — reduces planned time, not an availability loss), while **waiting** (machine idle waiting for material/operator) opens an **unplanned** downtime that counts as an availability loss. Entering a downtime state auto-opens a `ProductionDowntime` with the right `DowntimeKind`; leaving it closes it — so the new states flow through downtime reporting and OEE without manual entry. Existing states and historical data are unchanged (`workstation_states.state` is a free-text column — no schema migration). New endpoints `POST /admin/machine-monitor/{workstation}/state` and `POST /operator/workstation/machine-state/{workstation}`.
+- **Non-conformance management — disposition workflow & root-cause tracking** *([#11](https://github.com/Mes-Open/OpenMes/issues/11))*: an issue (the non-conformance record) can now carry a **disposition decision** — *pending → scrap / rework / return to supplier / use as is* — set from a confirmation modal on the Issues page alongside the **non-conforming quantity**, **root cause**, **containment action** and a responsibility **source** (internal / external / supplier, a separate axis from the existing origin `source`). The disposition is filterable and badged in the issues list. Corrective/preventive actions gain a third **containment** type, and outstanding actions past their due date are flagged **overdue** (a derived flag — the open → in-progress → done → verified lifecycle and the "all actions verified before close" gate from [#107](https://github.com/Mes-Open/OpenMes/issues/107) are unchanged). A new **Non-conformance report** (Admin → Reports) shows a **Pareto by issue type** and a **disposition summary**, an **admin-dashboard widget** surfaces open NCRs by type plus the overdue-action count, and a scheduled `quality:notify-overdue-actions` command logs overdue actions daily. New columns on `issues` (`disposition`, `non_conforming_qty`, `root_cause`, `containment_action`, `nc_source`, `disposition_by_id`, `disposition_at`); API endpoints `PUT /issues/{id}/disposition`, `GET|POST /issues/{id}/actions`, `PUT /issue-actions/{id}`, `GET /reports/non-conformance-pareto`.
+- **Quality results linked to a pallet** *([#106](https://github.com/Mes-Open/OpenMes/issues/106))*: a quality check can now be **linked to the output pallet** it concerns (the pallet must belong to the check's work order). Each pallet derives a **quality status** — *pending* (no check yet), *passed* (every linked check passed) or *failed* (any linked check failed) — shown as a badge on Admin → Pallets and **filterable** there. A pallet **can't be shipped until its quality status is passed** (the closed→shipped transition is gated, mirroring the batch-release gate). Link a check from the Quality Controls queue (optional pallet picker), the operator batch check, or the API (`pallet_id` on `POST /batches/{batch}/quality-checks`). New `quality_checks.pallet_id` FK + denormalized `pallets.quality_status`.
+- **Quality control triggers — in-production, frequency, after downtime/setup, roaming** *([#105](https://github.com/Mes-Open/OpenMes/issues/105))*: quality controls can now fire **automatically during production**, beyond the manual inbound inspection and ad-hoc per-batch check. Configure **triggers** (Admin → Quality Control Triggers) of six types — **in production** (batch enters production), **every N units**, **every N minutes**, **after downtime**, **after setup/changeover**, and **roaming** (manual ad-hoc) — each optionally scoped to a line, workstation or product type and pointing at a quality-check template. When a trigger fires it raises a **due control** that surfaces in the live **Quality Controls** queue (supervisor/admin); performing it records a `QualityCheck` against the **work order / machine** and, on failure, raises a non-conformance `Issue`. Triggers marked **blocking** hard-gate production — the next step can't start and the batch can't be released until the control is done. Time-based triggers fire via a scheduled `quality:fire-due-triggers` command; the rest fire synchronously from the production lifecycle (`BatchService`, `DowntimeService`). New `quality_control_triggers` + `quality_control_tasks` tables follow the soft-delete-with-audit pattern. Existing inbound inspection and per-batch checks are unchanged.
+- **Non-conformity workflow — material hold/release + batch-release quality gate** *(part 2 of [#107](https://github.com/Mes-Open/OpenMes/issues/107))*: quality can now put **any material lot on hold** (→ quarantine, with a reason and an optional link to the triggering issue) and **release** it later, straight from Admin → Material Lots — not just via an inbound-inspection disposition. Held lots stay out of the allocation engine. A new **quality gate on batch release** refuses to release a batch whose work order is blocked by an open non-conformance, or that consumed a held (quarantined/rejected) lot. Implemented in `MaterialHoldService` + `BatchReleaseService`.
+- **Non-conformity workflow — corrective/preventive actions (CAPA) on issues** *(part 1 of [#107](https://github.com/Mes-Open/OpenMes/issues/107))*: an issue (the non-conformance record) can now carry **corrective and preventive actions**, each with an assignee, due date and lifecycle **Open → In progress → Done → Verified**. The issue **can only be CLOSED once every action is Verified** (enforced server-side in `IssueService::closeIssue` for both the admin/supervisor UI and the API). Manage actions from a panel on the Issues page (Admin → Issues / Supervisor → Issues). New `issue_actions` table follows the soft-delete-with-audit pattern and cascades when its issue is deleted.
+
+### Changed
+- **Background jobs run asynchronously on the Docker stack** (`QUEUE_CONNECTION=database` + a built-in queue worker): real queued jobs — webhook delivery, CSV import, MQTT message processing, auto-update — now run on a worker with retries instead of inline on the request thread, so a slow/failing job no longer blocks the HTTP response. The backend entrypoint runs a self-restarting `queue:work` on the primary, so a plain `docker compose up` processes jobs out of the box (the standalone `queue-worker` service, profile `workers`, can still scale this out). Live-sync is unaffected — its broadcasts are `ShouldBroadcastNow` and never used the queue. **Existing installs keep their current `.env`** (no surprise switch); only the Docker stack and fresh installs default to `database`. Non-Docker installs that opt into `database` must run a worker themselves, otherwise jobs queue and never execute.
+
+### Fixed
+- **Blank page on `/admin/schedule` and two other pages (missing `__` import)**: the localization work wrapped UI strings in `__()` on the **schedule planner**, **supervisor work-order detail** and **label-template form** without importing the helper, so they threw `ReferenceError: __ is not defined` and rendered a blank white page (Vite can't catch a runtime ReferenceError, so the production build was affected too). Added the missing import on all three; a repo-wide sweep confirms they were the only affected pages.
+- **Error-handling hardening from production telemetry (schedule 500 / sample-data 409 / dashboard 403)**: three failures observed via `http_error` session telemetry are fixed. (1) **Dragging a work order on the schedule planner could 500** — `PUT /admin/schedule/{wo}` runs auto-snapshot + auto-batch side-effects, and a failure there (e.g. incomplete BOM/material data) crashed the whole request and discarded the placement; the side-effects are now wrapped so the **schedule placement always saves** and a batch-prep failure degrades to a warning. (2) **"Load Sample Data" could 409** — re-running the demo seeder against an already-populated database raced on unique keys; it's now **guarded by a `sample_data_loaded` flag** (idempotent, friendly "already loaded" message) and any seeder error is reported instead of bubbling up. (3) **`/admin/dashboard` hard-403'd** users who couldn't open the dashboard tab but could open others — a dead end; the admin home now **redirects them to their first accessible tab** (specific resource tabs and API requests still return a real 403, preserving the access-matrix contract).
+- **BOM items could be added and removed but not edited**: the process-template Bill of Materials page only exposed *Add* and *Remove*, so correcting a quantity, step, scrap %, consumed-at or notes meant deleting the line and re-adding it. The `PUT .../bom/{bom_item}` endpoint already existed (`BomManagementController::update`) but no UI was wired to it. Each BOM row now has an **Edit** action that opens the form pre-filled (the material itself stays fixed - it's the line's identity); saving issues the `PUT`. The controller now also exposes `template_step_id` on each item so the edit form can pre-select the current step.
+- **Operator couldn't start the first step of a batch**: a newly created batch promotes its first step to `READY` (the "next in line" state), but the operator Work Order detail only rendered a **Start** button for `PENDING` steps — so the first step showed no action and production couldn't begin. The button now appears for `READY` and `PENDING` alike (the backend already accepted both). Found driving a full production run through the UI.
+- **Creating a work order failed when a BOM component had no material type**: since material type became optional, a BOM line could reference a material without a type, but `ProcessTemplate::toSnapshot()` (and `BomService::calculateRequirements()`) dereferenced `material->materialType->code` — the resulting "Attempt to read property on null" rolled the work-order create transaction back with *"Failed to create work order"*. Both now use the null-safe `materialType?->code`. Found building a computer-production configuration whose components had no material type.
+- **Performing a quality control crashed the page (white screen)**: the *Perform quality control* modal passed `tone="info"` to `InlineAlert`, but the component reads the `severity` prop — so it dereferenced an undefined severity (`Cannot read properties of undefined (reading 'bg')`) and the React tree threw, making it impossible to record any quality control from the queue. Corrected to `severity="info"`.
+- **Supervisors can now create & manage work orders (as the role docs state)** *([#122](https://github.com/Mes-Open/OpenMes/issues/122))*: the Supervisor role already held the `create work orders` ability and `WorkOrderPolicy::create` allowed it, but there was no way to use it — no supervisor create route/controller/button, and the role lacked the `tab:orders` permission needed to reach the admin order pages. Supervisor now gets `tab:orders` (seeder) **and** a native create flow: `GET/POST /supervisor/work-orders` (authorized via `WorkOrderPolicy`) with a **"+ New Work Order"** button on the supervisor Orders list. Operators and guests remain blocked.
+- **Live-sync lists 401 / appear empty when the app host isn't `APP_URL`**: creating a record returned `200` but the list stayed empty because the live-sync read (`GET /api/collections/{name}`, guarded by `auth:web,sanctum`) was only treated as a stateful session request when the host matched `localhost`/`127.0.0.1`/`APP_URL`. Served on any other host (LAN IP, custom domain, a port `APP_URL` doesn't cover, behind Caddy) the request wasn't stateful → no session → `401` → empty lists. `config/sanctum.php` now includes `Sanctum::currentRequestHost()`, so the app's own host is stateful for **same-origin** requests on any deployment (cross-origin requests stay non-stateful, so CSRF protection is unchanged). `SANCTUM_STATEFUL_DOMAINS` still overrides.
+- **Production Docker image build broken by the `@openmes/ui` workspace package**: the image's `npm run build` failed with `Rollup failed to resolve import "@openmes/ui"` because `backend/package.json` depends on it via `file:../packages/ui`, but `backend/Dockerfile` never copied `packages/` into the build. The Dockerfile now copies `packages/` to `/var/www/packages/` before `npm ci` (and removes it after the build to keep the image lean); the dev-overlay frontend watcher gains a `./packages` bind mount so its runtime `npm ci` resolves the dependency and edits to `@openmes/ui` rebuild live. Only the image build was affected — PR CI runs the PHP suite, not the Docker build.
+
+---
+
+## [0.15.5] - 2026-06-21
+
+### Fixed
+- **German locale terminology**: "Work Order" now translates as **Fertigungsauftrag** (production order) instead of the generic *Arbeitsauftrag*, matching the MES domain — applied across all singular/plural/compound occurrences in `backend/lang/de.json`.
+
+---
+
+## [0.15.4] - 2026-06-19
+
+### Added
+- **German (de) locale**: OpenMES is now available in German — a complete `backend/lang/de.json` (full key-parity with English, MES terminology) plus registration as a selectable language, so German can be chosen from the language switcher (login screen, Settings → System) exactly like English / Polski / Türkçe.
+
+### Changed
+- **Material type is now optional**: a material no longer has to belong to a material type. The `materials.material_type_id` column is nullable, the create/edit form offers a "— None —" option, and the web + API validation accepts a missing type (an invalid/non-existent type is still rejected). The foreign key (restrict-on-delete) is unchanged and still applies when a type is set.
+
+### Fixed
+- **Web-shell/XSS test fixtures defanged**: the upload-sanitizer security tests embedded literal `<?php system($_GET[...])` / `<script>` payloads (used to prove the sanitizer destroys them), which matched antivirus signatures (`Backdoor:PHP/Perhetshell.A`) and got the files quarantined on checkout. The payloads are now assembled from fragments at runtime — identical test behaviour, no literal payload left in source.
+
+---
+
+## [0.15.3] - 2026-06-16
+
+### Added
+- **Windows installer (`install.ps1`)**: a PowerShell port of `install.sh` with the same behaviour — auto-selects a free host port (80 → 8080/8443+), generates `.env` with secure random credentials (written LF/no-BOM so values aren't corrupted), builds + starts production, waits until the app actually serves, and prints the URL + login. Run `.\install.ps1` in PowerShell with Docker Desktop (`-Interactive` to customise, `-Dev` for the watch overlay). A `.gitattributes` keeps shell scripts LF-only so a Windows checkout doesn't break the `#!/bin/bash` shebang.
+- **"Ready to start" batch-step status**: a new step state between **Pending** and **In Progress**. A step is **Pending** while it's still blocked (its predecessor isn't done), becomes **Ready to start** once its prerequisites are met (first step, predecessor done/skipped, or non-sequential mode) — i.e. it's next in line and waiting for an operator — and then **In Progress** once started. Operators only see the **Start** button on Ready steps; Pending steps show as blocked. The next step is promoted to Ready automatically when the current one is completed or skipped. No schema change (the status column is a free string); existing in-flight batches are backfilled by migration, and the value syncs to live views like any other status. _(Refs [discussion #69](https://github.com/orgs/Mes-Open/discussions/69))_
+
+---
+
+## [0.15.2] - 2026-06-16
+
+### Changed
+- **Smoother first-run install**: `install.sh` now **auto-selects a free host port** — it prefers 80/443 and falls back to the next free port (e.g. 8080/8443) when those are taken, then wires `APP_URL` and `SANCTUM_STATEFUL_DOMAINS` to match, so `git clone && ./install.sh` works even when port 80 is occupied. It runs a **real production build** by default (Octane + the frontend baked into the image) instead of the vite-watch dev overlay (use `./install.sh --dev` for that). Container names are now **prefixable** (`${OPENMES_NAME_PREFIX:-openmmes}-<service>`) and `install.sh` derives a unique prefix from the install directory, so **several local instances can run at once without clashing on container names** (a single deployment still gets the familiar `openmmes-*` names; docs use `docker compose exec <service>` so they work regardless of the prefix). Prompts are now **non-blocking**: it runs unattended when there's no terminal (piped / CI) and treats Enter as "proceed" (`--yes` to force it) — previously a no-input run aborted with exit 1 before writing `.env` or starting anything, because a `read` under `set -e` failed on EOF. It also **reuses the existing DB/admin passwords on re-run** so they keep matching the already-initialised postgres volume (previously a re-run regenerated the password and broke DB auth). `docker-compose.yml` now defaults to `pull_policy: build`, so a plain `docker compose up` builds from the cloned source (layer-cached → instant when unchanged) rather than failing on the private image or serving a stale one; deployers pulling a published tag can set `OPENMES_PULL_POLICY=missing`. `install.sh` is also **macOS/BSD-safe** now: port detection uses a portable bash `/dev/tcp` probe (no Linux-only `ss`/`netstat` flags) and password generation runs `tr` under `LC_ALL=C` (BSD `tr` otherwise aborts on `/dev/urandom` bytes with "Illegal byte sequence").
+
+---
+
+## [0.15.1] - 2026-06-15
+
+### Fixed
+- **Sidecar containers raced the database migrations**: the `reverb` (and `queue`/`mqtt`/`modbus`) containers share the app image and ran the full entrypoint, so on a fresh `docker compose up` every sidecar ran `migrate`/`db:seed` concurrently with the backend — flooding the logs with `duplicate key "pg_type_typname_nsp_index"`, `relation … already exists` and `column "deleted_at" … already exists`, and crash-looping reverb. The entrypoint now runs migrations/seeders/admin-creation/scheduler **only on the primary (Octane) container**; sidecars log "skipping migrations/seeders" and start straight away.
+- **Creating a division without a factory returned a 500**: `divisions.factory_id` is `NOT NULL`, but the controller validated it as `nullable`, so submitting the form without a factory (e.g. on a fresh install with none created yet) hit a Postgres NOT NULL violation. It's now `required`, returning a normal 422. Regression test added.
+- **Stale caches surviving a Docker upgrade**: `bootstrap/cache` is a persisted volume, so after `git pull` + rebuild the previous release's compiled **route cache** could keep serving old middleware (e.g. the pre-0.15 `role:Admin` `/admin` group instead of `tab.access`), surfacing as a bogus **403 "user does not have the right roles"** — even for the admin. The entrypoint now wipes the route cache alongside the config/package caches before rebuilding, and resets the Spatie permission cache after seeding so the freshly-seeded roles/permissions are authoritative on every boot.
+
+---
+
+## [0.15.0] - 2026-06-14
+
+### Added
+- **Per-role tab access (Settings → Access)**: a new admin-only settings page with a **role × tab matrix** of checkboxes that grants each role access to individual admin-panel tabs (Orders, Production, HR, Maintenance, …). Enforced server-side by a single `TabAccessMiddleware` on the `/admin` group (each path resolves to a tab via `TabRegistry` and checks a `tab:<key>` permission), and reflected in the sidebar (tabs a role can't access are hidden). The **Admin** role is locked to full access and can never be revoked (`Gate::before` safety net), so you can't lock yourself out. Backed by Spatie permissions — no new tables; existing installs get the `tab:*` permissions (and Admin grant) via migration.
+- **Optional & variant steps in process templates**: a template step can be marked **Optional** (operators may skip it during a batch) or assigned to a **variant group** — steps sharing a group are mutually-exclusive alternatives (e.g. *Matte* vs *Gloss finish*). One step per group is the **default variant** for that product (the template is product-type specific); it is pre-selected when a batch is created and its siblings start skipped, but the operator can switch with **Choose**, or skip an optional step with an optional reason. A batch can't be completed while a variant group has nothing executed (exactly one variant must run). Authored from the process-template step editor; runtime actions on the operator work-order screen.
+- **Soft deletes with deletion audit (all domain entities)**: deleting anything (work orders, lots, workers, users, structure, connectivity configs, …) no longer removes the row — it is marked deleted together with **who** deleted it and when. Deletes cascade to dependent records exactly like the old DB cascades (e.g. work order → batches → steps), and the new **Admin → Trash** page lists everything deleted (item, type, user, time) with one-click restore that also brings back the records deleted along with it. Unique codes/numbers can be re-used after deletion (validation and DB unique indexes ignore trashed rows), and deleted rows never reach live-synced lists.
+- **Source container on material lots**: new `source_container_no` field (scanned identifier of the physical container/pallet/drum a delivery arrived in). Scan inputs on the admin material-lot registration form and on the inbound-inspection start screen — the value entered at receiving is carried onto the material lot the inspection creates. Shown in the traceability console (lot header, ingredient-lot table, backward-trace tree) and resolvable in the genealogy search alongside lot number / supplier LOT / serial number.
+- **Pallets**: new shippable-unit entity. Each pallet gets a unique `pallet_no` drawn from a dedicated Postgres sequence (format `PAL-000001`), and tracks `work_order_id`, `qty`, `status` (open / closed / shipped), `location` and `erp_reference`. Full admin CRUD under **Packaging → Pallets** (`/admin/pallets`), live-synced list.
+- **Pallet labels**: new `pallet` label-template type wired into the existing template/label system. Prints QR + 1D barcode (both encoding the pallet number) plus pallet no., product, quantity and location, as PDF or ZPL. A default *Standard Pallet* template (100×100 mm) is seeded.
+- **Packing-station create-pallet action**: operators can open a pallet for a work order at the scanning station; subsequent scans of that order's pieces are assigned to the open pallet (incrementing its `qty`), with a close action and one-click label print. A scan whose EAN belongs to a different work order than the open pallet is rejected.
+- **Resume open pallets across shifts**: open pallets persist with their running `qty`, so a pallet started on one shift can be continued on the next. The scanning station now shows a list of all open pallets grouped by production line (derived from each pallet's work order, filterable via `GET /packaging/pallets?line_id=`), each with a **Resume** action that makes it the active pallet so further scans keep filling it instead of opening a new one.
+- **Friendly in-app error page**: in production, error statuses (500/503/404/403/429) now render an Inertia `Error` page that keeps the user's chrome (sidebar) — admins/supervisors get the admin sidebar, operators their touch layout — so they can navigate away instead of landing on a bare error screen. API/JSON clients keep their normal JSON error; local/testing keep the debug page.
+- **Sidebar menu search**: a search box at the top of the sidebar filters all navigation entries (including items nested in groups/subgroups) and shows a flat result list with the group path; matches both English labels and the active locale's translations. Enter opens the first result, Escape clears; on a collapsed sidebar the search icon expands it and focuses the input.
+- **Shift handover screen** (Supervisor): per-line balance reconciling **produced** (operator shift entries) − **scrap** = **good**, vs **packed** (station scans), vs **WIP** (open pallets' qty + still-unpacked good output), vs **shipped** (dispatched pallets), all scoped to the active shift window. Flags discrepancies (unpacked output, awaiting shipment, over-packed). Requires supervisor confirmation to **close the shift**, which writes an immutable audit snapshot (figures + who/when + open-pallet breakdown). New `shift_handovers` table; audit history on the same screen.
+- **Worker absences / availability**: record per-worker absences (vacation / sick / personal / training / other) over a date range (full-day or partial), with status (approved / pending / rejected). New admin CRUD under **HR → Absences** (`/admin/worker-absences`), live-synced list, overlap-validated. A `WorkerAvailabilityService` exposes `isAvailable()` / `isAbsentOn()` / `absentWorkerIds()` as the seam for assignment warnings and capacity planning.
+- **Crew-level break windows**: define recurring intra-day breaks (e.g. lunch 12:00–12:30) that apply to a whole crew on selected weekdays. New admin CRUD under **HR → Break Windows** (`/admin/crew-break-windows`), live-synced list, overlap-validated per crew. `WorkerAvailabilityService` gains `isOnBreak()` and `crewBreakWindowsOn()` — a worker is "on break" whenever their crew is — extending the same availability seam used by absences.
+- **Scrap Overview dashboard widget**: the admin dashboard gains a *Scrap (30 days)* widget showing total scrap quantity, scrap-entry count and the top scrap reason for the trailing 30 days (reuses `ScrapReportService::pareto()`, so the figures match the Scrap Reports page). Registered as the `scrap_overview` widget (enabled by default, toggleable like the other dashboard widgets) with a link through to the full scrap report.
+
+### Changed
+- **Operators granted admin tabs can reach them without leaving line selection**: an operator still lands on the line-selection screen (their primary screen) after login. When they've been granted any tab in the **Settings → Access** matrix, the operator screen shows the **same sidebar as the admin panel**, with **Lines** (back to line selection) added at the top, so they can open the granted panel pages directly with identical chrome; the panel's own sidebar likewise lists **Lines** first, so navigation is consistent both ways. Operators with no granted tab keep the plain full-screen operator view.
+- **Packing station now follows the configured Shifts**: the station's "this shift" window (packed-count / history / stats) is derived from `Shift::current()` (admin → **Shifts**) instead of a hard-coded 06:00–18:00 / 18:00–06:00 split — including overnight shifts — falling back to the fixed split only when no shift is configured. The station header shows the active shift's name and window.
+
+### Fixed
+- **Demo seeder crash (#73)**: `OeeAndDowntimeDemoSeeder` still inserted downtime reasons with the removed `is_planned` column (replaced by `kind`), so `DemoDataSeeder` aborted with a PostgreSQL "undefined column" error and demo OEE/downtime data was never created. It now writes `kind` (`planned` / `unplanned` / `changeover`). Regression test added.
+
+### Security
+- **Patched dependency advisories**: updated `laravel/framework`, `phpoffice/phpspreadsheet`, `guzzlehttp/psr7`, and several Symfony components (`routing`, `http-foundation`, `http-kernel`, `mailer`, `mime`, `polyfill-intl-idn`) to their fixed releases, clearing 17 advisories — including two critical PhpSpreadsheet SSRF/RCE issues (CVE-2026-34084, CVE-2026-45034) and high-severity email-header/SMTP injection in `symfony/mime`. `composer audit` is now clean; no version constraints changed (lockfile-only update).
+
+---
+
+## [0.14.5] - 2026-06-12
+
+### Fixed
+- Creating/updating a maintenance schedule with an empty **Lead time (days)** crashed with a NOT NULL violation (23502): the field is validated as nullable but the column is `NOT NULL default 0`, and submitting `null` overrode the default. The controller now falls back to `0` ("generate on the due date"). Regression test added.
+
+---
+
+## [0.14.4] - 2026-06-09
+
+### Fixed
+- Demo tenant pruning (`tenants:prune`) crashed every minute with a 23503 foreign-key violation: deleting a tenant cascades to its users, but `packaging_checklists.checked_by`, `quality_checks.checked_by` and `process_confirmations.confirmed_by` referenced users with `restrictOnDelete`, blocking the cascade. These audit references are now `nullOnDelete` (migration), matching every other user FK. The command also isolates each tenant in its own transaction/try-catch so one bad delete can't abort the whole scheduled run.
+- System Settings page no longer 500s on a fresh tenant: `showSystemSettings()` read `$rows['key']->value` which threw "Attempt to read property 'value' on null" when a `system_settings` key had not been written yet. All ~24 reads are now null-safe (`?->value`), so the page renders with defaults until settings are saved. Regression test added (renders with an empty settings table).
+
+### Changed
+- Sidebar: nav groups that have their own landing page (e.g. **Modules**) now navigate there on click instead of only expanding — previously clicking the group header did nothing visible.
+- Forms (all config-driven CRUD via `ResourceForm`): a failed submit now scrolls to and focuses the first invalid field and shows an error summary at the top — the main cause of form abandonment (e.g. Material Lot registration). Required Material Lot fields gained clearer placeholders/hints.
+
+---
+
+## [0.14.3] - 2026-06-09
+
+### Fixed
+- Process template steps: Save / Add / Delete / Move on the step editor hit a 404 (popup) because the React page posted to the route *names* (`/update-step/{id}` etc.) instead of the actual RESTful paths (`/steps/{id}`). Corrected all five step-action URLs; added a web test pinning the literal paths.
+- Live sync no longer breaks writes: a failing Reverb broadcast (e.g. server unreachable) is now caught so the originating create/update/delete still succeeds — fixes work-order actions (Accept etc.) erroring out when the broadcaster is down. Clients fall back to polling.
+- Structure deletions (workstation type, workstation, site, factory, division) surface a friendly "still referenced — deactivate instead" message instead of a 500 when a foreign-key constraint is hit.
+
+### Changed
+- Work order detail: issue cards are now clickable links to the filtered issues list (previously they looked interactive but did nothing).
+- BOM material picker: the unit of measure is shown in the material dropdown and next to "Quantity per Unit", quantity has a helper hint, and an auto-filled default scrap % is now labelled.
+- Form guidance: the user form's worker-profile section is now a collapsible block (collapsed by default, auto-expanded when editing an account that already has one); the tool and material forms gained helper hints clarifying optional/ERP fields and tracking modes.
+
+---
+
+## [0.14.2] - 2026-06-09
+
+### Fixed
+- Bare-hosting install wizard could not render (HTTP 500 / blank page): the shipped `.env` defaults to database-backed sessions (correct for the Docker stack, whose entrypoint marks the app installed before serving), so on a plain PHP host every request — including the installer itself — queried a database that does not exist yet. The app now forces file-based session/cache drivers while the `storage/installed` flag is absent, so the wizard boots without a database; once installed, the configured drivers and the migrated `sessions` table take over. No effect on Docker (already installed at boot) or the test suite (`runningUnitTests` guard).
+- A finished bare-hosting install no longer goes live as `APP_ENV=local` / `APP_DEBUG=true`: completing the wizard now writes `APP_ENV=production` and `APP_DEBUG=false` (the environment step is otherwise skipped because `public/index.php` auto-generates `APP_KEY`).
+
+---
+
+## [0.14.1] - 2026-06-09
+
+### Fixed
+- Inertia page resolution on case-sensitive filesystems: published `config/inertia.php` pinned to `resources/js/Pages` (the package default points to lowercase `js/pages`, which never resolves on Linux/CI and broke `assertInertia()->component()` page-existence checks).
+
+### Changed
+- Release packaging: the `Release` GitHub Actions workflow no longer attempts to push the version bump to the protected `main` branch (which aborted the run before any artifact was built). It now builds a **self-contained** distributable ZIP — source plus bundled `vendor/` and `backend/public/build/` — so the package installs with no `composer install`/`npm build` step, going straight into the browser-based setup wizard.
+
+---
+
+## [0.14.0] - 2026-06-08
+
+### Added
+- Scrap reason codes - categorized defect tracking per work order: `scrap_reasons` with a 5M Ishikawa category (material/machine/method/man/environment), admin CRUD + activate/deactivate, and 5 seeded default reasons (#13)
+- Operator scrap reporting on the work order detail page (reason, quantity, notes); `scrap_entries` link to the work order and optionally to a batch step and shift, with a per-work-order total scrap quantity and a derived quality % metric (#13)
+- Scrap reports: Pareto by reason, scrap rate per line, and scrap trend over time (Chart.js), plus REST API endpoints `reports/scrap-pareto`, `reports/scrap-rate`, scrap-reason read/CRUD and scrap-entry report/list (#13)
+- Work Order History: relocated Reports into its own nav group (between Production and Structure) and turned it into a read-only historical analysis view over finished orders (DONE / CANCELLED / REJECTED). Filter by status, line, product type, full-text (order no. / LOT) and date — with day presets (today, yesterday, last 7/30 days, this/last month, custom range, all time). Summary aggregates (orders, produced, planned, avg execution time, on-time %), CSV export, and a deep per-order drill-down: execution timeline, batches with assigned LOTs, steps with start/end times, duration and operator, material genealogy (consumed lots), quality checks and issues raised. All execution data is retained indefinitely.
+- Production Cost report: per-work-order costing that sums material + labor + additional costs into a total and a cost-per-unit, with a detailed per-line breakdown (each material qty x unit price, each worker's hours/pieces x rate, each additional cost). Material cost uses actual recorded consumption (price snapshotted at consumption time for stable history) and falls back to the BOM recipe; labor cost is driven by per-worker pay mode. Filterable list (line, product, date presets) with summary cards and CSV export, under the Reports nav group.
+- Per-worker compensation: pay type (hourly / weekly / piece rate) and rate set on the worker edit form. Hourly bills rate x hours on the order; weekly converts the salary to an effective hourly rate via a configurable `standard_weekly_hours`; piece rate bills rate x pieces, splitting a work order's output across piece-rate workers proportionally to their logged hours. The wage group remains a fallback when no per-worker rate is set.
+- LOT number pattern generation: build LOT identifiers from composable tokens (e.g. `prefix-[date]-[numeric]-[hourly]`) — operators define the parameter set once and the system renders consistent, collision-safe LOT numbers per work order (#55)
+- Process template photos: attach reference photos to a process template, with a hardened upload path — every image is fully decoded and re-encoded server-side (`ImageSanitizer`, GD) to strip EXIF/polyglot payloads, accepting only JPEG/PNG/WebP (#56)
+- Per-step process photos: one reference photo per production step (rather than a single photo for the whole template), shown inline on the operator's work order view so each step carries its own visual instruction (#63)
+- Operators on the line can view the full process-build photos for the product they are working on, read-only (#58)
+- Inspection plan versioning: plans carry a version number and `published_at`; editing a published plan creates a new immutable version, and recorded inspection results store the exact plan version used, so historical results stay reproducible (#62)
+
+### Changed
+- i18n: the UI-language whitelist is now single-sourced from `config('app.available_locales')`; date/time and number formatting is locale-aware (BCP-47 mapping) instead of a hardcoded clock locale, and `APP_TIMEZONE` is honoured across the app (#57)
+- Login screen is fully translated (#54)
+- Reports nav entry moved out of the Admin group into a dedicated Reports group (Scrap Reports moved alongside it); the previous aggregate KPI dashboard was replaced by the Work Order History view.
+- Worker create/update validation moved into dedicated Form Requests (`StoreWorkerRequest` / `UpdateWorkerRequest`).
+
+---
+
+## [0.13.0] - 2026-05-31
+
+### Added
+- Two-Factor Authentication (2FA): TOTP with QR setup, 8 one-time recovery codes (encrypted/bcrypt), login challenge, rate limiting, enable/disable with password (#41)
+- Workstation routing: optional mode restricting each operator to steps assigned to their own workstation, enforced by a single server-side guard in `BatchService` (covers both the Livewire UI and the REST API)
+- Machine connectivity — protocol-agnostic signal pipeline: machine tags, workstation state machine, automatic downtime from machine state, per-workstation OEE, Live Machine Monitor
+- Modbus TCP connector: poller daemon (`modbus:poll`), in-PHP simulator (`modbus:simulate`), tag editor and CRUD (#24)
+- OPC UA connector: gateway sidecar (`opcua-gateway/`, Node.js node-opcua) bridging to a protocol-agnostic ingest API, node editor and CRUD (#23)
+- Runtime health awareness: connection pages show whether the required daemon/container is running, with copy-paste start commands (bare metal + Docker)
+- Material traceability / genealogy: formal batch-output -> input-lot link (`material_lots.source_batch_id`), traceability console (forward/backward trace by finished LOT / material lot / supplier LOT / serial number), per-unit serial tracking (`serial_units`, `unit_step_history`) with parameter snapshots and API
+- Turkish (Turkce) as a third UI language (1253 strings, English-first preserved) (#44)
+- Real-time polling for operator queue and workstation views (work flows between stations automatically)
+- Alerts: show all open issues (not just blocking), with real-time polling and alert sound
+- Maintenance reminder popup with sound for supervisors and operators
+- Maintenance events on the schedule planner (weekly + hourly Gantt), recurring blocks across the full visible range, `scheduled_end_at` (start + end time)
+- Production quantity correction with a configurable edit policy (none / timed / full)
+- Full configuration export/import (JSON): lines, products, templates, materials, shifts, ISA-95 and more, upsert-based to preserve FK relations, with a forbidden-keys whitelist
+- Import buttons and example CSV downloads on Materials, Product Types and Lines
+- Opt-in `docker-compose` services: `modbus-poller`, `opcua-gateway` (connectivity profile), `queue-worker` (workers profile)
+- `docs/machine-connectivity.md`: signal pipeline, protocols, how to add a new protocol, and intentionally-deferred items (Reverb, write-back, real-server OPC UA test) with rationale
+
+### Fixed
+- Schedule planner: overlapping work orders stacked in lanes on the hourly Gantt; drag-and-drop no longer drops a work order when moved to another line; maintenance block position corrected (diffInMinutes argument order)
+- Config import: upsert instead of truncate to preserve FK relations with production data; PostgreSQL savepoints for per-row error recovery
+- Carbon 3 signed-`diffInSeconds` fixes in machine state durations and availability calculations
+- Restore Polish packaging/label translations dropped in an earlier merge conflict (#47)
+
+### Security
+- CORS defaults are now fail-closed: empty allowed-origins blocks all, GET/POST only, no preflight cache
+- Ownership check on production quantity corrections; hardened settings import
+
+### Changed
+- Packaging module views: hardcoded Polish strings replaced with `__()` translations (#43)
+- License switched from MIT to AGPL-3.0
+
+## [0.12.0] - 2026-05-24
+
+### Added
+- ISA-95 / IEC 62264 foundations (equipment hierarchy, material lots, process segments, personnel classes, quality disposition)
+- Minute-level production planning with hourly Gantt view (drag, resize, cross-line moves)
+- Material allocation hardening (lot picking, stock movements, reservation system)
+- Activity Logs and System Logs with live tail and detail modal
+- Maintenance overhaul: recurring schedules, redesigned forms and index
+- Updater hardening (8/8): snapshot/rollback, SHA256 checksum, background job, maintenance mode, audit trail
+- Inbound quality inspection workflow with dashboard widget
+- OEE dashboard: one-click PDF download, shift breakdown, per-line trend
+- Extended demo seeder: shifts, materials, lots, ISA-95 hierarchy, skills, segments, maintenance, OEE records
+- Packaging moved from module to core: label templates, PDF label generation
+- Security Policy (SECURITY.md) and Code of Conduct
+- Screenshots in README (dashboard, planner weekly/hourly, operator queue/workstation)
+
+### Fixed
+- Sidebar "Orders" group: label now navigates to Work Orders, chevron toggles submenu
+- Schedule planner: prev/next preserves view mode, correct step per mode (daily=1 day, weekly=1 week, monthly=1 month)
+- Unassign clears planned_start_at/planned_end_at
+- Max validation (99999999) on planned_qty across all controllers
+- SQL errors hidden from users in production (generic message + report())
+- CSV formula injection neutralization in all exports
+- PR review fixes: __() translations, raw SQL replaced with Query Builder, hardcoded URL moved to config
+
+
+## [v0.13.0] - 2026-05-30
+
+### Added
+- OPC UA gateway + runtime health awareness
+- Modbus TCP + protocol-agnostic machine signal pipeline
+- material genealogy — lot-link, console, serial units
+- add Turkish (Türkçe) as a third UI language
+- workstation routing — restrict operators to their own station
+- Two-Factor Authentication with TOTP and recovery codes (#41)
+- add real-time polling for workstation queue and production view
+- maintenance reminder popup with sound for all users (supervisors, operators, admins)
+- generate recurring maintenance blocks for entire visible range (weekly shows every week, not just next_due)
+- show upcoming recurring maintenance on planner from schedules (not just existing events)
+- add scheduled_end_at — maintenance events have start and end time on planner
+- show maintenance events on planner (weekly, hourly views)
+- show ALL open issues (not just blocking), add real-time polling with alert sound
+- full config export/import — lines, products, templates, materials, shifts, ISA-95, and more
+- add settings import (JSON upload) with security whitelist
+- add Import button + example CSV download on Materials, Product Types, Lines; add Settings export
+- stack overlapping WOs in lanes on hourly Gantt view instead of overlapping
+- production quantity correction — configurable edit policy (none/timed/full)
+
+### Fixed
+- restore Polish packaging/label translations dropped in merge conflict
+- replace hardcoded Polish strings with __() translations
+- security review
+- correct maintenance block position — diffInMinutes argument order was reversed
+- maintenance blocks top-aligned and more visible on hourly Gantt (bg-purple-200, shadow, top instead of bottom)
+- pass maintenanceEvents to hourly partial (was missing from include)
+- increase maintenance event block size on hourly Gantt (24px→36px, bolder text)
+- reported issue with packing
+- config import — use savepoints for PostgreSQL error recovery, add unique keys for more tables
+- config import uses upsert instead of truncate to preserve FK relations with production data
+- restrict CORS defaults — empty origins (block all), GET/POST only, no preflight cache
+- ownership check on production corrections, harden settings import
+- update planned_start_at/planned_end_at on drag & drop to prevent WO disappearing on line change
+
+## [0.11.1] - 2026-05-19
+
+### Fixed
+- Version file not updated for v0.11.0 release (caused "Update available" banner)
+- Alerts page 500 error (Carbon diffForHumans() invalid argument)
+
+## [0.11.0] - 2026-05-19
+
+### Added
+- Production planner with Gantt shift grid, weekly/daily/monthly views
+- Drag & drop work order scheduling with shift-precise placement
+- Real-time schedule updates with polling + WebSocket support
+- Live order tracking panel + overdue visual on schedule planner
+- Tabbed system settings (General, Production, Schedule, Security, Data)
+- Overdue work order highlighting (red rows in admin/supervisor views)
+- Download-based updater replacing exec git pull
+
+### Fixed
+- Security hardening: CRITICAL (C1-C3) + MEDIUM (M2-M6) vulnerabilities
+- CORS admin settings, WorkOrder authorization
+- CheckInstallation removed from global middleware
+- Sidebar cleanup (removed duplicate Shifts link, Integrations link)
+
+## [0.9.0] - 2026-05-14
+
+### Added
+- Full i18n system with language selector (EN/PL)
+- 1178 translation keys covering all views
+- Dashboard widget system (enable/disable/reorder from Settings)
+- OEE overview section on dashboard with A/P/Q gauges
+- Favicon from getopenmes.com
+- Workstation view improvements (info button, report issues, stronger row colors)
+- Optional marketing consent checkbox on registration
+
+### Fixed
+- Session expired (419) redirect to login instead of blank error
+- Removed Microsoft Clarity tracking script
+- Default to light mode (ignore system dark preference)
+
+## [0.8.0] - 2026-05-12
+
+### Added
+- Onboarding wizard (4-step setup guide for first-time admins)
+- Welcome popup on first admin login
+- Help icon linking to onboarding wizard
+
+## [0.7.0] - 2026-05-10
+
+### Added
+- Bill of Materials (BOM) module
+- LOT tracking, workstation assignment, batch release workflow
+- Operator production controls UI + supervisor dashboard
+- Process confirmations, quality checks, packaging checklist
+
+## [0.6.0] - 2026-05-07
+
+### Added
+- PIN login, workstation view, shifts, view templates
+- Mobile API with Sanctum authentication
+- OpenAPI documentation (Scramble)
+
+## [0.5.0] - 2026-05-03
+
+### Added
+- User self-registration (Operator role, disabled by default)
+- Multi-tenant registration (isolated Admin workspaces)
+- Demo account expiry (3h countdown)
+- Registration log
+
+### Fixed
+- Bug fixes, UX improvements, module support
+
+## [0.4.1] - 2026-04-30
+
+### Fixed
+- Critical and high security vulnerabilities
+
+## [0.4.0] - 2026-04-28
+
+### Added
+- MQTT machine connectivity module
+- Barcode scanning (Packaging module)
+
+## [0.3.0] - 2026-04-20
+
+### Added
+- Plug-and-play ZIP release with vendor and assets
+- WordPress-style browser-based installation wizard
+- Auto-setup on Docker Compose (migrations + seed + admin)
+- MariaDB, MySQL, SQLite support alongside PostgreSQL
+- Update check and apply (banner for Admin)
+
+---
+
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.5...develop
+[0.15.5]: https://github.com/Mes-Open/OpenMes/compare/v0.15.4...v0.15.5
+[0.15.4]: https://github.com/Mes-Open/OpenMes/compare/v0.15.3...v0.15.4
+[0.15.3]: https://github.com/Mes-Open/OpenMes/compare/v0.15.2...v0.15.3
+[0.15.2]: https://github.com/Mes-Open/OpenMes/compare/v0.15.1...v0.15.2
+[0.15.1]: https://github.com/Mes-Open/OpenMes/compare/v0.15.0...v0.15.1
+[0.15.0]: https://github.com/Mes-Open/OpenMes/compare/v0.14.5...v0.15.0
+[0.14.5]: https://github.com/Mes-Open/OpenMes/compare/v0.14.4...v0.14.5
+[0.14.4]: https://github.com/Mes-Open/OpenMes/compare/v0.14.3...v0.14.4
+[0.14.3]: https://github.com/Mes-Open/OpenMes/compare/v0.14.2...v0.14.3
+[0.14.2]: https://github.com/Mes-Open/OpenMes/compare/v0.14.1...v0.14.2
+[0.14.1]: https://github.com/Mes-Open/OpenMes/compare/v0.14.0...v0.14.1
+[0.14.0]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...v0.14.0
+[0.11.1]: https://github.com/Mes-Open/OpenMes/compare/v0.11.0...v0.11.1
+[0.11.0]: https://github.com/Mes-Open/OpenMes/compare/v0.9.0...v0.11.0
+[0.9.0]: https://github.com/Mes-Open/OpenMes/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/Mes-Open/OpenMes/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/Mes-Open/OpenMes/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/Mes-Open/OpenMes/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/Mes-Open/OpenMes/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/Mes-Open/OpenMes/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/Mes-Open/OpenMes/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/Mes-Open/OpenMes/releases/tag/v0.3.0

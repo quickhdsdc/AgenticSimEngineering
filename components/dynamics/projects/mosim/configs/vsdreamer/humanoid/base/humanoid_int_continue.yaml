@@ -1,0 +1,36 @@
+training:
+  from_ckpt: 'ckpt/vsdreamer/humanoid/base/humanoid_3crts_random_int_11060106/ckpt_1300M.pth'
+  training_stage: -1
+  seed: 1973082
+  lr: 0.004
+  num_epochs : 1000000000
+  t : 0.005
+  batch_size : 5000
+  save_path : 'ckpt/vsdreamer/humanoid/base'
+  keep_top : 5
+model:
+  ## model_param:
+  q_dim : 28
+  v_dim : 27
+  action_dim : 21
+  quat_config : [3,31]
+  real_t : 0.005
+  activation : 'softplus' #['softplus','atan','relu']
+  ### M Module:
+  m_hidden_block_num : 5
+  m_network_width : 256
+  ### B Module:
+  b_hidden_block_num : 5
+  b_network_width : 256
+  ### action_module_param:
+  act_network_type: 'MLP' #['ResidualNetwork','MLP','None']
+  act_hidden_block_num : 3
+  act_network_width : 256
+  ### correctors:
+  crt_num : 1
+  crt_hidden_block_num : 7
+  crt_network_width : 128
+data:
+  ## data_path:
+  train_data_path : 'data/humanoid/original/humanoid_original.npz'
+  test_data_path : 'data/humanoid/original/humanoid_original_test_16_step.npz'

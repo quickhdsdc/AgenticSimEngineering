@@ -1,0 +1,27 @@
+training:
+  training_stage: -1
+  seed: 1887299
+  lr: 0.0004
+  num_epochs : 1000000000
+  t : 0.02
+  batch_size : 5000
+  save_path : 'ckpt/vsdreamer/reacher/dreamer'
+  keep_top : 5
+model:
+  ## model_param:
+  v_dim : 2
+  action_dim : 2
+  real_t : 0.02
+  activation : 'softplus' #['softplus','atan','relu']
+  dynamic_model_type:  'resnet'  #['rigid_body','resnet']
+  ### Residual Module:
+  dynamics_hidden_block_num : 7
+  dynamics_network_width : 64
+  ### correctors:
+  crt_num : 1
+  crt_hidden_block_num : 3
+  crt_network_width : 64
+data:
+  ## data_path:
+  train_data_path : 'data/reacher/dreamer/reacher_dreamer_test.npz
+  test_data_path : 'data/reacher/dreamer/reacher_dreamer_test_16_step.npz'

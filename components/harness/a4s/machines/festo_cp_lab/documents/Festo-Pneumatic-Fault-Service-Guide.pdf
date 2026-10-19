@@ -1,0 +1,204 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 2 /Kids [4 0 R 6 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 1926 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: pneumatic-diagnostic-matrix) Tj
+T*
+/F1 9 Tf
+(TITLE: Pneumatic supply alarm: pressure, flow and safety differentiation) Tj
+T*
+/F1 9 Tf
+(ORIGIN: ENGINEERING_SCENARIO) Tj
+T*
+/F1 7 Tf
+(SOURCE: AgenticMOM - Demo.pdf p.4; authored diagnostic profile for Festo runtime simulation) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(Scope: this engineering-authored guide applies to the runtime simulation profile for the) Tj
+T*
+/F1 9 Tf
+(selected Festo instance, not the physical 381 PLC alarm mapping. Press.Fault01 indicates) Tj
+T*
+/F1 9 Tf
+(low supply pressure for this profile. Read Press.PressureBar, Press.FlowLMin and) Tj
+T*
+/F1 9 Tf
+(Safety.EmergencyStop together. Normal reference is 6.0 bar and 12 litres/minute at idle.) Tj
+T*
+/F1 9 Tf
+(Below 4.8 bar with flow above 30 litres/minute and EmergencyStop false supports an open) Tj
+T*
+/F1 9 Tf
+(vent valve or pneumatic leakage hypothesis. It does not distinguish an intentionally) Tj
+T*
+/F1 9 Tf
+(opened valve from a damaged connector. Low pressure with low flow instead suggests) Tj
+T*
+/F1 9 Tf
+(insufficient upstream supply. EmergencyStop true requires a safety-stop assessment; do) Tj
+T*
+/F1 9 Tf
+(not interpret it as proof of leakage. Press.Ready can change independently of) Tj
+T*
+/F1 9 Tf
+(Turning.Ready. Alarm bits alone cannot establish root cause. Values are authored) Tj
+T*
+/F1 9 Tf
+(scenario engineering assumptions, not manufacturer limits.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 2 | 2026-09-24 | Festo runtime simulation) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 1) Tj
+T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 2000 >>
+stream
+BT /F1 9 Tf 42 748 Td 15 TL
+/F1 9 Tf
+(A4S / ENGINEERING KNOWLEDGE) Tj
+T*
+/F1 9 Tf
+(DEMONSTRATION COPY - NOT AN APPROVED SITE SOP) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CHUNK_ID: pneumatic-maintenance-plan) Tj
+T*
+/F1 9 Tf
+(TITLE: Pneumatic fault inspection and maintenance planning) Tj
+T*
+/F1 9 Tf
+(ORIGIN: ENGINEERING_SCENARIO) Tj
+T*
+/F1 7 Tf
+(SOURCE: AgenticMOM - Demo.pdf pp.5-6; authored maintenance planning procedure) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(CONTENT) Tj
+T*
+/F1 9 Tf
+(Preserve alarm timestamps, pressure/flow values and the affected asset identity. Ask) Tj
+T*
+/F1 9 Tf
+(qualified onsite personnel to assess the air supply, valve state and connections using) Tj
+T*
+/F1 9 Tf
+(the site's approved isolation procedure. Do not remotely manipulate valves, reset) Tj
+T*
+/F1 9 Tf
+(interlocks or start machines. Reserve an initial 30-minute inspection allowance; actual) Tj
+T*
+/F1 9 Tf
+(duration and spare parts depend on inspection findings. Create a corrective Maintenance) Tj
+T*
+/F1 9 Tf
+(Event for the MES line referenced by ProductionContext, citing the fault event and this) Tj
+T*
+/F1 9 Tf
+(guide. Propose a start time relative to the current clock, not the presentation date.) Tj
+T*
+/F1 9 Tf
+(Preview and obtain approval before creating; verify the returned event ID by reading it) Tj
+T*
+/F1 9 Tf
+(back. An event is a business record, not proof of physical repair. Examine) Tj
+T*
+/F1 9 Tf
+(affected/upcoming orders and capacity; preview any feasible rescheduling separately and) Tj
+T*
+/F1 9 Tf
+(obtain approval, then verify schedule and change list. Never assume maintenance creation) Tj
+T*
+/F1 9 Tf
+(automatically blocks orders or changes scheduling.) Tj
+T*
+/F1 9 Tf
+(END CONTENT) Tj
+T*
+/F1 9 Tf
+() Tj
+T*
+/F1 9 Tf
+(Rev. 2 | 2026-09-24 | Festo runtime simulation) Tj
+T*
+/F1 9 Tf
+(Exhibition product, fault and numerical assumptions are not manufacturer specifications.) Tj
+T*
+/F1 9 Tf
+(Physical isolation / repair remains a qualified operator responsibility.) Tj
+T*
+/F1 9 Tf
+(Page 2) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000000317 00000 n 
+0000002295 00000 n 
+0000002421 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+4473
+%%EOF

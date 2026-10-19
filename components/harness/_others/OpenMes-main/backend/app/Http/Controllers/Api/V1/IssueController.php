@@ -1,0 +1,291 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\CreateIssueRequest;
+use App\Http\Requests\ResolveIssueRequest;
+use App\Http\Requests\SetDispositionRequest;
+use App\Http\Requests\StoreIssueActionRequest;
+use App\Http\Requests\UpdateIssueActionRequest;
+use App\Models\Issue;
+use App\Models\IssueAction;
+use App\Services\IssueService;
+use App\Services\Quality\IssueActionService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class IssueController extends Controller
+{
+    public function __construct(
+        protected IssueService $issueService
+    ) {}
+
+    /**
+     * Get all issues (with optional filters).
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $request->validate([
+            'line_id' => ['nullable', 'integer', 'exists:lines,id'],
+            'work_order_id' => ['nullable', 'integer', 'exists:work_orders,id'],
+            'status' => ['nullable', 'string', 'in:OPEN,ACKNOWLEDGED,RESOLVED,CLOSED'],
+        ]);
+
+        $query = Issue::with(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'batchStep'])
+            ->orderBy('reported_at', 'desc');
+
+        // Filter by line_id
+        if ($request->filled('line_id')) {
+            $query->whereHas('workOrder', function ($q) use ($request) {
+                $q->where('line_id', $request->line_id);
+            });
+        }
+
+        // Filter by work_order_id
+        if ($request->filled('work_order_id')) {
+            $query->where('work_order_id', $request->work_order_id);
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->status($request->status);
+        }
+
+        $issues = $query->paginate(20);
+
+        return response()->json([
+            'data' => $issues->items(),
+            'meta' => [
+                'current_page' => $issues->currentPage(),
+                'per_page' => $issues->perPage(),
+                'total' => $issues->total(),
+                'last_page' => $issues->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get a single issue.
+     */
+    public function show(Issue $issue): JsonResponse
+    {
+        $issue->load(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'batchStep']);
+
+        return response()->json([
+            'data' => $issue,
+        ]);
+    }
+
+    /**
+     * Create a new issue.
+     */
+    public function store(CreateIssueRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $data['reported_by_id'] = $request->user()->id;
+
+        $issue = $this->issueService->createIssue($data);
+
+        return response()->json([
+            'data' => $issue,
+            'message' => 'Issue reported successfully',
+        ], 201);
+    }
+
+    /**
+     * Update an issue.
+     */
+    public function update(UpdateIssueRequest $request, Issue $issue): JsonResponse
+    {
+        $issue->update($request->validated());
+
+        return response()->json([
+            'data' => $issue->fresh(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'batchStep']),
+            'message' => 'Issue updated successfully',
+        ]);
+    }
+
+    /**
+     * Acknowledge an issue.
+     */
+    public function acknowledge(Issue $issue, Request $request): JsonResponse
+    {
+        try {
+            $updatedIssue = $this->issueService->acknowledgeIssue($issue, $request->user()->id);
+
+            return response()->json([
+                'data' => $updatedIssue,
+                'message' => 'Issue acknowledged successfully',
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Resolve an issue.
+     */
+    public function resolve(ResolveIssueRequest $request, Issue $issue): JsonResponse
+    {
+        try {
+            $updatedIssue = $this->issueService->resolveIssue(
+                $issue,
+                $request->validated()['resolution_notes']
+            );
+
+            return response()->json([
+                'data' => $updatedIssue,
+                'message' => 'Issue resolved successfully',
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Close an issue.
+     */
+    public function close(Issue $issue): JsonResponse
+    {
+        try {
+            $updatedIssue = $this->issueService->closeIssue($issue);
+
+            return response()->json([
+                'data' => $updatedIssue,
+                'message' => 'Issue closed successfully',
+            ]);
+        } catch (\InvalidArgumentException|\DomainException $e) {
+            // DomainException = closure gate (unverified corrective/preventive actions).
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Set the non-conformance disposition on an issue (#11).
+     */
+    public function disposition(SetDispositionRequest $request, Issue $issue): JsonResponse
+    {
+        $updated = $this->issueService->setDisposition($issue, $request->validated(), $request->user()->id);
+
+        return response()->json([
+            'data' => $updated,
+            'message' => 'Disposition recorded',
+        ]);
+    }
+
+    /**
+     * List corrective/preventive/containment actions for an issue (#11).
+     */
+    public function actions(Issue $issue): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->serializeActions($issue),
+        ]);
+    }
+
+    /**
+     * Create a corrective/preventive/containment action on an issue (#11).
+     */
+    public function storeAction(StoreIssueActionRequest $request, Issue $issue, IssueActionService $service): JsonResponse
+    {
+        $service->create($issue, $request->validated());
+
+        return response()->json([
+            'data' => $this->serializeActions($issue->fresh()),
+        ], 201);
+    }
+
+    /**
+     * Update an action (status/fields) (#11).
+     */
+    public function updateAction(UpdateIssueActionRequest $request, IssueAction $action, IssueActionService $service): JsonResponse
+    {
+        $data = $request->validated();
+        $status = $data['status'] ?? null;
+        unset($data['status']); // status is a lifecycle transition, not a free field.
+
+        // Field edits (type/title/description/assignee/due date) apply directly.
+        if ($data) {
+            $action->update($data);
+        }
+
+        // A status change goes through the lifecycle service so the legal
+        // open → in_progress → done → verified transitions are enforced and the
+        // completed_by / verified_by audit stamps are captured.
+        if ($status !== null && $status !== $action->status) {
+            try {
+                match ($status) {
+                    IssueAction::STATUS_IN_PROGRESS => $service->start($action),
+                    IssueAction::STATUS_DONE => $service->complete($action, $request->user()),
+                    IssueAction::STATUS_VERIFIED => $service->verify($action, $request->user()),
+                    default => throw new \DomainException("Unsupported status transition to {$status}."),
+                };
+            } catch (\DomainException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+        }
+
+        return response()->json([
+            'data' => $this->serializeActions($action->fresh()->issue),
+        ]);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function serializeActions(Issue $issue): array
+    {
+        return $issue->actions()
+            ->with(['assignedTo:id,name', 'completedBy:id,name', 'verifiedBy:id,name'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (IssueAction $a) => [
+                'id' => $a->id,
+                'type' => $a->type,
+                'title' => $a->title,
+                'description' => $a->description,
+                'status' => $a->status,
+                'is_overdue' => $a->isOverdue(),
+                'assigned_to' => $a->assignedTo?->name,
+                'due_date' => $a->due_date?->toDateString(),
+                'completed_by' => $a->completedBy?->name,
+                'verified_by' => $a->verifiedBy?->name,
+                'notes' => $a->notes,
+            ])
+            ->all();
+    }
+
+    /**
+     * Get issue statistics for a line.
+     */
+    public function lineStats(Request $request): JsonResponse
+    {
+        $request->validate([
+            'line_id' => ['required', 'integer', 'exists:lines,id'],
+        ]);
+
+        $stats = $this->issueService->getLineIssueStats($request->line_id);
+
+        return response()->json([
+            'data' => $stats,
+        ]);
+    }
+
+    /**
+     * Delete an issue (Admin only — for accidental issue creation).
+     */
+    public function destroy(Request $request, Issue $issue): JsonResponse
+    {
+        if (! $request->user()->hasRole('Admin')) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        $issue->delete();
+
+        return response()->json(['message' => 'Issue deleted']);
+    }
+}

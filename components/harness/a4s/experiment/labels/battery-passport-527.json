@@ -1,0 +1,240 @@
+{
+  "submodel": "https://admin-shell.io/ZVEI/TechnicalData/Submodel/1/2_DigitalBatteryPassport_527",
+  "note": "Seed set for the battery-passport submodel (46 indexed nodes, 11 enriched from concept descriptions). Every path was taken from the built index, not written from the template, so a case that fails fails on retrieval rather than on a typo. Tiers are reported separately: verbatim is a floor and proves nothing, paraphrase is the measurement, multilingual and negative probe specific weaknesses. HUMAN REVIEW WANTED on the `acceptable` lists -- several queries have more than one defensible target and the judgement about which is left to a domain reader.",
+  "cases": [
+    {
+      "id": "v-01",
+      "query": "RatedCapacity",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"],
+      "tier": "verbatim",
+      "note": "the idShort itself; the descriptor contains it, so this is close to matching a string against itself"
+    },
+    {
+      "id": "v-02",
+      "query": "ManufacturerName",
+      "gold": ["GeneralInformation.ManufacturerName"],
+      "tier": "verbatim"
+    },
+    {
+      "id": "v-03",
+      "query": "ExpectedNumberOfCycles",
+      "gold": ["TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles"],
+      "tier": "verbatim"
+    },
+    {
+      "id": "v-04",
+      "query": "PowerFade",
+      "gold": ["TechnicalPropertyAreas.PowerCapability.PowerFade"],
+      "tier": "verbatim"
+    },
+
+    {
+      "id": "p-01",
+      "query": "how much charge can this battery hold",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"],
+      "acceptable": ["TechnicalPropertyAreas.CapacityEnergyVoltage.CertifiedUsableBatteryEnergy"],
+      "tier": "paraphrase",
+      "note": "the canonical case: nothing in the query shares a word with the idShort"
+    },
+    {
+      "id": "p-02",
+      "query": "lowest voltage the battery may be operated at",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage"],
+      "tier": "paraphrase",
+      "note": "MinVoltage means something different from Min alone; the parent CapacityEnergyVoltage is what disambiguates it"
+    },
+    {
+      "id": "p-03",
+      "query": "who made it",
+      "gold": ["GeneralInformation.ManufacturerName"],
+      "acceptable": ["GeneralInformation.ManufacturerIdentifier"],
+      "tier": "paraphrase"
+    },
+    {
+      "id": "p-04",
+      "query": "how heavy is the pack",
+      "gold": ["GeneralInformation.BatteryMass"],
+      "tier": "paraphrase",
+      "note": "unit is kilogram; tests whether the unit reaches the descriptor usefully"
+    },
+    {
+      "id": "p-05",
+      "query": "how long is it covered if it fails",
+      "gold": ["GeneralInformation.WarrantyPeriod"],
+      "tier": "paraphrase",
+      "note": "this is the slot whose valueType is xs:gYearMonth, the one that forced the full xsd enumeration"
+    },
+    {
+      "id": "p-06",
+      "query": "how many charge discharge cycles before it wears out",
+      "gold": ["TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles"],
+      "acceptable": ["TechnicalPropertyAreas.Lifetime.ExpectedLifetimeInCalendarYears "],
+      "tier": "paraphrase",
+      "note": "the acceptable path carries a trailing space in its idShort, an AASd-002 violation present in the live data"
+    },
+    {
+      "id": "p-07",
+      "query": "how much energy is lost charging and discharging",
+      "gold": ["TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialRoundTripEnergyEfficiency"],
+      "acceptable": ["TechnicalPropertyAreas.RoundTripEnergyEfficiency.EnergyRoundTripEfficiencyFade"],
+      "tier": "paraphrase"
+    },
+    {
+      "id": "p-08",
+      "query": "rate of charge loss while sitting idle",
+      "gold": ["TechnicalPropertyAreas.RoundTripEnergyEfficiency.InitialSelfDischargingRate"],
+      "tier": "paraphrase",
+      "note": "InitialSelfDischargingRate is one of the run-together idShorts that motivated splitting them into words"
+    },
+    {
+      "id": "p-09",
+      "query": "internal resistance of a single cell when new",
+      "gold": ["TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryCellLevel"],
+      "tier": "paraphrase",
+      "note": "hard case: three near-identical siblings differing only by cell / module / pack"
+    },
+    {
+      "id": "p-10",
+      "query": "internal resistance of the whole pack when new",
+      "gold": ["TechnicalPropertyAreas.Resistance.InitialInternalResistanceOnBatteryPackLevel"],
+      "tier": "paraphrase",
+      "note": "the sibling of p-09; if both return the same path, the descriptor cannot see the level distinction"
+    },
+    {
+      "id": "p-11",
+      "query": "most power it is allowed to deliver",
+      "gold": ["TechnicalPropertyAreas.PowerCapability.MaximumPermittedBatteryPower"],
+      "tier": "paraphrase"
+    },
+    {
+      "id": "p-12",
+      "query": "coldest temperature it can sit at without being used",
+      "gold": ["TechnicalPropertyAreas.Temperature.TemperatureRangeIdleState_LowerBoundary"],
+      "tier": "paraphrase",
+      "note": "underscore in the idShort; tests the word-boundary splitter on a different separator"
+    },
+    {
+      "id": "p-13",
+      "query": "a picture of the product",
+      "gold": ["GeneralInformation.ProductImage"],
+      "acceptable": ["GeneralInformation.CompanyLogo"],
+      "tier": "paraphrase",
+      "note": "a File element, and one of the 35 nodes with no concept description behind it"
+    },
+    {
+      "id": "p-14",
+      "query": "the part number the manufacturer uses to order it",
+      "gold": ["GeneralInformation.ManufacturerOrderCode"],
+      "acceptable": ["GeneralInformation.ManufacturerArticleNumber"],
+      "tier": "paraphrase",
+      "note": "genuinely ambiguous in the domain; both are listed rather than pretending one is wrong"
+    },
+    {
+      "id": "p-15",
+      "query": "what chemistry or family of battery is this",
+      "gold": ["GeneralInformation.BatteryCategory"],
+      "tier": "paraphrase"
+    },
+    {
+      "id": "p-16",
+      "query": "how much capacity has been lost over time",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.CapacityFade"],
+      "tier": "paraphrase",
+      "note": "distinguishing fade from the rated value is the whole task"
+    },
+
+    {
+      "id": "m-01",
+      "query": "电池的额定容量",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"],
+      "tier": "multilingual",
+      "note": "Chinese against English descriptors"
+    },
+    {
+      "id": "m-02",
+      "query": "制造商名称",
+      "gold": ["GeneralInformation.ManufacturerName"],
+      "tier": "multilingual"
+    },
+    {
+      "id": "m-03",
+      "query": "电池重量是多少",
+      "gold": ["GeneralInformation.BatteryMass"],
+      "tier": "multilingual"
+    },
+    {
+      "id": "m-04",
+      "query": "最低工作电压",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.MinVoltage"],
+      "tier": "multilingual"
+    },
+    {
+      "id": "m-05",
+      "query": "预期循环次数",
+      "gold": ["TechnicalPropertyAreas.Lifetime.ExpectedNumberOfCycles"],
+      "tier": "multilingual"
+    },
+    {
+      "id": "m-06",
+      "query": "Nennkapazität der Batterie",
+      "gold": ["TechnicalPropertyAreas.CapacityEnergyVoltage.RatedCapacity"],
+      "tier": "multilingual",
+      "note": "German; the deployment this came from is German and the descriptions in the wider repository are too"
+    },
+    {
+      "id": "m-07",
+      "query": "Gewicht der Batterie",
+      "gold": ["GeneralInformation.BatteryMass"],
+      "tier": "multilingual"
+    },
+
+    {
+      "id": "n-01",
+      "query": "barrel zone 3 temperature setpoint",
+      "gold": [],
+      "tier": "negative",
+      "note": "belongs to the injection moulding machine, not to a battery passport"
+    },
+    {
+      "id": "n-02",
+      "query": "laser power for the powder bed fusion print job",
+      "gold": [],
+      "tier": "negative"
+    },
+    {
+      "id": "n-03",
+      "query": "carbon footprint of manufacturing",
+      "gold": [],
+      "tier": "negative",
+      "note": "a real battery-passport concept, and a real template -- but it lives in a different submodel. The tempting wrong answer"
+    },
+    {
+      "id": "n-04",
+      "query": "recycled cobalt content",
+      "gold": [],
+      "tier": "negative",
+      "note": "regulation-adjacent and plausible; the submodel has no such slot"
+    },
+    {
+      "id": "n-05",
+      "query": "name of the operator on shift",
+      "gold": [],
+      "tier": "negative",
+      "note": "no asset in this repository models people"
+    },
+    {
+      "id": "n-06",
+      "query": "how much does it cost",
+      "gold": [],
+      "tier": "negative",
+      "note": "commercial data is not in a technical-data submodel"
+    },
+    {
+      "id": "n-07",
+      "query": "IP protection rating of the enclosure",
+      "gold": [],
+      "tier": "negative",
+      "note": "a Nameplate concept; near enough to TechnicalData to be a real confusion"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+# 数模优化策略规则 (Model optimization strategies)
+# 来源: 设计流程-前期评估.pptx (slide 7/12/15/17/18/23), 样件 (R3.8→R8, 翻边2.4mm)
+# 用途: 仿真判 NG 时,按下列策略生成"数模优化动作",回灌再仿真,形成闭环
+version: 0.1
+
+# 触发条件 -> 优化动作; 引擎按 priority 从小到大逐条尝试
+strategies:
+  - id: enlarge_r_iterative
+    when: "fld_status == 'red' or thinning_ratio > max_thinning"
+    trigger_desc: R角处开裂/减薄
+    action: enlarge_radius
+    params:
+      step_mm: 0.2              # 以0.2mm为间隔递增放大R角
+      until: overall_ok
+    constraint: "若图纸对该R有尺寸要求,改用 add_step_below_boss"
+    priority: 1
+    source: "slide 15/17: 以0.2mm为间隔放大R角后重新分析,直至OK"
+
+  - id: add_step_below_boss
+    when: "r_has_dimension_spec and still_ng_after_enlarge"
+    trigger_desc: R角有图纸尺寸要求,不能随意放大
+    action: add_step
+    params:
+      height_mm: 3.0            # 凸包下方增加约3mm台阶
+      alt: "寻找侧壁相连以增强成型"
+    priority: 2
+    source: "slide 17/18: 凸包下增加3mm凸台 / 侧壁相连"
+
+  - id: blunt_sharp_corner
+    when: "has_sharp_corner"
+    trigger_desc: 尖角导致应力集中/开裂
+    action: blunt_corner
+    priority: 2
+    source: "slide 17: 尖角做钝化"
+
+  - id: split_into_steps
+    when: "one_step_forming and overall_ng"
+    trigger_desc: 一步成型无法实现
+    action: split_forming_steps
+    params:
+      order: inside_out         # 由里向外的原则安排工序
+      example_steps: 3
+    priority: 3
+    source: "slide 12: 逐步分解,由里向外,如三步成型"
+
+  - id: multi_step_boss
+    when: "boss_thinning_ng after split"
+    trigger_desc: 分步后中间凸包料厚不够/开裂
+    action: multi_step_boss_forming
+    params:
+      step_mm: 0.2             # F1的凸包大小和R角以0.2mm放大
+      until: overall_ok
+    priority: 4
+    source: "slide 15: 凸包使用两步或多步成型"
+
+# 设计几何约束(数模检查阶段用,也是优化时的下界)
+geometry_constraints:
+  - id: min_radius
+    desc: 模具可成型最小R角
+    rule: "radius_mm >= 0.25"
+    source: "点检表 图纸确认 #9: R角最小不小于R0.25"
+  - id: flange_height
+    desc: 翻边最小高度
+    rule: "flange_height_mm >= 2 * thickness_mm"
+    example: "料厚1.2 → 最小2.4mm"
+    source: "样件7: 翻边高度太矮,最少2倍料厚,建议增至2.4mm"
+  - id: hole_to_r
+    desc: 冲孔边线离R角距离(避免毛刺难去除)
+    rule: "hole_edge_to_radius_mm >= 1.4"
+    source: "slide 7: 建议孔缩小,边线离开圆角1.4mm"
+  - id: trim_to_boss
+    desc: 切边距凸包距离
+    rule: "trim_to_boss_mm >= max(1.0, thickness_mm)"
+    source: "slide 7: 切边距离凸包至少1mm,且大于1倍料厚"
+
+# 料片/切边余量(展开与料片确定阶段)
+blank:
+  - id: trim_allowance
+    desc: 切边余量
+    rule: "trim_allowance_mm >= max(2.0, 1.5 * thickness_mm)"
+    source: "slide 23: 切边余量最小1.5倍料厚,最小2mm"

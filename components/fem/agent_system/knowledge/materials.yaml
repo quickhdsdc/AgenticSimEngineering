@@ -1,0 +1,30 @@
+# 材料库 (Materials)
+# 来源: 报价单, 顾客需求状况表, 样件封面
+# 用途: 信息提取时归一化材料参数;仿真需要材料牌号/密度/料厚
+version: 0.1
+
+materials:
+  - grade: AL 5052-O
+    family: aluminum
+    standard: GB/T3880
+    density_g_cm3: 2.68
+    typical_thickness_mm: [1.2]
+    note: 博世底盖常用;O态退火软态
+  - grade: AL 1050
+    family: aluminum
+    density_g_cm3: 2.70
+    typical_thickness_mm: [1.2]
+  - grade: AL 1060
+    family: aluminum
+    density_g_cm3: 2.70
+    typical_thickness_mm: [1.2]
+  - grade: DC04
+    family: steel
+    density_g_cm3: 7.85
+    typical_thickness_mm: [1.2]
+    note: 低碳深冲钢
+
+# 料厚保留系数按 forming_rules(70%);不同材料后续可细化
+defaults:
+  thickness_tolerance_mm: 0.05
+  retain_ratio: 0.70

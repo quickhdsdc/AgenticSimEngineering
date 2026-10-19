@@ -1,0 +1,252 @@
+<mxfile host="Electron" agent="Codex" compressed="false" pages="4">
+  <diagram id="core-contracts" name="1 - Core contracts">
+    <mxGraphModel dx="1414" dy="849" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=30;fontStyle=1;fontColor=#0F172A;" value="opsworld core contracts" vertex="1">
+          <mxGeometry height="50" width="700" x="60" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="text;html=1;align=left;fontSize=16;fontColor=#475569;" value="World is the central contract; Evaluation is its standard return message." vertex="1">
+          <mxGeometry height="35" width="900" x="60" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="world" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#2563EB;fontColor=#0F172A;fontSize=15;spacing=10;" value="&lt;b&gt;&amp;lt;&amp;lt;Protocol · C0&amp;gt;&amp;gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;WorldModel&lt;/b&gt;&lt;/font&gt;&lt;hr&gt;+ evaluate(decision): Evaluation&lt;br&gt;+ capabilities(): Set[Capability]&lt;br&gt;+ decision_space(): DecisionSpace" vertex="1">
+          <mxGeometry height="210" width="400" x="550" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#0F172A;fontSize=15;spacing=10;" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Evaluation&lt;/b&gt;&lt;/font&gt;&lt;hr&gt;+ objective: float&lt;br&gt;+ kpis: Dict&lt;br&gt;+ violations: Dict&lt;br&gt;+ sensitivity: Sensitivity?&lt;br&gt;+ provenance: str" vertex="1">
+          <mxGeometry height="230" width="360" x="1080" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="space" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontColor=#0F172A;fontSize=15;spacing=10;" value="&lt;b&gt;&amp;lt;&amp;lt;Protocol&amp;gt;&amp;gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;DecisionSpace&lt;/b&gt;&lt;/font&gt;&lt;hr&gt;+ initial(): Decision&lt;br&gt;+ perturb(decision, rng): Decision" vertex="1">
+          <mxGeometry height="180" width="350" x="80" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="solver" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#EA580C;fontColor=#0F172A;fontSize=15;spacing=10;" value="&lt;b&gt;&amp;lt;&amp;lt;Protocol&amp;gt;&amp;gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Solver&lt;/b&gt;&lt;/font&gt;&lt;hr&gt;+ requires: Set[Capability]&lt;br&gt;+ solve(world, budget): SolverResult" vertex="1">
+          <mxGeometry height="180" width="350" x="80" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="sens" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#9333EA;fontColor=#0F172A;fontSize=15;spacing=10;" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Sensitivity&lt;/b&gt;&lt;/font&gt;&lt;hr&gt;+ kind: PATHWISE | DUAL&lt;br&gt;+ names: List[str]&lt;br&gt;+ values: List[float]&lt;br&gt;+ descent_direction()" vertex="1">
+          <mxGeometry height="190" width="360" x="1080" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="cap" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#0F172A;fontSize=15;spacing=10;" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Capability&lt;/b&gt;&lt;/font&gt;&lt;hr&gt;C0 EVALUATE&lt;br&gt;C1 SEQUENTIAL&lt;br&gt;C2a PATHWISE_GRADIENT&lt;br&gt;C2b DUALS&lt;br&gt;C3 ALGEBRAIC" vertex="1">
+          <mxGeometry height="190" width="360" x="570" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="world" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#0284C7;fontSize=14;" target="space" value="provides">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="world" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#16A34A;fontSize=14;" target="eval" value="evaluate() returns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="solver" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;fontSize=14;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.11;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="world" value="calls">
+          <mxGeometry relative="1" x="-0.7407" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="540" y="620" />
+              <mxPoint x="540" y="510" />
+              <mxPoint x="594" y="510" />
+            </Array>
+            <mxPoint x="360" y="620" as="sourcePoint" />
+            <mxPoint x="610" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="solver" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;fontSize=14;" target="space" value="creates candidates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="world" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#D97706;fontSize=14;" target="cap" value="declares">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="eval" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;endArrow=block;endFill=1;strokeColor=#9333EA;fontSize=14;" target="sens" value="0..1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="domain-realizations" name="2 - Domain realizations">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="d0" />
+        <mxCell id="d1" parent="d0" />
+        <mxCell id="dt" value="Domain classes realize opsworld Protocols — they do not explicitly inherit base implementations" style="text;html=1;align=left;fontSize=28;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="d1">
+          <mxGeometry x="50" y="30" width="1600" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="coreWorld" value="&lt;b&gt;&amp;lt;&amp;lt;opsworld Protocol&amp;gt;&amp;gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;WorldModel&lt;/b&gt;&lt;/font&gt;&lt;br&gt;evaluate · capabilities · decision_space" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#2563EB;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="570" y="120" width="550" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="diffWorld" value="&lt;b&gt;DifferentiableWorldModel&lt;/b&gt;&lt;br&gt;+ gradient(decision)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="210" y="320" width="350" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="algWorld" value="&lt;b&gt;AlgebraicWorldModel&lt;/b&gt;&lt;br&gt;+ solve_exact()&lt;br&gt;+ duals()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#EA580C;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="1240" y="320" width="350" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="dispatch" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;DispatchWorld&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&amp;lt;&amp;lt;GradientShop adapter&amp;gt;&amp;gt;&lt;hr&gt;+ evaluate(weights)&lt;br&gt;+ gradient(weights)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="130" y="560" width="380" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="ddes" value="&lt;b&gt;DispatchWorldModel&lt;/b&gt;&lt;br&gt;DDES tensor recurrence&lt;br&gt;returns Observation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDFA;strokeColor=#14B8A6;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="130" y="820" width="380" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="static" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;StaticWorld&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&amp;lt;&amp;lt;Intralogistics adapter · C0&amp;gt;&amp;gt;&lt;hr&gt;+ evaluate(config)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="570" y="490" width="310" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="plan" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;PlanWorld&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&amp;lt;&amp;lt;Intralogistics adapter · C0&amp;gt;&amp;gt;&lt;hr&gt;+ evaluate(plan)&lt;br&gt;+ render(plan)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="920" y="490" width="310" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="milp" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;MilpWorld&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&amp;lt;&amp;lt;Intralogistics adapter · C0+C2b+C3&amp;gt;&amp;gt;&lt;hr&gt;+ evaluate(config)&lt;br&gt;+ solve_exact()&lt;br&gt;+ duals()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F97316;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="1310" y="560" width="380" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="staticKernel" value="&lt;b&gt;StaticWorldModel&lt;/b&gt;&lt;br&gt;NumPy cause-effect evaluator&lt;br&gt;cost + violations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="680" y="810" width="430" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="milpKernel" value="&lt;b&gt;MilpWorldModel&lt;/b&gt;&lt;br&gt;Pyomo algebra&lt;br&gt;HiGHS / SCIP / CBC / Gurobi" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#D97706;fontColor=#0F172A;fontSize=15;spacing=10;" vertex="1" parent="d1">
+          <mxGeometry x="1310" y="820" width="380" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="de1" value="extends" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=0;dashed=0;strokeColor=#16A34A;fontSize=14;" edge="1" parent="d1" source="diffWorld" target="coreWorld">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de2" value="extends" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=0;dashed=0;strokeColor=#EA580C;fontSize=14;" edge="1" parent="d1" source="algWorld" target="coreWorld">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de3" value="structurally realizes" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#10B981;fontSize=14;" edge="1" parent="d1" source="dispatch" target="diffWorld">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de4" value="structurally realizes" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#3B82F6;fontSize=13;" edge="1" parent="d1" source="static" target="coreWorld">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de5" value="structurally realizes" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#3B82F6;fontSize=13;" edge="1" parent="d1" source="plan" target="coreWorld">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de6" value="structurally realizes" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#F97316;fontSize=14;" edge="1" parent="d1" source="milp" target="algWorld">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de7" value="composes" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=diamond;startFill=1;endArrow=block;endFill=1;strokeColor=#14B8A6;fontSize=14;" edge="1" parent="d1" source="dispatch" target="ddes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de8" value="composes" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=diamond;startFill=1;endArrow=block;endFill=1;strokeColor=#64748B;fontSize=14;" edge="1" parent="d1" source="static" target="staticKernel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de9" value="render → evaluate" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=diamond;startFill=1;endArrow=block;endFill=1;strokeColor=#64748B;fontSize=14;" edge="1" parent="d1" source="plan" target="staticKernel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de10" value="composes" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=diamond;startFill=1;endArrow=block;endFill=1;strokeColor=#D97706;fontSize=14;" edge="1" parent="d1" source="milp" target="milpKernel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="generic-sequence" name="3 - Generic solver sequence">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="s0" />
+        <mxCell id="s1" parent="s0" />
+        <mxCell id="st" value="Generic C0 solver interaction" style="text;html=1;fontSize=30;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="s1">
+          <mxGeometry x="60" y="35" width="800" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="solverHead" value="HillClimbSolver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#EA580C;fontSize=17;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="100" y="130" width="250" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="spaceHead" value="DecisionSpace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=17;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="490" y="130" width="250" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="worldHead" value="World adapter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#2563EB;fontSize=17;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="880" y="130" width="250" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="kernelHead" value="Domain kernel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=17;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="1270" y="130" width="250" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="life1" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=#94A3B8;" edge="1" parent="s1" source="solverHead">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="225" y="930" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="life2" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=#94A3B8;" edge="1" parent="s1" source="spaceHead">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="615" y="930" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="life3" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=#94A3B8;" edge="1" parent="s1" source="worldHead">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1005" y="930" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="life4" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=#94A3B8;" edge="1" parent="s1" source="kernelHead">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1395" y="930" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg1" value="1 · initial()" style="edgeStyle=none;html=1;endArrow=block;endFill=1;strokeColor=#0284C7;fontSize=15;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="225" y="270" as="sourcePoint" />
+            <mxPoint x="615" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg2" value="2 · initial decision" style="edgeStyle=none;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#0284C7;fontSize=15;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="615" y="340" as="sourcePoint" />
+            <mxPoint x="225" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg3" value="3 · evaluate(decision)" style="edgeStyle=none;html=1;endArrow=block;endFill=1;strokeColor=#2563EB;fontSize=15;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="225" y="420" as="sourcePoint" />
+            <mxPoint x="1005" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg4" value="4 · simulate / calculate" style="edgeStyle=none;html=1;endArrow=block;endFill=1;strokeColor=#16A34A;fontSize=15;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1005" y="490" as="sourcePoint" />
+            <mxPoint x="1395" y="490" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg5" value="5 · domain result" style="edgeStyle=none;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#16A34A;fontSize=15;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1395" y="560" as="sourcePoint" />
+            <mxPoint x="1005" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg6" value="6 · Evaluation" style="edgeStyle=none;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#2563EB;fontSize=15;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1005" y="630" as="sourcePoint" />
+            <mxPoint x="225" y="630" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="loop" value="Repeat until budget is exhausted" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;dashed=1;fontSize=15;fontStyle=1;align=left;spacingLeft=15;" vertex="1" parent="s1">
+          <mxGeometry x="150" y="700" width="930" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="msg7" value="7 · perturb(current, rng)" style="edgeStyle=none;html=1;endArrow=block;endFill=1;strokeColor=#0284C7;fontSize=15;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="225" y="755" as="sourcePoint" />
+            <mxPoint x="615" y="755" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg8" value="8 · evaluate(candidate) → Evaluation → accept if better" style="edgeStyle=none;html=1;endArrow=block;endFill=1;strokeColor=#2563EB;fontSize=15;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="225" y="825" as="sourcePoint" />
+            <mxPoint x="1005" y="825" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="advanced-sequence" name="4 - Gradient and exact paths">
+    <mxGraphModel dx="1768" dy="1061" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="a0" />
+        <mxCell id="a1" parent="a0" />
+        <mxCell id="at" parent="a1" style="text;html=1;fontSize=30;fontStyle=1;fontColor=#0F172A;" value="Optional capability paths — C0 remains the common foundation" vertex="1">
+          <mxGeometry height="50" width="1500" x="50" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="gradBox" parent="a1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontColor=#0F172A;fontSize=17;spacing=15;" value="&lt;font style=&quot;font-size: 23px;&quot;&gt;&lt;b&gt;C2a · Gradient path&lt;/b&gt;&lt;/font&gt;&lt;hr&gt;&lt;b&gt;GradientDescentSolver&lt;/b&gt;&lt;br&gt;1. evaluate(decision)&lt;br&gt;2. gradient(decision)&lt;br&gt;3. Sensitivity(PATHWISE)&lt;br&gt;4. candidate = decision − step × gradient&lt;br&gt;5. evaluate(candidate)&lt;br&gt;&lt;br&gt;&lt;b&gt;Implemented by:&lt;/b&gt;&lt;br&gt;DispatchWorld, SizingPolicyWorld" vertex="1">
+          <mxGeometry height="560" width="720" x="90" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="exactBox" parent="a1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F97316;fontColor=#0F172A;fontSize=17;spacing=15;" value="&lt;font style=&quot;font-size: 23px;&quot;&gt;&lt;b&gt;C3 · Exact algebraic path&lt;/b&gt;&lt;/font&gt;&lt;hr&gt;&lt;b&gt;Client / future ExactMilpSolver&lt;/b&gt;&lt;br&gt;1. MilpWorld.solve_exact()&lt;br&gt;2. MilpWorldModel.solve()&lt;br&gt;3. build Pyomo algebra&lt;br&gt;4. HiGHS / SCIP / CBC / Gurobi&lt;br&gt;5. return Decision + objective + proof&lt;br&gt;&lt;br&gt;&lt;b&gt;Current limitation:&lt;/b&gt;&lt;br&gt;solve_exact exists, but is not yet registered as a common SolverSpec." vertex="1">
+          <mxGeometry height="560" width="720" x="990" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="foundation" parent="a1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#2563EB;fontColor=#0F172A;fontSize=20;fontStyle=1;" value="C0 · Both paths still expose evaluate(decision) → Evaluation" vertex="1">
+          <mxGeometry height="70" width="900" x="450" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="ae1" edge="1" parent="a1" source="gradBox" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;strokeColor=#10B981;" target="foundation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae2" edge="1" parent="a1" source="exactBox" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;strokeColor=#F97316;" target="foundation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

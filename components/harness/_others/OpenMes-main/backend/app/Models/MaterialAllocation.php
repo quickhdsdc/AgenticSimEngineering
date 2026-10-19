@@ -1,0 +1,104 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\HasTenant;
+use App\Traits\Auditable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class MaterialAllocation extends Model
+{
+    use Auditable;
+    use HasFactory;
+    use HasTenant;
+
+    const STATUS_ALLOCATED = 'allocated';
+
+    const STATUS_CONSUMED = 'consumed';
+
+    const STATUS_RETURNED = 'returned';
+
+    protected $fillable = [
+        'batch_id',
+        'batch_step_id',
+        'material_id',
+        'work_order_id',
+        // The location this allocation is consumed from, frozen on first deduction.
+        'consumption_warehouse_id',
+        'allocated_qty',
+        'expected_qty',
+        'returned_qty',
+        'consumed_qty',
+        'consumption_recorded',
+        // How much of it has already been taken off that location's balance.
+        'location_deducted_qty',
+        'adjustment_qty',
+        'scrap_qty',
+        'status',
+        'allocated_by',
+        'allocated_at',
+        'consumed_at',
+        'unit_price_snapshot',
+        'price_currency_snapshot',
+        'tenant_id',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'allocated_qty' => 'decimal:4',
+            'expected_qty' => 'decimal:4',
+            'returned_qty' => 'decimal:4',
+            'consumed_qty' => 'decimal:4',
+            'consumption_recorded' => 'boolean',
+            'location_deducted_qty' => 'decimal:4',
+            'adjustment_qty' => 'decimal:4',
+            'scrap_qty' => 'decimal:4',
+            'allocated_at' => 'datetime',
+            'consumed_at' => 'datetime',
+            'unit_price_snapshot' => 'decimal:4',
+        ];
+    }
+
+    /**
+     * Difference between what was actually consumed and what was expected.
+     * Positive = used more than BOM said. Useful for scrap analysis.
+     */
+    public function getVarianceQtyAttribute(): float
+    {
+        return (float) $this->consumed_qty - (float) $this->expected_qty;
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class);
+    }
+
+    public function material(): BelongsTo
+    {
+        return $this->belongsTo(Material::class);
+    }
+
+    public function workOrder(): BelongsTo
+    {
+        return $this->belongsTo(WorkOrder::class);
+    }
+
+    public function allocatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'allocated_by');
+    }
+
+    /** The location this allocation's consumption is booked against. */
+    public function consumptionWarehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'consumption_warehouse_id');
+    }
+
+    public function lotPicks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AllocationLotPick::class, 'material_allocation_id');
+    }
+}

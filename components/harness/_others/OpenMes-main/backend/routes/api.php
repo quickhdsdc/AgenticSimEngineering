@@ -1,0 +1,772 @@
+<?php
+
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\V1\AdditionalCostController;
+use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\ApiKeyController;
+use App\Http\Controllers\Api\V1\AttachmentController;
+use App\Http\Controllers\Api\V1\AuditLogController;
+use App\Http\Controllers\Api\V1\BatchController;
+use App\Http\Controllers\Api\V1\BatchStepController;
+use App\Http\Controllers\Api\V1\BatchStepDocumentController;
+use App\Http\Controllers\Api\V1\BomItemController;
+use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\ConnectivityController;
+use App\Http\Controllers\Api\V1\CostSourceController;
+use App\Http\Controllers\Api\V1\CsvImportController;
+use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
+use App\Http\Controllers\Api\V1\Erp\MasterDataImportController;
+use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
+use App\Http\Controllers\Api\V1\Erp\QualityExportController;
+use App\Http\Controllers\Api\V1\Erp\StockDocumentExportController;
+use App\Http\Controllers\Api\V1\Erp\StockSyncController;
+use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
+use App\Http\Controllers\Api\V1\EventLogController;
+use App\Http\Controllers\Api\V1\InspectionController;
+use App\Http\Controllers\Api\V1\InspectionPlanController;
+use App\Http\Controllers\Api\V1\IntegrationConfigController;
+use App\Http\Controllers\Api\V1\IssueController;
+use App\Http\Controllers\Api\V1\IssueTypeController;
+use App\Http\Controllers\Api\V1\LabelTemplateController;
+use App\Http\Controllers\Api\V1\LineController;
+use App\Http\Controllers\Api\V1\LineStatusController;
+use App\Http\Controllers\Api\V1\LotSequenceController;
+use App\Http\Controllers\Api\V1\MachineMonitorController;
+use App\Http\Controllers\Api\V1\MaintenanceEventController;
+use App\Http\Controllers\Api\V1\MaintenanceScheduleController;
+use App\Http\Controllers\Api\V1\MaterialController;
+use App\Http\Controllers\Api\V1\MaterialLotController;
+use App\Http\Controllers\Api\V1\MaterialTypeController;
+use App\Http\Controllers\Api\V1\OeeController as ApiOeeController;
+use App\Http\Controllers\Api\V1\PackagingChecklistController;
+use App\Http\Controllers\Api\V1\PalletController;
+use App\Http\Controllers\Api\V1\ProcessConfirmationController;
+use App\Http\Controllers\Api\V1\ProcessTemplateController;
+use App\Http\Controllers\Api\V1\ProductTypeController;
+use App\Http\Controllers\Api\V1\QualityCheckController;
+use App\Http\Controllers\Api\V1\QualityControlTaskController;
+use App\Http\Controllers\Api\V1\QualityControlTriggerController;
+use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ScheduleCapacityController;
+use App\Http\Controllers\Api\V1\ScheduleController;
+use App\Http\Controllers\Api\V1\ScrapEntryController;
+use App\Http\Controllers\Api\V1\ScrapReasonController;
+use App\Http\Controllers\Api\V1\ShiftController;
+use App\Http\Controllers\Api\V1\ShiftHandoverController;
+use App\Http\Controllers\Api\V1\SubassemblyController;
+use App\Http\Controllers\Api\V1\SystemController;
+use App\Http\Controllers\Api\V1\SystemLogController;
+use App\Http\Controllers\Api\V1\ToolController;
+use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\WorkOrderChangeRequestController;
+use App\Http\Controllers\Api\V1\WorkOrderController;
+use App\Http\Controllers\Api\V1\WorkOrderStopController;
+use App\Http\Controllers\Api\V1\WorkstationController;
+use App\Http\Controllers\Api\V1\WorkstationTypeController;
+use Illuminate\Support\Facades\Route;
+use Spatie\Permission\Models\Role;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application.
+|
+*/
+
+// Health check endpoint
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+    ]);
+});
+
+// Workstation client self-registration + heartbeat (no auth: a freshly
+// installed station only knows the MAIN IP; trusted-LAN, rate limited). The
+// MAIN app lists the roster live and derives online status from last_seen_at.
+Route::post('/workstations/register', [\App\Http\Controllers\Api\V1\WorkstationRegistrationController::class, 'register'])
+    ->middleware('throttle:30,1')
+    ->name('api.workstations.register');
+Route::post('/workstations/heartbeat', [\App\Http\Controllers\Api\V1\WorkstationRegistrationController::class, 'heartbeat'])
+    ->middleware('throttle:120,1')
+    ->name('api.workstations.heartbeat');
+
+// NOTE: the live-sync snapshot GET /api/collections/{name} lives in routes/web.php
+// so it authenticates via the session cookie (host-independent) instead of Sanctum
+// stateful-domain matching. See the "#193" comment there.
+
+// Authentication routes (no auth required)
+Route::prefix('auth')->group(function () {
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+    Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:sanctum');
+    Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
+    Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+});
+
+// ERP integration API (SAP, Comarch, enova365, MS Dynamics / Business Central).
+// Machine-to-machine: authenticated by API key (X-Api-Key or Bearer), authorized
+// per-endpoint by scope, rate limited per key. Kept separate from the Sanctum v1
+// tree because these are headless service credentials, not user sessions.
+Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(function () {
+    // ERP → OpenMES: bulk work-order import.
+    Route::post('/work-orders/import', [ErpWorkOrderImportController::class, 'store'])
+        ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);
+
+    // OpenMES → ERP: production completion export + single-order state.
+    Route::get('/production/completions', [ProductionExportController::class, 'completions'])
+        ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
+    Route::get('/work-orders/{workOrder}', [ProductionExportController::class, 'show'])
+        ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
+
+    // OpenMES → ERP: quality / non-conformance export.
+    Route::get('/quality/issues', [QualityExportController::class, 'issues'])
+        ->middleware(['scope:erp:quality:read', 'throttle:erp-read']);
+
+    // ERP → OpenMES: master data (#212). Products and materials come from one ERP
+    // item table split by classification, lots carry available quantities, and
+    // recipes are per-unit component lists.
+    Route::middleware(['scope:erp:masterdata:write', 'throttle:erp-import'])->group(function () {
+        Route::post('/products/import', [MasterDataImportController::class, 'products']);
+        Route::post('/materials/import', [MasterDataImportController::class, 'materials']);
+        Route::post('/material-lots/import', [MasterDataImportController::class, 'materialLots']);
+        Route::post('/boms/import', [MasterDataImportController::class, 'boms']);
+    });
+
+    // Warehouse balances (#212): ERP snapshot in, OpenMES view out.
+    Route::post('/stock/import', [StockSyncController::class, 'import'])
+        ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
+    Route::get('/stock', [StockSyncController::class, 'index'])
+        ->middleware(['scope:erp:stock:read', 'throttle:erp-read']);
+
+    // OpenMES → ERP: warehouse documents to book (material releases, product
+    // receipts), plus the acknowledgement that takes one off the backlog.
+    Route::get('/stock-documents', [StockDocumentExportController::class, 'index'])
+        ->middleware(['scope:erp:stock:read', 'throttle:erp-read']);
+    Route::post('/stock-documents/{stockDocument}/ack', [StockDocumentExportController::class, 'acknowledge'])
+        ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
+});
+
+// Protected API routes (require authentication)
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+    // Lines (read for any authenticated user; admin-only mutations below)
+    Route::get('/lines', [LineController::class, 'index']);
+    Route::get('/lines/{line}', [LineController::class, 'show']);
+    Route::get('/lines/{line}/users', [LineController::class, 'users']);
+    Route::get('/lines/{line}/product-types', [LineController::class, 'productTypes']);
+    Route::get('/lines/{line}/workstations', [WorkstationController::class, 'index']);
+    Route::get('/workstations/{workstation}', [WorkstationController::class, 'show']);
+
+    // Product Types (read for any authenticated user)
+    Route::get('/product-types', [ProductTypeController::class, 'index']);
+    Route::get('/product-types/{product_type}', [ProductTypeController::class, 'show']);
+    Route::get('/product-types/{product_type}/process-templates', [ProcessTemplateController::class, 'index']);
+
+    // Process Templates (read for any authenticated user)
+    Route::get('/process-templates/{process_template}', [ProcessTemplateController::class, 'show']);
+
+    // ISA-95 Process Segments — read for any authenticated user
+    Route::get('/process-segments', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'index']);
+    Route::get('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'show']);
+
+    // Workstation Types (read for any authenticated user)
+    Route::get('/workstation-types', [WorkstationTypeController::class, 'index']);
+    Route::get('/workstation-types/{workstation_type}', [WorkstationTypeController::class, 'show']);
+
+    // HR — read for any authenticated user
+
+    // Employee activities — tachograph-style day/team/month timelines
+    Route::get('/employee-activities/types', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'types']);
+    Route::get('/employee-activities/team-day', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'teamDay']);
+    Route::get('/employee-activities', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'index']);
+    Route::get('/employee-activities/{employeeActivity}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'show']);
+    Route::post('/employee-activities', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'store']);
+    Route::patch('/employee-activities/{employeeActivity}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'update']);
+    Route::delete('/employee-activities/{employeeActivity}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'destroy']);
+    Route::post('/employee-activity-custom-types', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'storeCustomType']);
+    Route::patch('/employee-activity-custom-types/{employeeActivityCustomType}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'updateCustomType']);
+    Route::delete('/employee-activity-custom-types/{employeeActivityCustomType}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'destroyCustomType']);
+
+    // ISA-95 Personnel Classes — read for any authenticated user
+
+    // Org structure — read for any authenticated user
+    Route::get('/line-statuses', [LineStatusController::class, 'globalIndex']);
+    Route::get('/lines/{line}/statuses', [LineStatusController::class, 'index']);
+
+    // ISA-95 equipment hierarchy — sites & areas. Read for any authenticated
+    // user; mutations gated by Site/Area policies (admin in practice).
+
+    // Ops support — read for any auth user
+    Route::get('/companies', [CompanyController::class, 'index']);
+    Route::get('/companies/{company}', [CompanyController::class, 'show']);
+    Route::get('/cost-sources', [CostSourceController::class, 'index']);
+    Route::get('/cost-sources/{cost_source}', [CostSourceController::class, 'show']);
+    Route::get('/scrap-reasons', [ScrapReasonController::class, 'index']);
+    Route::get('/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'show']);
+    Route::get('/subassemblies', [SubassemblyController::class, 'index']);
+    Route::get('/subassemblies/{subassembly}', [SubassemblyController::class, 'show']);
+    Route::get('/shifts', [ShiftController::class, 'index']);
+    Route::get('/shifts/{shift}', [ShiftController::class, 'show']);
+
+    // LOT Sequences — read for any authenticated user
+    Route::get('/lot-sequences', [LotSequenceController::class, 'index']);
+    Route::get('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'show']);
+    Route::get('/lot/preview/{productTypeId?}', [LotSequenceController::class, 'preview']);
+
+    // Materials & BOM — read for any authenticated user
+    Route::get('/material-types', [MaterialTypeController::class, 'index']);
+    Route::get('/material-types/{materialType}', [MaterialTypeController::class, 'show']);
+    Route::get('/materials', [MaterialController::class, 'index']);
+    Route::get('/materials/{material}', [MaterialController::class, 'show']);
+    Route::get('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'index']);
+    Route::get('/process-templates/{processTemplate}/bom-items/requirements', [BomItemController::class, 'requirements']);
+
+    // ISA-95 Material Lots — read access for any authenticated user; consumption
+    // recording for operators / supervisors (no admin role required by design).
+    Route::get('/material-lots', [MaterialLotController::class, 'index']);
+    Route::get('/material-lots/{materialLot}', [MaterialLotController::class, 'show']);
+    Route::get('/material-lots/{materialLot}/genealogy/forward', [MaterialLotController::class, 'forwardGenealogy']);
+    Route::get('/material-lots/{materialLot}/genealogy/backward', [MaterialLotController::class, 'backwardGenealogy']);
+    Route::post('/material-lots/{materialLot}/consume', [MaterialLotController::class, 'consume']);
+
+    // Machine gateway bridge (OPC UA sidecar / external REST gateways)
+    Route::get('/machine-connections/{machineConnection}/gateway-config', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'config']);
+    Route::post('/machine-connections/{machineConnection}/signals', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'ingest']);
+    Route::post('/machine-connections/{machineConnection}/heartbeat', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'heartbeat']);
+
+    // Engineering CAD documents (#179). View/download for any grantee of
+    // `view engineering documents`; mutations gated in the controller by
+    // `manage engineering documents`.
+    Route::get('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'index']);
+    Route::post('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'store'])
+        ->middleware('throttle:30,1'); // 100 MB uploads + checksum + zip extraction — rate-limit like photos/media
+    Route::get('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'show']);
+    Route::get('/engineering-documents/{engineeringDocument}/download', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'download']);
+    Route::get('/engineering-documents/{engineeringDocument}/viewer-url', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'viewerUrl']);
+    Route::post('/engineering-documents/{engineeringDocument}/release', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'release']);
+    Route::post('/engineering-documents/{engineeringDocument}/obsolete', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'obsolete']);
+    Route::delete('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'destroy']);
+    // Documents frozen onto a work order at release (Phase 2 snapshot).
+    Route::get('/work-orders/{workOrder}/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'forWorkOrder']);
+
+    // Per-unit (serial) genealogy
+    Route::get('/serial-units', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'index']);
+    Route::get('/serial-units/{serialUnit}', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'show']);
+    Route::post('/serial-units', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'store']);
+    Route::post('/serial-units/{serialUnit}/steps', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'recordStep']);
+
+    // OEE & Downtimes — accessible by all authenticated users (operators need to report)
+    Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);
+    Route::get('/downtimes', [ApiOeeController::class, 'downtimes']);
+    Route::post('/downtimes', [ApiOeeController::class, 'startDowntime']);
+    Route::patch('/downtimes/{downtime}', [ApiOeeController::class, 'stopDowntime']);
+    Route::get('/oee', [ApiOeeController::class, 'index']);
+    Route::get('/oee/{line}', [ApiOeeController::class, 'show']);
+
+    // Inspections (inbound quality) — inspectors + admins
+    Route::get('/inspection-plans', [InspectionPlanController::class, 'index']);
+    Route::get('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'show']);
+    Route::get('/inspections', [InspectionController::class, 'index']);
+    Route::get('/inspections/stats', [InspectionController::class, 'stats']);
+    Route::get('/inspections/{inspection}', [InspectionController::class, 'show']);
+    Route::post('/inspections', [InspectionController::class, 'store']);
+    Route::patch('/inspections/{inspection}/results/{result}', [InspectionController::class, 'recordResult']);
+    Route::post('/inspections/{inspection}/complete', [InspectionController::class, 'complete']);
+    Route::post('/inspections/{inspection}/disposition', [InspectionController::class, 'disposition']);
+
+    // Tools — read for any authenticated user
+    Route::get('/tools', [ToolController::class, 'index']);
+    Route::get('/tools/{tool}', [ToolController::class, 'show']);
+
+    // Maintenance Events — read for any authenticated user; transitions for
+    // assigned operators or supervisors+
+    Route::get('/maintenance-events', [MaintenanceEventController::class, 'index']);
+    Route::get('/maintenance-events/{maintenance_event}', [MaintenanceEventController::class, 'show']);
+    Route::post('/maintenance-events/{maintenance_event}/start', [MaintenanceEventController::class, 'start']);
+    Route::post('/maintenance-events/{maintenance_event}/complete', [MaintenanceEventController::class, 'complete']);
+    Route::post('/maintenance-events/{maintenance_event}/cancel', [MaintenanceEventController::class, 'cancel']);
+
+    // Maintenance Schedules (recurring) — read for any auth user; admin gate
+    // applied below for store/update/destroy/generate-now.
+    Route::get('/maintenance-schedules', [MaintenanceScheduleController::class, 'index']);
+    Route::get('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'show']);
+
+    // Scrap entries (operators can record against a work order; admins/supers manage)
+    Route::get('/scrap-entries', [ScrapEntryController::class, 'index']);
+    Route::get('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'show']);
+    // Typed operator outputs recorded on a work order (#B) — read for ERP/reporting.
+    Route::get('/work-orders/{workOrder}/step-outputs', [\App\Http\Controllers\Api\V1\StepOutputController::class, 'forWorkOrder'])->name('api.v1.work-orders.step-outputs');
+    Route::get('/batch-step-outputs/{batchStepOutputValue}/file', [\App\Http\Controllers\Api\V1\StepOutputController::class, 'file'])->name('api.v1.batch-step-outputs.file');
+
+    Route::get('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'forWorkOrder']);
+    Route::post('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'store']);
+    Route::patch('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'update']);
+    Route::delete('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'destroy']);
+
+    // Additional Costs (admin/supervisor only — policy enforced)
+    Route::get('/work-orders/{workOrder}/additional-costs', [AdditionalCostController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/additional-costs', [AdditionalCostController::class, 'store']);
+    Route::patch('/additional-costs/{additionalCost}', [AdditionalCostController::class, 'update']);
+    Route::delete('/additional-costs/{additionalCost}', [AdditionalCostController::class, 'destroy']);
+
+    // Attachments (polymorphic — entity_type + entity_id)
+    Route::get('/attachments', [AttachmentController::class, 'index']);
+    Route::get('/attachments/{attachment}', [AttachmentController::class, 'show']);
+    Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download']);
+    Route::post('/attachments', [AttachmentController::class, 'store']);
+    Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy']);
+
+    // Connectivity (Admin-only — policy enforced)
+    Route::get('/connectivity/connections', [ConnectivityController::class, 'listConnections']);
+    Route::post('/connectivity/connections', [ConnectivityController::class, 'storeConnection']);
+    Route::get('/connectivity/connections/{machineConnection}', [ConnectivityController::class, 'showConnection']);
+    Route::patch('/connectivity/connections/{machineConnection}', [ConnectivityController::class, 'updateConnection']);
+    Route::get('/connectivity/connections/{machineConnection}/mqtt', [ConnectivityController::class, 'showMqttSettings']);
+    Route::delete('/connectivity/connections/{machineConnection}', [ConnectivityController::class, 'deleteConnection']);
+    Route::post('/connectivity/connections/{machineConnection}/toggle-active', [ConnectivityController::class, 'toggleConnectionActive']);
+
+    Route::get('/connectivity/topics', [ConnectivityController::class, 'listTopics']);
+    Route::post('/connectivity/topics', [ConnectivityController::class, 'storeTopic']);
+    Route::get('/connectivity/topics/{machineTopic}', [ConnectivityController::class, 'showTopic']);
+    Route::patch('/connectivity/topics/{machineTopic}', [ConnectivityController::class, 'updateTopic']);
+    Route::delete('/connectivity/topics/{machineTopic}', [ConnectivityController::class, 'deleteTopic']);
+    Route::post('/connectivity/topics/{machineTopic}/toggle-active', [ConnectivityController::class, 'toggleTopicActive']);
+
+    Route::get('/connectivity/mappings', [ConnectivityController::class, 'listMappings']);
+    Route::post('/connectivity/mappings', [ConnectivityController::class, 'storeMapping']);
+    Route::get('/connectivity/mappings/{topicMapping}', [ConnectivityController::class, 'showMapping']);
+    Route::patch('/connectivity/mappings/{topicMapping}', [ConnectivityController::class, 'updateMapping']);
+    Route::delete('/connectivity/mappings/{topicMapping}', [ConnectivityController::class, 'deleteMapping']);
+
+    Route::get('/connectivity/messages', [ConnectivityController::class, 'listMessages']);
+    Route::get('/connectivity/messages/{machineMessage}', [ConnectivityController::class, 'showMessage']);
+
+    // System — Settings / Modules / Schedule / Alerts / Update Check
+    // (role checks performed in controller for finer granularity)
+    Route::get('/system/settings', [SystemController::class, 'listSettings']);
+    Route::get('/system/settings/{key}', [SystemController::class, 'showSetting']);
+    Route::put('/system/settings/{key}', [SystemController::class, 'updateSetting']);
+
+    Route::get('/system/modules', [SystemController::class, 'listModules']);
+    Route::post('/system/modules/{name}/enable', [SystemController::class, 'enableModule']);
+    Route::post('/system/modules/{name}/disable', [SystemController::class, 'disableModule']);
+
+    Route::get('/system/schedule', [SystemController::class, 'schedule']);
+    Route::get('/system/dashboard-widgets', [SystemController::class, 'dashboardWidgets']);
+    Route::get('/system/alerts', [SystemController::class, 'alerts']);
+    Route::get('/system/alerts/counts', [SystemController::class, 'alertsCounts']);
+    Route::get('/system/update-check', [SystemController::class, 'updateCheck']);
+
+    // Lines + Workstations admin mutations
+    Route::middleware('role:Admin')->group(function () {
+        // Integrations + custom fields + QC triggers — full CRUD.
+        Route::get('/integrations', [IntegrationConfigController::class, 'index']);
+        Route::post('/integrations', [IntegrationConfigController::class, 'store']);
+        Route::patch('/integrations/{integration}', [IntegrationConfigController::class, 'update']);
+        Route::post('/integrations/{integration}/toggle-active', [IntegrationConfigController::class, 'toggleActive']);
+        Route::delete('/integrations/{integration}', [IntegrationConfigController::class, 'destroy']);
+
+        // ERP integration API keys (machine-to-machine credentials for the
+        // /v1/erp/* endpoints). The plaintext secret is returned only from store.
+        // Gated on the ERP module: disabling it 404s key management too.
+        Route::middleware('module:erp')->group(function () {
+            Route::get('/api-keys', [ApiKeyController::class, 'index']);
+            Route::post('/api-keys', [ApiKeyController::class, 'store']);
+            Route::patch('/api-keys/{apiKey}', [ApiKeyController::class, 'update']);
+            Route::post('/api-keys/{apiKey}/toggle-active', [ApiKeyController::class, 'toggleActive']);
+            Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy']);
+        });
+        Route::get('/custom-fields', [CustomFieldDefinitionController::class, 'index']);
+        Route::get('/custom-fields/meta', [CustomFieldDefinitionController::class, 'formMeta']);
+        Route::post('/custom-fields', [CustomFieldDefinitionController::class, 'store']);
+        Route::patch('/custom-fields/{customField}', [CustomFieldDefinitionController::class, 'update']);
+        Route::post('/custom-fields/{customField}/toggle-active', [CustomFieldDefinitionController::class, 'toggleActive']);
+        Route::delete('/custom-fields/{customField}', [CustomFieldDefinitionController::class, 'destroy']);
+        Route::get('/quality-control-triggers', [QualityControlTriggerController::class, 'index']);
+        Route::get('/quality-control-triggers/meta', [QualityControlTriggerController::class, 'formMeta']);
+        Route::post('/quality-control-triggers', [QualityControlTriggerController::class, 'store']);
+        Route::patch('/quality-control-triggers/{qualityControlTrigger}', [QualityControlTriggerController::class, 'update']);
+        Route::post('/quality-control-triggers/{qualityControlTrigger}/toggle-active', [QualityControlTriggerController::class, 'toggleActive']);
+        Route::delete('/quality-control-triggers/{qualityControlTrigger}', [QualityControlTriggerController::class, 'destroy']);
+
+        Route::get('/webhooks', [\App\Http\Controllers\Api\V1\WebhookController::class, 'index']);
+        Route::get('/webhook-event-types', [\App\Http\Controllers\Api\V1\WebhookController::class, 'eventTypes']);
+        Route::post('/webhooks', [\App\Http\Controllers\Api\V1\WebhookController::class, 'store']);
+        Route::patch('/webhooks/{webhook}', [\App\Http\Controllers\Api\V1\WebhookController::class, 'update']);
+        Route::post('/webhooks/{webhook}/toggle-active', [\App\Http\Controllers\Api\V1\WebhookController::class, 'toggleActive']);
+        Route::delete('/webhooks/{webhook}', [\App\Http\Controllers\Api\V1\WebhookController::class, 'destroy']);
+
+        Route::get('/trash', [\App\Http\Controllers\Api\V1\TrashController::class, 'index']);
+        Route::post('/trash/{type}/{id}/restore', [\App\Http\Controllers\Api\V1\TrashController::class, 'restore']);
+
+        Route::get('/view-templates', [\App\Http\Controllers\Api\V1\ViewTemplateController::class, 'index']);
+        Route::post('/view-templates', [\App\Http\Controllers\Api\V1\ViewTemplateController::class, 'store']);
+        Route::patch('/view-templates/{viewTemplate}', [\App\Http\Controllers\Api\V1\ViewTemplateController::class, 'update']);
+        Route::delete('/view-templates/{viewTemplate}', [\App\Http\Controllers\Api\V1\ViewTemplateController::class, 'destroy']);
+
+        Route::post('/lines', [LineController::class, 'store']);
+        Route::patch('/lines/{line}', [LineController::class, 'update']);
+        Route::delete('/lines/{line}', [LineController::class, 'destroy']);
+        Route::post('/lines/{line}/toggle-active', [LineController::class, 'toggleActive']);
+        Route::post('/lines/{line}/users', [LineController::class, 'syncUsers']);
+        Route::delete('/lines/{line}/users/{user}', [LineController::class, 'unassignUser']);
+        Route::post('/lines/{line}/product-types', [LineController::class, 'syncProductTypes']);
+
+        Route::post('/lines/{line}/workstations', [WorkstationController::class, 'store']);
+        Route::patch('/workstations/{workstation}', [WorkstationController::class, 'update']);
+        Route::delete('/workstations/{workstation}', [WorkstationController::class, 'destroy']);
+        Route::post('/workstations/{workstation}/toggle-active', [WorkstationController::class, 'toggleActive']);
+
+        // Product Types — admin mutations
+        Route::post('/product-types', [ProductTypeController::class, 'store']);
+        Route::patch('/product-types/{product_type}', [ProductTypeController::class, 'update']);
+        Route::delete('/product-types/{product_type}', [ProductTypeController::class, 'destroy']);
+        Route::post('/product-types/{product_type}/toggle-active', [ProductTypeController::class, 'toggleActive']);
+
+        // Process Templates — admin mutations
+        Route::post('/product-types/{product_type}/process-templates', [ProcessTemplateController::class, 'store']);
+        Route::patch('/process-templates/{process_template}', [ProcessTemplateController::class, 'update']);
+        Route::delete('/process-templates/{process_template}', [ProcessTemplateController::class, 'destroy']);
+        Route::post('/process-templates/{process_template}/toggle-active', [ProcessTemplateController::class, 'toggleActive']);
+
+        // ISA-95 Process Segments — admin mutations
+        Route::post('/process-segments', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'store']);
+        Route::patch('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'update']);
+        Route::delete('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'destroy']);
+
+        // ISA-95 Personnel Classes — admin mutations
+
+        // Template Steps
+        Route::post('/process-templates/{process_template}/steps', [ProcessTemplateController::class, 'addStep']);
+        Route::post('/process-templates/{process_template}/steps/reorder', [ProcessTemplateController::class, 'reorderSteps']);
+        Route::patch('/template-steps/{template_step}', [ProcessTemplateController::class, 'updateStep']);
+        Route::delete('/template-steps/{template_step}', [ProcessTemplateController::class, 'destroyStep']);
+
+        // Workstation Types
+        Route::post('/workstation-types', [WorkstationTypeController::class, 'store']);
+        Route::patch('/workstation-types/{workstation_type}', [WorkstationTypeController::class, 'update']);
+        Route::delete('/workstation-types/{workstation_type}', [WorkstationTypeController::class, 'destroy']);
+        Route::post('/workstation-types/{workstation_type}/toggle-active', [WorkstationTypeController::class, 'toggleActive']);
+
+        // Skills
+
+        // Wage Groups
+
+        // Crews
+
+        // Workers
+
+        // Factories
+
+        // Divisions
+
+        // Line Statuses
+        Route::post('/lines/{line}/statuses', [LineStatusController::class, 'store']);
+        Route::post('/lines/{line}/statuses/reorder', [LineStatusController::class, 'reorder']);
+        Route::patch('/line-statuses/{line_status}', [LineStatusController::class, 'update']);
+        Route::delete('/line-statuses/{line_status}', [LineStatusController::class, 'destroy']);
+
+        // Companies
+        Route::post('/companies', [CompanyController::class, 'store']);
+        Route::patch('/companies/{company}', [CompanyController::class, 'update']);
+        Route::delete('/companies/{company}', [CompanyController::class, 'destroy']);
+        Route::post('/companies/{company}/toggle-active', [CompanyController::class, 'toggleActive']);
+
+        // Cost sources
+        Route::post('/cost-sources', [CostSourceController::class, 'store']);
+        Route::patch('/cost-sources/{cost_source}', [CostSourceController::class, 'update']);
+        Route::delete('/cost-sources/{cost_source}', [CostSourceController::class, 'destroy']);
+        Route::post('/cost-sources/{cost_source}/toggle-active', [CostSourceController::class, 'toggleActive']);
+
+        // Scrap reasons
+        Route::post('/scrap-reasons', [ScrapReasonController::class, 'store']);
+        Route::match(['put', 'patch'], '/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'update']);
+        Route::delete('/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'destroy']);
+
+        // Subassemblies
+        Route::post('/subassemblies', [SubassemblyController::class, 'store']);
+        Route::patch('/subassemblies/{subassembly}', [SubassemblyController::class, 'update']);
+        Route::delete('/subassemblies/{subassembly}', [SubassemblyController::class, 'destroy']);
+
+        // Shifts
+        Route::post('/shifts', [ShiftController::class, 'store']);
+        Route::patch('/shifts/{shift}', [ShiftController::class, 'update']);
+        Route::delete('/shifts/{shift}', [ShiftController::class, 'destroy']);
+
+        // LOT Sequences — admin mutations
+        Route::post('/lot-sequences', [LotSequenceController::class, 'store']);
+        Route::patch('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'update']);
+        Route::delete('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'destroy']);
+
+        // QC Templates — admin mutations
+        Route::post('/process-templates/{processTemplate}/qc-templates', [QualityCheckController::class, 'templateStore']);
+        Route::patch('/qc-templates/{qualityCheckTemplate}', [QualityCheckController::class, 'templateUpdate']);
+        Route::delete('/qc-templates/{qualityCheckTemplate}', [QualityCheckController::class, 'templateDestroy']);
+
+        // Materials — admin mutations
+        Route::post('/materials', [MaterialController::class, 'store']);
+        Route::patch('/materials/{material}', [MaterialController::class, 'update']);
+        Route::delete('/materials/{material}', [MaterialController::class, 'destroy']);
+        Route::post('/materials/import', [MaterialController::class, 'import']);
+
+        // Inspection plans — admin mutations
+        Route::post('/inspection-plans', [InspectionPlanController::class, 'store']);
+        Route::patch('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'update']);
+        Route::post('/inspection-plans/{inspectionPlan}/publish', [InspectionPlanController::class, 'publish']);
+        Route::delete('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'destroy']);
+
+        // BOM Items — admin mutations
+        Route::post('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'store']);
+        Route::patch('/process-templates/{processTemplate}/bom-items/{bomItem}', [BomItemController::class, 'update']);
+        Route::delete('/process-templates/{processTemplate}/bom-items/{bomItem}', [BomItemController::class, 'destroy']);
+
+        // Tools — admin-only writes; supervisors handled via policy in controller for status/update
+        Route::post('/tools', [ToolController::class, 'store']);
+        Route::delete('/tools/{tool}', [ToolController::class, 'destroy']);
+    });
+
+    // Tool updates allowed for Admin OR Supervisor (policy enforced in controller)
+    Route::patch('/tools/{tool}', [ToolController::class, 'update']);
+    Route::post('/tools/{tool}/status', [ToolController::class, 'transitionStatus']);
+
+    // Maintenance Events — Admin/Supervisor for create/update/delete
+    Route::middleware('role:Admin|Supervisor')->group(function () {
+        Route::post('/maintenance-events', [MaintenanceEventController::class, 'store']);
+        Route::patch('/maintenance-events/{maintenance_event}', [MaintenanceEventController::class, 'update']);
+        Route::delete('/maintenance-events/{maintenance_event}', [MaintenanceEventController::class, 'destroy']);
+
+        // Recurring maintenance schedules — Admin/Supervisor can create + edit
+        // + force-generate; only Admin can hard-delete (enforced by policy
+        // when one is added, kept here for symmetry with events for now).
+        Route::post('/maintenance-schedules', [MaintenanceScheduleController::class, 'store']);
+        Route::patch('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'update']);
+        Route::delete('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'destroy']);
+        Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [MaintenanceScheduleController::class, 'generateNow']);
+
+        // Schedule planner board — the mobile planner's read path (lines,
+        // shifts, orders in range, backlog, maintenance). Mirrors the props the
+        // web Admin\SchedulePlannerController.index ships to Inertia.
+        // Declared before /schedule/{workOrder} so the literal segments win.
+        Route::get('/schedule/board', [ScheduleController::class, 'board']);
+        Route::get('/schedule/changes', [ScheduleController::class, 'changes']);
+        Route::post('/schedule/changes/{change}/undo', [ScheduleController::class, 'undoChange']);
+
+        // Schedule planner write — minute-level move / resize for work orders.
+        // Mirrors web Admin\SchedulePlannerController.updateOrder / resizeOrder.
+        Route::put('/schedule/{workOrder}', [ScheduleController::class, 'updateOrder']);
+        Route::put('/schedule/{workOrder}/resize', [ScheduleController::class, 'resizeOrder']);
+
+        // Capacity view — available vs planned hours per resource per bucket.
+        Route::get('/schedule/capacity', [ScheduleCapacityController::class, 'index']);
+        Route::get('/schedule/capacity/cell', [ScheduleCapacityController::class, 'cellOrders']);
+
+        // Packaging (now core) — full CRUD.
+        Route::get('/pallets', [PalletController::class, 'index']);
+        Route::get('/pallets/meta', [PalletController::class, 'formMeta']);
+        Route::post('/pallets', [PalletController::class, 'store']);
+        Route::patch('/pallets/{pallet}', [PalletController::class, 'update']);
+        Route::delete('/pallets/{pallet}', [PalletController::class, 'destroy']);
+        Route::get('/label-templates', [LabelTemplateController::class, 'index']);
+        Route::get('/label-templates/meta', [LabelTemplateController::class, 'formMeta']);
+        Route::post('/label-templates', [LabelTemplateController::class, 'store']);
+        Route::patch('/label-templates/{labelTemplate}', [LabelTemplateController::class, 'update']);
+        Route::post('/label-templates/{labelTemplate}/set-default', [LabelTemplateController::class, 'setDefault']);
+        Route::delete('/label-templates/{labelTemplate}', [LabelTemplateController::class, 'destroy']);
+    });
+
+    // Work Orders
+    Route::apiResource('work-orders', WorkOrderController::class);
+
+    // Work Order status transitions
+    Route::post('/work-orders/{workOrder}/accept', [WorkOrderController::class, 'accept']);
+    Route::post('/work-orders/{workOrder}/reject', [WorkOrderController::class, 'reject']);
+    Route::post('/work-orders/{workOrder}/cancel', [WorkOrderController::class, 'cancel']);
+    Route::post('/work-orders/{workOrder}/pause', [WorkOrderController::class, 'pause']);
+    Route::post('/work-orders/{workOrder}/resume', [WorkOrderController::class, 'resume']);
+    Route::post('/work-orders/{workOrder}/reopen', [WorkOrderController::class, 'reopen']);
+    Route::post('/work-orders/{workOrder}/complete', [WorkOrderController::class, 'complete']);
+
+    // Change control (#182): a structured production stop, the change request that
+    // comes out of it, and the review workflow that must complete before the order
+    // can run on a new configuration. Resume stays on the transition route above.
+    Route::get('/work-orders/{workOrder}/stops', [WorkOrderStopController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/stop', [WorkOrderStopController::class, 'store']);
+
+    Route::get('/work-orders/{workOrder}/change-requests', [WorkOrderChangeRequestController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeRequestController::class, 'store']);
+
+    Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeRequestController::class, 'show']);
+    Route::get('/work-order-change-requests/{changeRequest}/impact', [WorkOrderChangeRequestController::class, 'impact']);
+    Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeRequestController::class, 'update']);
+    Route::post('/work-order-change-requests/{changeRequest}/submit', [WorkOrderChangeRequestController::class, 'submit']);
+    Route::post('/work-order-change-requests/{changeRequest}/approve', [WorkOrderChangeRequestController::class, 'approve']);
+    Route::post('/work-order-change-requests/{changeRequest}/reject', [WorkOrderChangeRequestController::class, 'reject']);
+    Route::post('/work-order-change-requests/{changeRequest}/cancel', [WorkOrderChangeRequestController::class, 'cancel']);
+    Route::post('/work-order-change-requests/{changeRequest}/apply', [WorkOrderChangeRequestController::class, 'apply']);
+
+    // Batches (nested under work orders)
+    Route::get('/work-orders/{workOrder}/batches', [BatchController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/batches', [BatchController::class, 'store']);
+    Route::get('/batches/{batch}', [BatchController::class, 'show']);
+    Route::patch('/batches/{batch}', [BatchController::class, 'update']);
+    Route::post('/batches/{batch}/cancel', [BatchController::class, 'cancel']);
+    Route::post('/batches/{batch}/release', [BatchController::class, 'release']);
+    Route::get('/batches/{batch}/allocation-preview', [BatchController::class, 'allocationPreview']);
+    Route::delete('/batches/{batch}', [BatchController::class, 'destroy']);
+
+    // Batch Steps (step execution)
+    Route::post('/batch-steps/{batchStep}/start', [BatchStepController::class, 'start']);
+    Route::post('/batch-steps/{batchStep}/complete', [BatchStepController::class, 'complete']);
+    // Read-confirmation: acknowledge a critical step's instructions so it can complete.
+    Route::post('/batch-steps/{batchStep}/confirm-instructions', [BatchStepController::class, 'confirmInstructions']);
+    Route::post('/batch-steps/{batchStep}/problem', [BatchStepController::class, 'problem']);
+
+    // Step document control: validate a mandatory document so its step can
+    // complete (any production user); attaching is Supervisor/Admin only.
+    Route::post('/batch-step-documents/{batchStepDocument}/validate', [BatchStepDocumentController::class, 'validateDocument']);
+    Route::middleware('role:Supervisor|Admin')
+        ->post('/batch-steps/{batchStep}/documents', [BatchStepDocumentController::class, 'store']);
+    // Pool dispatch (#52): supervisor assigns a specific workstation to a pending step.
+    Route::middleware('role:Supervisor|Admin')
+        ->post('/batch-steps/{batchStep}/assign', [\App\Http\Controllers\Api\V1\BatchStepController::class, 'assign']);
+
+    // Material reconciliation (#99): declare partial consumption and return unused
+    // material to stock against a work-order allocation (production users).
+    Route::post('/material-allocations/{allocation}/consume', [\App\Http\Controllers\Api\V1\MaterialAllocationController::class, 'consume']);
+    Route::post('/material-allocations/{allocation}/return', [\App\Http\Controllers\Api\V1\MaterialAllocationController::class, 'return']);
+    // Reclassification (#99): regrade between material classes / change a lot status.
+    Route::middleware('role:Supervisor|Admin')->group(function () {
+        Route::post('/material-reclassifications/class', [\App\Http\Controllers\Api\V1\MaterialReclassificationController::class, 'class']);
+        Route::post('/material-lots/{materialLot}/reclassify-status', [\App\Http\Controllers\Api\V1\MaterialReclassificationController::class, 'status']);
+    });
+
+    // Process Confirmations (per batch)
+    Route::get('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'index']);
+    Route::post('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'store']);
+    Route::get('/batches/{batch}/confirmations/status', [ProcessConfirmationController::class, 'status']);
+
+    // Quality Checks (per batch)
+    Route::get('/batches/{batch}/quality-checks', [QualityCheckController::class, 'index']);
+    Route::post('/batches/{batch}/quality-checks', [QualityCheckController::class, 'store']);
+    Route::get('/batches/{batch}/quality-checks/status', [QualityCheckController::class, 'status']);
+
+    // QC Templates (per process template)
+    Route::get('/process-templates/{processTemplate}/qc-templates', [QualityCheckController::class, 'templateIndex']);
+
+    // Packaging Checklist (per batch)
+    Route::get('/batches/{batch}/packaging-checklist', [PackagingChecklistController::class, 'show']);
+    Route::post('/batches/{batch}/packaging-checklist', [PackagingChecklistController::class, 'store']);
+
+    // Issues (Andon System)
+    Route::get('/issues', [IssueController::class, 'index']);
+    Route::get('/issues/{issue}', [IssueController::class, 'show']);
+    Route::post('/issues', [IssueController::class, 'store']);
+    Route::patch('/issues/{issue}', [IssueController::class, 'update']);
+    Route::post('/issues/{issue}/acknowledge', [IssueController::class, 'acknowledge']);
+    Route::post('/issues/{issue}/resolve', [IssueController::class, 'resolve']);
+    Route::post('/issues/{issue}/close', [IssueController::class, 'close']);
+    Route::delete('/issues/{issue}', [IssueController::class, 'destroy']); // Admin only (enforced in controller)
+    Route::get('/issues/stats/line', [IssueController::class, 'lineStats']);
+    // Non-conformance disposition + actions (#11)
+    Route::put('/issues/{issue}/disposition', [IssueController::class, 'disposition']);
+    Route::get('/issues/{issue}/actions', [IssueController::class, 'actions']);
+    Route::post('/issues/{issue}/actions', [IssueController::class, 'storeAction']);
+    Route::put('/issue-actions/{action}', [IssueController::class, 'updateAction']);
+
+    // Issue Types
+    Route::get('/issue-types', [IssueTypeController::class, 'index']);
+    Route::get('/issue-types/{issueType}', [IssueTypeController::class, 'show']);
+    Route::post('/issue-types', [IssueTypeController::class, 'store']); // Admin only
+    Route::patch('/issue-types/{issueType}', [IssueTypeController::class, 'update']); // Admin only
+    Route::delete('/issue-types/{issueType}', [IssueTypeController::class, 'destroy']); // Admin only
+
+    // CSV Import (Admin only)
+    Route::middleware('role:Admin')->group(function () {
+        Route::post('/csv-imports/upload', [CsvImportController::class, 'upload']);
+        Route::post('/csv-imports/execute', [CsvImportController::class, 'execute']);
+        Route::get('/csv-imports', [CsvImportController::class, 'index']);
+        Route::get('/csv-imports/{csvImport}', [CsvImportController::class, 'status']);
+        Route::get('/csv-import-mappings', [CsvImportController::class, 'mappings']);
+        Route::post('/csv-import-mappings', [CsvImportController::class, 'saveMapping']);
+    });
+
+    // Audit Logs (Admin only)
+    Route::middleware('role:Admin')->group(function () {
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::get('/audit-logs/entity', [AuditLogController::class, 'entity']);
+        Route::get('/audit-logs/export', [AuditLogController::class, 'export']);
+
+        // Event Logs
+        Route::get('/event-logs', [EventLogController::class, 'index']);
+        Route::get('/event-logs/entity', [EventLogController::class, 'entity']);
+
+        // System logs — app log tail, failed jobs (retry), deployments.
+        // Mirrors web Admin\SystemLogController.
+        Route::get('/system/logs/tail', [SystemLogController::class, 'tail']);
+        Route::get('/system/logs/failed-jobs', [SystemLogController::class, 'failedJobs']);
+        Route::post('/system/logs/failed-jobs/{uuid}/retry', [SystemLogController::class, 'retryFailedJob']);
+        Route::get('/system/logs/deployments', [SystemLogController::class, 'deployments']);
+
+        // Users
+        Route::get('/users', [UserController::class, 'index']);
+        Route::get('/users/{user}', [UserController::class, 'show']);
+        Route::post('/users', [UserController::class, 'store']);
+        Route::patch('/users/{user}', [UserController::class, 'update']);
+        Route::delete('/users/{user}', [UserController::class, 'destroy']);
+        Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('throttle:5,1');
+        Route::get('/users/{user}/lines', [UserController::class, 'lines']);
+        Route::post('/users/{user}/lines', [UserController::class, 'syncLines']);
+
+        // Roles (read-only, populates role pickers)
+        Route::get('/roles', function () {
+            return response()->json([
+                'data' => Role::orderBy('name')->get(['id', 'name']),
+            ]);
+        });
+    });
+
+    // Quality control tasks — outstanding controls queue + skip (operators/supervisors).
+    Route::get('/quality-control-tasks', [QualityControlTaskController::class, 'index']);
+    Route::post('/quality-control-tasks/{task}/skip', [QualityControlTaskController::class, 'skip']);
+
+    // Analytics (Supervisor/Admin)
+    Route::middleware('role:Supervisor|Admin')->group(function () {
+        // Quality control — record a control / raise an ad-hoc roaming check.
+        Route::post('/quality-control-tasks/{task}/perform', [QualityControlTaskController::class, 'perform']);
+        Route::post('/quality-control-tasks', [QualityControlTaskController::class, 'storeRoaming']);
+
+        Route::get('/admin/dashboard', [\App\Http\Controllers\Api\V1\AdminDashboardController::class, 'index']);
+        Route::get('/alerts', [\App\Http\Controllers\Api\V1\AlertController::class, 'index']);
+        Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
+        Route::get('/analytics/production-by-line', [AnalyticsController::class, 'productionByLine']);
+        Route::get('/analytics/cycle-time', [AnalyticsController::class, 'cycleTime']);
+        Route::get('/analytics/throughput', [AnalyticsController::class, 'throughput']);
+        Route::get('/analytics/issue-stats', [AnalyticsController::class, 'issueStats']);
+        Route::get('/analytics/step-performance', [AnalyticsController::class, 'stepPerformance']);
+        Route::get('/analytics/operator-rates', [AnalyticsController::class, 'operatorRates']);
+
+        // Reports
+        Route::get('/reports/production-summary', [ReportController::class, 'productionSummary']);
+        Route::get('/reports/batch-completion', [ReportController::class, 'batchCompletion']);
+        Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
+        Route::get('/reports/scrap-pareto', [ReportController::class, 'scrapPareto']);
+        Route::get('/reports/scrap-rate', [ReportController::class, 'scrapRate']);
+        Route::get('/reports/non-conformance-pareto', [ReportController::class, 'nonConformancePareto']);
+        Route::get('/reports/net-requirements', [ReportController::class, 'netRequirements']);
+        Route::get('/reports/production-cost', [\App\Http\Controllers\Api\V1\ProductionCostReportController::class, 'index']);
+        Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
+
+        // Shift handover — REST twin of web Supervisor\ShiftHandoverController.
+        Route::get('/shift-handover', [ShiftHandoverController::class, 'index']);
+        Route::post('/shift-handover', [ShiftHandoverController::class, 'store']);
+
+        // Machine monitor — live fleet status + manual state override (#87).
+        Route::get('/machine-monitor', [MachineMonitorController::class, 'index']);
+        Route::post('/machine-monitor/{workstation}/state', [MachineMonitorController::class, 'setState']);
+    });
+
+    // Packaging routes removed — module retired via
+    // 2026_05_23_234500_remove_packaging_from_modules_enabled migration.
+});

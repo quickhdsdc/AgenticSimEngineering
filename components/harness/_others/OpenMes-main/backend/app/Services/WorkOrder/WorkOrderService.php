@@ -1,0 +1,838 @@
+<?php
+
+namespace App\Services\WorkOrder;
+
+use App\Models\Batch;
+use App\Models\BatchStep;
+use App\Models\ProcessTemplate;
+use App\Models\WorkOrder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Facades\DB;
+
+class WorkOrderService
+{
+    /**
+     * The status transitions a user can drive from the list/detail screens.
+     *
+     * `from` is the set of statuses the transition is legal in; anything else is
+     * refused. Bulk and single-order actions both read this table, so the two can
+     * never disagree about what is allowed.
+     *
+     * @return array<string, array{from: list<string>, to: string, verb: string, error: string, success: string, bulk: string}>
+     */
+    public static function transitions(): array
+    {
+        $nonTerminal = array_values(array_diff([
+            WorkOrder::STATUS_PENDING,
+            WorkOrder::STATUS_ACCEPTED,
+            WorkOrder::STATUS_IN_PROGRESS,
+            WorkOrder::STATUS_BLOCKED,
+            WorkOrder::STATUS_PAUSED,
+        ], WorkOrder::TERMINAL_STATUSES));
+
+        return [
+            'cancel' => [
+                'from' => $nonTerminal,
+                'to' => WorkOrder::STATUS_CANCELLED,
+                'verb' => 'cancelled',
+                'success' => 'Work order :order cancelled.',
+                'bulk' => ':count work order(s) cancelled.',
+                'error' => 'Cannot cancel a work order that is already in a terminal state.',
+            ],
+            'accept' => [
+                'from' => [WorkOrder::STATUS_PENDING],
+                'to' => WorkOrder::STATUS_ACCEPTED,
+                'verb' => 'accepted',
+                'success' => 'Work order :order accepted.',
+                'bulk' => ':count work order(s) accepted.',
+                'error' => 'Only PENDING work orders can be accepted.',
+            ],
+            'reject' => [
+                'from' => [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED],
+                'to' => WorkOrder::STATUS_REJECTED,
+                'verb' => 'rejected',
+                'success' => 'Work order :order rejected.',
+                'bulk' => ':count work order(s) rejected.',
+                'error' => 'Only PENDING or ACCEPTED work orders can be rejected.',
+            ],
+            'pause' => [
+                'from' => [WorkOrder::STATUS_IN_PROGRESS],
+                'to' => WorkOrder::STATUS_PAUSED,
+                'verb' => 'paused',
+                'success' => 'Work order :order paused.',
+                'bulk' => ':count work order(s) paused.',
+                'error' => 'Only IN_PROGRESS work orders can be paused.',
+            ],
+            'resume' => [
+                'from' => [WorkOrder::STATUS_PAUSED],
+                'to' => WorkOrder::STATUS_IN_PROGRESS,
+                'verb' => 'resumed',
+                'success' => 'Work order :order resumed.',
+                'bulk' => ':count work order(s) resumed.',
+                'error' => 'Only PAUSED work orders can be resumed.',
+            ],
+            'reopen' => [
+                'from' => WorkOrder::TERMINAL_STATUSES,
+                'to' => WorkOrder::STATUS_IN_PROGRESS,
+                'verb' => 'reopened',
+                'success' => 'Work order :order reopened.',
+                'bulk' => ':count work order(s) reopened.',
+                'error' => 'Only terminal work orders (DONE, REJECTED, CANCELLED) can be reopened.',
+            ],
+        ];
+    }
+
+    /** The rule for one action, or null when the action isn't a known transition. */
+    public static function transition(string $action): ?array
+    {
+        return self::transitions()[$action] ?? null;
+    }
+
+    /** Whether `$action` is legal from this order's current status. */
+    public static function canTransition(WorkOrder $workOrder, string $action): bool
+    {
+        $rule = self::transition($action);
+
+        return $rule !== null && in_array($workOrder->status, $rule['from'], true);
+    }
+
+    /**
+     * Apply a status transition, or refuse it.
+     *
+     * @return array{ok: bool, message: string} `message` is the success line or
+     *                                          the rule's refusal text.
+     */
+    public static function applyTransition(WorkOrder $workOrder, string $action): array
+    {
+        $rule = self::transition($action);
+        if ($rule === null) {
+            return ['ok' => false, 'message' => 'Unknown action.'];
+        }
+
+        if (! self::canTransition($workOrder, $action)) {
+            return ['ok' => false, 'message' => $rule['error']];
+        }
+
+        $workOrder->update(['status' => $rule['to']]);
+
+        return ['ok' => true, 'message' => __($rule['success'], ['order' => $workOrder->order_no])];
+    }
+
+    /**
+     * Apply one transition to many selected orders (a list's bulk-action bar).
+     *
+     * Orders the transition is illegal for are skipped rather than failing the
+     * whole request — a selection spanning mixed statuses is the normal case, and
+     * the caller is told how many were skipped. The whole batch is one
+     * transaction, so a mid-way failure leaves nothing half-applied.
+     *
+     * @param  list<int>  $ids
+     * @return string the message to flash back
+     */
+    public static function applyBulkTransition(array $ids, string $action): string
+    {
+        $rule = self::transitions()[$action];
+
+        $orders = WorkOrder::whereIn('id', $ids)->get();
+
+        $eligible = $orders->filter(fn (WorkOrder $w) => in_array($w->status, $rule['from'], true));
+
+        DB::transaction(function () use ($eligible, $rule) {
+            // Updated one by one (not a mass `whereIn(...)->update()`) so model
+            // events still fire — priority re-scoring and the sync broadcast that
+            // pushes each row to the browser both hang off them.
+            $eligible->each(fn (WorkOrder $w) => $w->update(['status' => $rule['to']]));
+        });
+
+        $skipped = $orders->count() - $eligible->count();
+        $message = __($rule['bulk'], ['count' => $eligible->count()]);
+
+        if ($skipped > 0) {
+            $message .= ' '.__(':count skipped (not applicable in their current status).', ['count' => $skipped]);
+        }
+
+        return $message;
+    }
+
+    /**
+     * Create a new work order with process snapshot.
+     *
+     * @throws \Exception
+     */
+    public function createWorkOrder(array $data): WorkOrder
+    {
+        return DB::transaction(function () use ($data) {
+            // Build the immutable process snapshot from the selected BOM(s).
+            // With no explicit selection this resolves the single active template
+            // for the product type - the legacy single-BOM behaviour.
+            $processSnapshot = $this->buildProcessSnapshot(
+                $data['product_type_id'] ?? null,
+                $data['bom_template_ids'] ?? [],
+            );
+
+            // Embed an immutable revision block (#180) so the order always shows
+            // which product revision it was released under, even if a newer
+            // revision is released later or the revision is edited/obsoleted.
+            $processSnapshot = $this->attachRevisionSnapshot($processSnapshot, $data['product_revision_id'] ?? null);
+
+            // Freeze the released engineering documents (#179) active for this
+            // product/revision at release time, so a newer document revision
+            // uploaded later never alters this (or any historical) work order.
+            $processSnapshot = $this->attachEngineeringSnapshot($processSnapshot, $data);
+
+            // Create work order
+            $workOrder = WorkOrder::create([
+                'order_no' => $data['order_no'],
+                'customer_order_no' => $data['customer_order_no'] ?? null,
+                'customer_id' => $data['customer_id'] ?? null,
+                'line_id' => $data['line_id'] ?? null,
+                'product_type_id' => $data['product_type_id'] ?? null,
+                'product_revision_id' => $data['product_revision_id'] ?? null,
+                'process_snapshot' => $processSnapshot,
+                'planned_qty' => $data['planned_qty'],
+                'unit_price' => $data['unit_price'] ?? null,
+                'produced_qty' => 0,
+                'counting_source' => $data['counting_source'] ?? WorkOrder::COUNTING_OPERATOR,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => $data['priority'] ?? 0,
+                'due_date' => $data['due_date'] ?? null,
+                'description' => $data['description'] ?? null,
+                'extra_data' => $data['extra_data'] ?? null,
+                'custom_fields' => $data['custom_fields'] ?? null,
+            ]);
+
+            // Record which BOMs back the snapshot so the selection can be shown
+            // and switched later. Nothing to record when the order has no template.
+            if (! empty($processSnapshot['bom_template_ids'])) {
+                $this->syncBomSelection($workOrder, $processSnapshot['bom_template_ids']);
+            }
+
+            return $workOrder;
+        });
+    }
+
+    /**
+     * Merge an immutable `revision` block into the process snapshot for the given
+     * product revision (#180). Returns the snapshot unchanged when no revision is
+     * selected; initialises an array snapshot when the order has no BOM/template.
+     */
+    private function attachRevisionSnapshot(?array $snapshot, ?int $revisionId): ?array
+    {
+        if (! $revisionId) {
+            return $snapshot;
+        }
+
+        $revision = \App\Models\ProductRevision::find($revisionId);
+        if (! $revision) {
+            return $snapshot;
+        }
+
+        $snapshot ??= [];
+        $snapshot['revision'] = [
+            'revision_id' => $revision->id,
+            'revision_code' => $revision->revision_code,
+            'lifecycle_at_release' => $revision->lifecycle_status?->value,
+            'process_template_id' => $revision->process_template_id,
+            'released_at' => $revision->released_at?->toIso8601String(),
+            'snapshotted_at' => now()->toIso8601String(),
+        ];
+
+        return $snapshot;
+    }
+
+    /**
+     * Freeze the RELEASED engineering documents (#179) active for the order's
+     * product revision and product type at release time. Stored as compact
+     * references (id + revision + checksum + lifecycle) in the immutable process
+     * snapshot, so uploading a newer document revision later never rewrites this
+     * or any historical work order. Returns the snapshot unchanged when nothing
+     * is attached.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function attachEngineeringSnapshot(?array $snapshot, array $data): ?array
+    {
+        $owners = [];
+        if (! empty($data['product_revision_id'])) {
+            $owners[] = ['product_revision', (int) $data['product_revision_id']];
+        }
+        if (! empty($data['product_type_id'])) {
+            $owners[] = ['product_type', (int) $data['product_type_id']];
+        }
+        if (! $owners) {
+            return $snapshot;
+        }
+
+        // Only freeze documents that are RELEASED and in their effectivity window
+        // at snapshot time — a future-dated or expired release is not active yet /
+        // any more and must not be captured onto the order. effective_from/to are
+        // DATE columns, so compare against today's DATE (not the full datetime), or
+        // a document effective "through today" is dropped once the clock passes
+        // midnight.
+        $today = now()->toDateString();
+        $docs = \App\Models\EngineeringDocument::query()
+            ->where('lifecycle_status', \App\Enums\EngineeringDocumentLifecycle::Released)
+            ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $today))
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $today))
+            ->where(function ($q) use ($owners) {
+                foreach ($owners as [$type, $id]) {
+                    $q->orWhere(fn ($qq) => $qq->where('entity_type', $type)->where('entity_id', $id));
+                }
+            })
+            ->get();
+
+        if ($docs->isEmpty()) {
+            return $snapshot;
+        }
+
+        $snapshot ??= [];
+        $snapshot['engineering_documents'] = $docs->map(fn ($d) => [
+            'document_id' => $d->id,
+            'entity_type' => $d->entity_type,
+            'entity_id' => $d->entity_id,
+            // Frozen display fields so the operator view is self-sufficient (no
+            // live lookup needed) and shows exactly what was released.
+            'original_filename' => $d->original_filename,
+            'entry_point' => $d->entry_point,
+            'file_size' => $d->file_size,
+            'revision' => $d->revision,
+            'package_type' => $d->package_type->value,
+            'checksum' => $d->checksum,
+            'lifecycle_at_release' => $d->lifecycle_status->value,
+            'released_at' => $d->released_at?->toIso8601String(),
+        ])->values()->all();
+        $snapshot['engineering_snapshotted_at'] = now()->toIso8601String();
+
+        return $snapshot;
+    }
+
+    /**
+     * Re-select the BOM(s) backing an existing work order and rebuild its
+     * snapshot. An empty selection falls back to the single active template for
+     * the product type. Blocked once production has started - the snapshot is
+     * the frozen recipe batches were built against, so changing it mid-flight
+     * would desync requirements from what was already allocated/consumed.
+     *
+     * @param  array<int, int|string>  $templateIds
+     *
+     * @throws \Exception
+     */
+    public function updateBomSelection(WorkOrder $workOrder, array $templateIds): WorkOrder
+    {
+        return DB::transaction(function () use ($workOrder, $templateIds) {
+            // Serialize against createBatch() on this work order: hold the row lock
+            // while checking for batches so a concurrent batch can't slip in between
+            // the check and the snapshot rewrite (the snapshot is the frozen recipe
+            // batches are built from).
+            WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->first();
+
+            if ($workOrder->batches()->exists()) {
+                throw new \Exception('Cannot change BOMs after production has started.');
+            }
+
+            $snapshot = $this->buildProcessSnapshot($workOrder->product_type_id, $templateIds);
+
+            // Preserve the immutable frozen blocks verbatim. The revision (#180) and
+            // engineering documents (#179) were snapshotted at work-order creation;
+            // BOM reselection rebuilds only the BOM/structure and must NOT re-query
+            // those from (possibly newer) live records, or the "immutable snapshot"
+            // guarantee would break. Copy them across unchanged.
+            $existing = $workOrder->process_snapshot ?? [];
+            foreach (['revision', 'engineering_documents', 'engineering_snapshotted_at'] as $key) {
+                if (array_key_exists($key, $existing)) {
+                    $snapshot ??= [];
+                    $snapshot[$key] = $existing[$key];
+                }
+            }
+
+            $workOrder->update(['process_snapshot' => $snapshot]);
+            $this->syncBomSelection($workOrder, $snapshot['bom_template_ids'] ?? []);
+
+            return $workOrder->fresh();
+        });
+    }
+
+    /**
+     * Build the immutable process snapshot for a work order from its BOM
+     * selection. The snapshot keeps the flat `bom` list every downstream
+     * consumer (requirements, allocation, costing) already reads - but that list
+     * is now the material-deduplicated UNION of all selected BOMs, so a material
+     * appearing in several BOMs contributes its summed requirement exactly once.
+     *
+     * Process structure (steps, timing) comes from the FIRST selected BOM (the
+     * "primary" template); the others contribute their materials only.
+     *
+     * @param  array<int, int|string>  $templateIds  Explicit BOM (process template) selection; empty = legacy auto-pick.
+     * @return array<string, mixed>|null Null when no template applies (order without a BOM).
+     */
+    public function buildProcessSnapshot(?int $productTypeId, array $templateIds = []): ?array
+    {
+        $templates = $this->resolveBomTemplates($productTypeId, $templateIds);
+
+        if ($templates->isEmpty()) {
+            return null;
+        }
+
+        // Snapshot each selected template once, then stitch: structure from the
+        // primary, merged materials from all of them.
+        $snapshots = $templates->map(fn (ProcessTemplate $t) => $t->toSnapshot());
+
+        $snapshot = $snapshots->first();
+        $merged = $this->mergeBoms($snapshots->pluck('bom')->all());
+        // Steps come from the primary BOM only, so a `during` item pulled in from a
+        // secondary BOM may reference a step that isn't in this order's flow - it
+        // would then never be allocated. Degrade such items to `start` so the
+        // material is still consumed (single-BOM orders are unaffected: their
+        // `during` items always reference an existing step).
+        $stepNumbers = array_column($snapshot['steps'] ?? [], 'step_number');
+        $snapshot['bom'] = $this->degradeOrphanDuringItems($merged, $stepNumbers);
+        $snapshot['bom_template_ids'] = $templates->pluck('id')->values()->all();
+        $snapshot['bom_templates'] = $templates->map(fn (ProcessTemplate $t) => [
+            'id' => $t->id,
+            'name' => $t->name,
+            'version' => $t->version,
+        ])->values()->all();
+
+        return $snapshot;
+    }
+
+    /**
+     * Resolve the process templates backing an order, in selection order.
+     * Explicit ids win (deduplicated, order preserved); otherwise fall back to
+     * the single highest-version active template for the product type.
+     *
+     * @param  array<int, int|string>  $templateIds
+     * @return EloquentCollection<int, ProcessTemplate>
+     *
+     * @throws \InvalidArgumentException When a selected id is unknown or belongs to another product type.
+     */
+    protected function resolveBomTemplates(?int $productTypeId, array $templateIds): EloquentCollection
+    {
+        $ids = $this->normalizeIds($templateIds);
+
+        if (! empty($ids)) {
+            $found = ProcessTemplate::whereIn('id', $ids)
+                ->where('product_type_id', $productTypeId)
+                ->get()
+                ->keyBy('id');
+
+            // Fail loud rather than silently dropping an id that doesn't exist or
+            // belongs to another product type. HTTP requests are already validated,
+            // but this is a public service boundary (non-HTTP callers, deletion races).
+            if ($found->count() !== count($ids)) {
+                throw new \InvalidArgumentException(
+                    'Every selected BOM must exist and belong to the work order product type.'
+                );
+            }
+
+            // Preserve the caller's selection order.
+            return new EloquentCollection(
+                collect($ids)->map(fn ($id) => $found->get($id))->values()->all(),
+            );
+        }
+
+        if ($productTypeId === null) {
+            return new EloquentCollection;
+        }
+
+        $active = ProcessTemplate::where('product_type_id', $productTypeId)
+            ->where('is_active', true)
+            ->orderBy('version', 'desc')
+            ->first();
+
+        return new EloquentCollection($active ? [$active] : []);
+    }
+
+    /**
+     * Merge several snapshot `bom` lists into one, keyed by material so a
+     * material shared across BOMs is summed rather than duplicated (the
+     * allocation engine keys on material per batch, so duplicates would silently
+     * drop the second line). Non-material rows (defensive) pass through verbatim.
+     *
+     * @param  array<int, array<int, array<string, mixed>>>  $bomLists
+     * @return array<int, array<string, mixed>>
+     */
+    protected function mergeBoms(array $bomLists): array
+    {
+        $merged = [];
+        $passthrough = [];
+
+        foreach ($bomLists as $bom) {
+            foreach ($bom as $row) {
+                $materialId = $row['material_id'] ?? null;
+                if ($materialId === null) {
+                    $passthrough[] = $row;
+
+                    continue;
+                }
+
+                $merged[$materialId] = isset($merged[$materialId])
+                    ? $this->mergeBomRows($merged[$materialId], $row)
+                    : $row;
+            }
+        }
+
+        return array_merge(array_values($merged), $passthrough);
+    }
+
+    /**
+     * Combine two BOM rows for the same material. When the scrap rate matches we
+     * sum the per-unit quantities and keep the rate; when it differs we fold each
+     * line's scrap into an effective per-unit quantity (rate → 0) so the total
+     * required quantity stays exact. Timing collapses to the earliest either BOM
+     * asks for the material.
+     *
+     * @param  array<string, mixed>  $a
+     * @param  array<string, mixed>  $b
+     * @return array<string, mixed>
+     */
+    protected function mergeBomRows(array $a, array $b): array
+    {
+        $qtyA = (float) ($a['quantity_per_unit'] ?? 0);
+        $qtyB = (float) ($b['quantity_per_unit'] ?? 0);
+        $scrapA = (float) ($a['scrap_percentage'] ?? 0);
+        $scrapB = (float) ($b['scrap_percentage'] ?? 0);
+
+        if (abs($scrapA - $scrapB) < 1e-9) {
+            $a['quantity_per_unit'] = $qtyA + $qtyB;
+            $a['scrap_percentage'] = $scrapA;
+        } else {
+            $a['quantity_per_unit'] = $qtyA * (1 + $scrapA / 100) + $qtyB * (1 + $scrapB / 100);
+            $a['scrap_percentage'] = 0.0;
+        }
+
+        $aAt = $a['consumed_at'] ?? 'start';
+        $bAt = $b['consumed_at'] ?? 'start';
+        $a['consumed_at'] = $this->earliestConsumedAt($aAt, $bAt);
+
+        $aStep = $a['step_number'] ?? null;
+        $bStep = $b['step_number'] ?? null;
+
+        if ($a['consumed_at'] === 'during') {
+            // Consume at the earliest step that needs the material, considering only
+            // the rows that are themselves `during` (a start/end row's step is
+            // irrelevant to timing), so selection order can't push it to a later step.
+            $duringSteps = array_filter(
+                [$aAt === 'during' ? $aStep : null, $bAt === 'during' ? $bStep : null],
+                fn ($s) => $s !== null,
+            );
+            $a['step_number'] = $duringSteps ? min($duringSteps) : ($aStep ?? $bStep);
+        } elseif ($aStep === null && $bStep !== null) {
+            $a['step_number'] = $bStep;
+        }
+
+        return $a;
+    }
+
+    /**
+     * Re-time any `during` BOM row whose step isn't part of this order's flow to
+     * `start`, so a material carried in from a secondary BOM is still consumed
+     * rather than silently stranded on a step that never runs.
+     *
+     * @param  array<int, array<string, mixed>>  $bom
+     * @param  array<int, int>  $stepNumbers  Step numbers present in the primary snapshot.
+     * @return array<int, array<string, mixed>>
+     */
+    protected function degradeOrphanDuringItems(array $bom, array $stepNumbers): array
+    {
+        return array_map(function (array $row) use ($stepNumbers) {
+            if (($row['consumed_at'] ?? null) === 'during'
+                && ! in_array($row['step_number'] ?? null, $stepNumbers, true)) {
+                $row['consumed_at'] = 'start';
+            }
+
+            return $row;
+        }, $bom);
+    }
+
+    /** Earliest of two consumption timings (start < during < end). */
+    protected function earliestConsumedAt(string $a, string $b): string
+    {
+        $rank = ['start' => 0, 'during' => 1, 'end' => 2];
+
+        return ($rank[$a] ?? 0) <= ($rank[$b] ?? 0) ? $a : $b;
+    }
+
+    /**
+     * Sync the work order → BOM pivot to exactly the given selection, all active,
+     * preserving order via sort_order.
+     *
+     * @param  array<int, int|string>  $templateIds
+     */
+    public function syncBomSelection(WorkOrder $workOrder, array $templateIds): void
+    {
+        $payload = [];
+        foreach ($this->normalizeIds($templateIds) as $i => $id) {
+            $payload[$id] = ['is_active' => true, 'sort_order' => $i];
+        }
+
+        $workOrder->bomTemplates()->sync($payload);
+    }
+
+    /**
+     * Normalize a raw id list: cast to int, drop empties, dedupe, keep order.
+     *
+     * @param  array<int, int|string|null>  $ids
+     * @return array<int, int>
+     */
+    protected function normalizeIds(array $ids): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($ids as $id) {
+            if ($id === null || $id === '') {
+                continue;
+            }
+            $id = (int) $id;
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $out[] = $id;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Rebuild a work order's frozen configuration for an approved change (#182).
+     *
+     * Unlike {@see updateBomSelection()}, this DOES re-resolve the revision block
+     * (#180) and the released engineering documents (#179) from live records — that
+     * is the point of an engineering change: the order is deliberately moving onto a
+     * different revision and its current documents. The previous configuration is not
+     * lost, because the caller writes this as a NEW snapshot version and the old one
+     * stays readable as its own row.
+     *
+     * @param  array<int, int|string>  $templateIds
+     * @return array<string, mixed>|null Null when the product type has no applicable BOM.
+     */
+    public function rebuildProcessSnapshot(?int $productTypeId, array $templateIds, ?int $revisionId): ?array
+    {
+        $snapshot = $this->buildProcessSnapshot($productTypeId, $templateIds);
+
+        // No applicable BOM means there is no process structure to move onto. Report
+        // that as null so the caller keeps the current configuration: attaching the
+        // revision block to an empty snapshot would return a non-null configuration
+        // with no `steps`, and regenerating pending batches from it would delete
+        // their steps and rebuild nothing.
+        if ($snapshot === null) {
+            return null;
+        }
+
+        $snapshot = $this->attachRevisionSnapshot($snapshot, $revisionId);
+
+        return $this->attachEngineeringSnapshot($snapshot, [
+            'product_revision_id' => $revisionId,
+            'product_type_id' => $productTypeId,
+        ]);
+    }
+
+    /**
+     * Generate a batch's steps from a process snapshot. Public so the change-control
+     * workflow can re-generate the steps of a batch that has not started yet (#182);
+     * batches with executed steps are never regenerated.
+     *
+     * @param  array<string, mixed>  $processSnapshot
+     */
+    public function regenerateBatchSteps(Batch $batch, array $processSnapshot): void
+    {
+        $this->createBatchStepsFromSnapshot($batch, $processSnapshot);
+    }
+
+    /**
+     * Update an existing work order.
+     */
+    public function updateWorkOrder(WorkOrder $workOrder, array $data): WorkOrder
+    {
+        // Don't allow updates to completed work orders
+        if ($workOrder->status === WorkOrder::STATUS_DONE) {
+            throw new \Exception('Cannot update completed work order');
+        }
+
+        $workOrder->update([
+            'customer_order_no' => array_key_exists('customer_order_no', $data)
+                ? $data['customer_order_no']
+                : $workOrder->customer_order_no,
+            'customer_id' => array_key_exists('customer_id', $data)
+                ? $data['customer_id']
+                : $workOrder->customer_id,
+            'planned_qty' => $data['planned_qty'] ?? $workOrder->planned_qty,
+            'unit_price' => array_key_exists('unit_price', $data)
+                ? $data['unit_price']
+                : $workOrder->unit_price,
+            'priority' => $data['priority'] ?? $workOrder->priority,
+            'due_date' => $data['due_date'] ?? $workOrder->due_date,
+            'description' => $data['description'] ?? $workOrder->description,
+        ]);
+
+        return $workOrder->fresh();
+    }
+
+    /**
+     * Create a new batch for a work order.
+     */
+    public function createBatch(WorkOrder $workOrder, float $targetQty, ?int $workstationId = null, ?string $lotNumber = null): Batch
+    {
+        return DB::transaction(function () use ($workOrder, $targetQty, $workstationId, $lotNumber) {
+            // Serialize against updateBomSelection() (see there): holding the
+            // work-order row lock guarantees this batch is built from the committed
+            // snapshot, never one that a concurrent BOM change is mid-rewrite.
+            WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->first();
+            $workOrder->refresh();
+
+            // Calculate next batch number
+            $lastBatch = $workOrder->batches()->reorder('batch_number', 'desc')->first();
+            $batchNumber = $lastBatch ? $lastBatch->batch_number + 1 : 1;
+
+            // Create batch
+            $batch = Batch::create([
+                'work_order_id' => $workOrder->id,
+                // Stamp the configuration version this batch is generated from (#182),
+                // so production before and after an applied change stays attributable
+                // to the configuration it was actually built under.
+                'snapshot_version' => $workOrder->snapshot_version ?? 1,
+                'batch_number' => $batchNumber,
+                'target_qty' => $targetQty,
+                'produced_qty' => 0,
+                'status' => Batch::STATUS_PENDING,
+                'workstation_id' => $workstationId,
+                'lot_number' => $lotNumber,
+                'lot_assigned_at' => $lotNumber ? Batch::LOT_ON_START : null,
+            ]);
+
+            // Create batch steps from process snapshot (skipped if no snapshot)
+            if (! empty($workOrder->process_snapshot)) {
+                $this->createBatchStepsFromSnapshot($batch, $workOrder->process_snapshot);
+            }
+
+            return $batch;
+        });
+    }
+
+    /**
+     * Create batch steps from work order process snapshot.
+     */
+    protected function createBatchStepsFromSnapshot(Batch $batch, array $processSnapshot): void
+    {
+        $steps = $processSnapshot['steps'] ?? [];
+
+        // Resolve the pre-selected step per variant group: the one flagged as
+        // default, else the lowest step_number in the group. Siblings start
+        // SKIPPED so the operator sees only the chosen path (and can switch).
+        $chosen = [];
+        $explicit = [];
+        foreach ($steps as $s) {
+            $group = $s['variant_group'] ?? null;
+            if ($group === null) {
+                continue;
+            }
+            $num = $s['step_number'];
+            if (! empty($s['is_default_variant'])) {
+                if (empty($explicit[$group])) {
+                    $chosen[$group] = $num;
+                    $explicit[$group] = true;
+                }
+            } elseif (empty($explicit[$group])) {
+                $chosen[$group] = isset($chosen[$group]) ? min($chosen[$group], $num) : $num;
+            }
+        }
+
+        foreach ($steps as $stepData) {
+            $group = $stepData['variant_group'] ?? null;
+            $status = BatchStep::STATUS_PENDING;
+            if ($group !== null && isset($chosen[$group]) && $stepData['step_number'] !== $chosen[$group]) {
+                $status = BatchStep::STATUS_SKIPPED;
+            }
+
+            BatchStep::create([
+                'batch_id' => $batch->id,
+                'step_number' => $stepData['step_number'],
+                'name' => $stepData['name'],
+                'instruction' => $stepData['instruction'] ?? null,
+                'requires_confirmation' => $stepData['requires_confirmation'] ?? false,
+                'workstation_id' => $stepData['workstation_id'] ?? null,
+                // ISA-95 (#52): carry the required Equipment Class + planning times
+                // down from the snapshot so pool dispatch and the actual-vs-standard
+                // comparison have their reference data on the batch step.
+                'workstation_type_id' => $stepData['workstation_type_id'] ?? null,
+                'estimated_duration_minutes' => $stepData['estimated_duration_minutes'] ?? null,
+                'setup_time_minutes' => $stepData['setup_time_minutes'] ?? null,
+                'run_time_per_unit_minutes' => $stepData['run_time_per_unit_minutes'] ?? null,
+                'status' => $status,
+                'is_optional' => $stepData['is_optional'] ?? false,
+                'variant_group' => $group,
+            ]);
+        }
+
+        // Mark the first eligible step(s) READY ("next in line") so the operator
+        // can start straight away; the rest stay PENDING until their turn.
+        $batch->promoteReadySteps();
+    }
+
+    /**
+     * Update work order status based on batches and issues.
+     */
+    public function updateWorkOrderStatus(WorkOrder $workOrder): void
+    {
+        // Check if blocked by issues
+        if ($workOrder->isBlocked()) {
+            $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
+
+            return;
+        }
+
+        // Check if complete
+        if ($workOrder->isComplete()) {
+            $workOrder->update([
+                'status' => WorkOrder::STATUS_DONE,
+                'completed_at' => now(),
+            ]);
+
+            return;
+        }
+
+        // Check if any batch is in progress
+        $hasInProgressBatch = $workOrder->batches()
+            ->where('status', Batch::STATUS_IN_PROGRESS)
+            ->exists();
+
+        if ($hasInProgressBatch) {
+            $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+
+            return;
+        }
+
+        // Otherwise keep as pending
+        if ($workOrder->status !== WorkOrder::STATUS_PENDING &&
+            $workOrder->status !== WorkOrder::STATUS_DONE) {
+            $workOrder->update(['status' => WorkOrder::STATUS_PENDING]);
+        }
+    }
+
+    /**
+     * Get work orders for a specific user's assigned lines.
+     *
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getWorkOrdersForUser($user, array $filters = [])
+    {
+        $query = WorkOrder::forUser($user)
+            ->with(['line', 'productType', 'batches.steps']);
+
+        // Apply filters
+        if (isset($filters['status'])) {
+            $query->status($filters['status']);
+        }
+
+        if (isset($filters['line_id'])) {
+            $query->forLine($filters['line_id']);
+        }
+
+        // Default ordering
+        $query->byPriority();
+
+        return $query->get();
+    }
+}

@@ -1,0 +1,39 @@
+# A disposable BaSyx for the integration suite.
+#
+# Separate from the development deployment on purpose. The tests create and
+# delete elements continuously, and pointing them at the repository that holds
+# 31 shells of real plant data means every run mutates the environment the
+# measurements were taken against. They are safe there -- everything is
+# prefixed `urn:a4s:it:` and `purge()` refuses to touch anything else -- but
+# "safe" and "advisable" are different claims.
+#
+# In-memory backend, no mongo: the suite starts from an empty repository every
+# time, which is what makes a failure reproducible.
+#
+#   docker compose -f docker-compose.test.yml up -d
+#   A4S_TEST_ENDPOINT=http://localhost:8091 pytest -m integration
+#   docker compose -f docker-compose.test.yml down
+#
+# Port 8091 rather than 8081 so it can run beside the development instance.
+
+services:
+  aas-test:
+    image: eclipsebasyx/aas-environment:2.0.0-SNAPSHOT
+    container_name: a4s-basyx-test
+    ports:
+      - "8091:8081"
+    environment:
+      # InMemory keeps the container stateless. Restart it and the suite has a
+      # clean repository without a volume to remember to wipe.
+      BASYX_BACKEND: InMemory
+      BASYX_CORS_ALLOWED-ORIGINS: "*"
+      BASYX_CORS_ALLOWED-METHODS: "GET,POST,PATCH,DELETE,PUT,OPTIONS,HEAD"
+    healthcheck:
+      # The suite skips when the endpoint does not answer, so a container that
+      # is up but not yet serving would show as "no tests ran" rather than as a
+      # failure. The healthcheck is what makes `up --wait` meaningful in CI.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/shells?limit=1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s

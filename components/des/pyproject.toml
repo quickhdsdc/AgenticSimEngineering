@@ -1,0 +1,44 @@
+[project]
+name = "gradientshop"
+version = "0.1.0"
+description = "Differentiable Discrete-Event Shopfloor World Models (GradientShop DDES core)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "highspy>=1.15.1",
+    "numpy>=2.5.0",
+    "openai>=2.44.0",
+    "pydantic>=2.13.4",
+    "pyomo>=6.10.1",
+    "simpy>=4.1.2",
+    "torch>=2.12.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.10,<0.11.0"]
+build-backend = "uv_build"
+
+# Two domains live under src/ (see PLAN.md): the differentiable DES core and
+# the intralogistics MILP line. Both must ship, not just the default
+# src/<project-name>.
+[tool.uv.build-backend]
+module-name = ["opsworld", "gradientshop", "intralogistics"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: spawns a worker process (the job queue's own tests)",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "scipy>=1.18.0",
+]
+# The HTTP surface is optional on purpose: opsworld/service/{codec,registry,jobs}
+# are dependency-free and unit-tested without these, so the research packages
+# never gain a web framework as a hard requirement.
+service = [
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "httpx>=0.28",
+]

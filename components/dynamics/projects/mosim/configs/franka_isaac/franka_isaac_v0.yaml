@@ -1,0 +1,36 @@
+# MoSim on Isaac Sim (PhysX) Franka torque-level data.
+# Data: projects/isaac_sim/collect_trajectories.py  (500 Hz, 7-DoF arm, effort mode)
+# Mirrors configs/vsdreamer/panda/noise/panda_3crts_int.yaml recipe, dims adapted 9/8 -> 7/7.
+training:
+  training_stage: -1
+  from_ckpt: './ckpt/franka_isaac/franka_isaac_v0_07181406/latest_ckpt_6M.pth'  # resume: run interrupted at epoch 16 (2026-07-19 01:31)
+  seed: 42
+  lr: 0.001
+  num_epochs: 300
+  t: 0.002
+  batch_size: 50000
+  save_path: './ckpt/franka_isaac/'
+  keep_top: 5
+model:
+  ## model_param:
+  v_dim: 7
+  action_dim: 7
+  real_t: 0.002
+  activation: 'softplus'
+  ### M Module:
+  m_hidden_block_num: 3
+  m_network_width: 64
+  ### B Module:
+  b_hidden_block_num: 3
+  b_network_width: 64
+  ### action_module_param:
+  act_network_type: 'MLP'
+  act_hidden_block_num: 1
+  act_network_width: 32
+  ### correctors:
+  crt_num: 3
+  crt_hidden_block_num: 5
+  crt_network_width: 128
+data:
+  train_data_path: '../../data/franka/franka_train.npz'
+  test_data_path: '../../data/franka/franka_test.npz'
