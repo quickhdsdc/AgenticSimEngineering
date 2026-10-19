@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from types import SimpleNamespace
 
 from a4s.ledger import Ledger
 from a4s.server import agent_activity, production_routes
@@ -38,6 +39,11 @@ def test_missing_ledger_does_not_create_database(tmp_path, monkeypatch):
 
 
 def test_activity_keeps_ledger_when_mes_fails_and_filters_reset_run(tmp_path, monkeypatch):
+    from a4s.ledger import log
+    # Two rapid writes can share a Windows wall-clock tick. This test needs
+    # distinct old/new instants to exercise filtering at a known boundary.
+    ticks = iter((1000.0, 1001.0))
+    monkeypatch.setattr(log, 'time', SimpleNamespace(time=lambda: next(ticks)))
     monkeypatch.setattr(agent_activity, '_home', lambda: tmp_path)
     with Ledger(tmp_path / 'ledger.db', 'session-test') as ledger:
         ledger.append('tool.result', {'tool': 'shell', 'call_id': 'old', 'output': 'old'})
