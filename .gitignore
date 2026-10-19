@@ -26,6 +26,7 @@ dist/
 /migration/
 /work/archive/
 /work/reorganization-2026-10-03.json
+!/work/build/
 /work/build/*
 !/work/build/.gitkeep
 /.cache/

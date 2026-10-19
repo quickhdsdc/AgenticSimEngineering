@@ -20,6 +20,25 @@ CATEGORIES = {
     "KukaCalibrationIntegration": "robot",
     "PandaIdentificationIntegration": "identification",
     "FestoIntegration": "festo",
+    "SemanticTests": "harness",
+}
+
+# These methods invoke separately installed solvers/checkers or public datasets.
+# Keep their dependency-free contract tests in core and retain strict skip gates.
+METHOD_PROFILES = {
+    'BenchmarkTests.test_real_benchmark_freezes_fit_and_rejects_test_data_tampering': 'benchmark',
+    'ModelBenchmarkTests.test_wrong_buffer_capacity_rejected_despite_equal_throughput': 'factoryflow',
+    'ModelBenchmarkTests.test_factoryflow_native_reference_parity': 'factoryflow',
+    'ModelBenchmarkTests.test_chronobench_native_reference_parity': 'chronobench',
+    'PlaidContractTests.test_native_metric_and_no_pickle_class_execution': 'plaid',
+    'SemanticTests.test_official_checker_frozen_gold_and_schema_only_baseline': 'semantic',
+    **{'TensileTests.' + name: 'tensile' for name in (
+        'test_fem_matches_analytical_plane_strain_and_load_linearity',
+        'test_official_pickle_shape_finiteness_and_class_restrictions',
+        'test_residual_prediction_ignores_target_labels',
+        'test_identification_uses_training_only_and_recovers_known_constants',
+        'test_metric_weights_cases_equally_despite_mesh_size',
+    )},
 }
 
 
@@ -32,7 +51,8 @@ def flatten(suite):
 
 
 def selected(test, profile):
-    category = CATEGORIES.get(type(test).__name__, "core")
+    key = type(test).__name__ + '.' + test._testMethodName
+    category = METHOD_PROFILES.get(key, CATEGORIES.get(type(test).__name__, "core"))
     return category == profile
 
 
@@ -142,7 +162,8 @@ def run(profile, directory, worker=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", choices=["core", "des", "harness", "festo", "robot", "identification", "browser", "dev"], default="core")
+    parser.add_argument("--profile", choices=["core", "des", "harness", "festo", "robot", "identification", "browser", "dev",
+                                            "benchmark", "factoryflow", "chronobench", "plaid", "semantic", "tensile"], default="core")
     parser.add_argument("--worker-python")
     parser.add_argument("--output", type=Path, default=ROOT / "work/runs/checks")
     args = parser.parse_args()
