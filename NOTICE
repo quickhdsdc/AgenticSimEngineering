@@ -1,11 +1,14 @@
 Third-party software and assets
 ==============================
 
-The root MIT license applies only to original AgenticSimEngineering code.
+The root non-commercial license applies only to original licensor-controlled
+AgenticSimEngineering contributions; the included A4S Harness has its own
+matching non-commercial LICENSE. No blanket relicensing of vendored content is made.
 Existing third-party copyright, attribution and license terms take precedence
-for their respective files. This repository is not uniformly MIT licensed.
+for their respective files. This repository contains multiple independently licensed components.
 
-* components/harness: A4S Harness, MIT license metadata in pyproject.toml.
+* components/harness: A4S Harness original contributions, non-commercial;
+  see components/harness/LICENSE and its pyproject.toml metadata.
 * components/harness/_others/OpenMes-main: OpenMES,
   https://github.com/Mes-Open/OpenMes, AGPL-3.0; see its LICENSE and additional
   LICENSE-AFL-3.0.txt. Review those terms before redistribution or deployment.
@@ -21,7 +24,7 @@ for their respective files. This repository is not uniformly MIT licensed.
 * Three.js: MIT; installed through npm. Exported viewer bundles retain its
   notice. Playwright and other dependencies retain their own licenses.
 * OpenRadioss/other native solvers: obtained separately under upstream terms;
-  the root MIT license does not grant rights to their binaries or libraries.
+  the root non-commercial license does not grant rights to their binaries or libraries.
 
 External research datasets, papers, weights and customer engineering samples
 are not relicensed here. Fetchers record source/version information; check each

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "An industrial agent harness that manages assets through their Asset Administration Shells"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
-license = { text = "MIT" }
+license = { text = "LicenseRef-Dachuan-Shi-NC-1.0" }
 
 # Exact pins, not ranges. A range lets a transitive dependency change under
 # a deployment without review; on a shopfloor host that is not acceptable.

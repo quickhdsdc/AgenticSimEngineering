@@ -19,5 +19,6 @@
     "@typescript-eslint/parser": "^8.48.1",
     "@vue/eslint-config-typescript": "^14.6.0",
     "eslint-import-resolver-typescript": "^4.4.4"
-  }
+  },
+  "license": "SEE LICENSE IN LICENSE"
 }
